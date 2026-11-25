@@ -1,0 +1,8 @@
+dist/
+node_modules/
+backend/
+.venv/
+coverage/
+package-lock.json
+bun.lock
+*.md
