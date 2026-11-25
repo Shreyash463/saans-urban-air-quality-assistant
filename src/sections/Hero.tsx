@@ -146,11 +146,11 @@ export function Hero({ language, previewReading, reducedMotion, isDark }: HeroPr
           {/* Right column: Focal sweeping SVG AQI Gauge card */}
           <div className="lg:col-span-5 flex justify-center lg:justify-end">
             <div className="saans-theme-surface w-full max-w-sm rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-[#131C2E]/95 p-6 sm:p-7 shadow-sm">
-              <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="min-h-[36px] flex items-center justify-between gap-2 mb-3">
                 {previewReading.source === 'demo' ? (
                   <DemoReadingInfo language={language} />
                 ) : (
-                  <span className="text-sm font-medium text-teal-800 dark:text-teal-300">
+                  <span className="text-sm font-medium text-teal-800 dark:text-teal-300 truncate">
                     {formatAqiSourceLabel(previewReading, language)}
                   </span>
                 )}

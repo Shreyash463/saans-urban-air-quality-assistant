@@ -101,6 +101,15 @@ export function formatPlanAsText(plan: PlanResponse, language: LanguageCode): st
     lines.push(`  ${impactLine}`);
   }
 
+  if (plan.communityActions && plan.communityActions.length > 0) {
+    lines.push('', `[${t(language, 'communityHeading')}]`);
+    for (const action of plan.communityActions) {
+      lines.push(`- ${action.title} (${action.who.toUpperCase()} · ${action.effort})`);
+      lines.push(`  ${action.howTo}`);
+      lines.push(`  ${t(language, 'communityImpactLabel')}: ${action.estimatedImpact}`);
+    }
+  }
+
   lines.push('', plan.disclaimer);
   return lines.join('\n');
 }

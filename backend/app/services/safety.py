@@ -70,83 +70,88 @@ def build_disclaimer(language: LanguageCode) -> str:
     )
 
 
+def _tier_advisory_sentence(is_hi: bool, aqi: int, label_en: str, label_hi: str) -> str:
+    if aqi >= 401:
+        return (
+            f"वायु गुणवत्ता गंभीर स्तर ({label_hi}, AQI {aqi}) पर है, जो स्वस्थ लोगों और संवेदनशील वर्गों दोनों को प्रभावित करती है।"
+            if is_hi
+            else f"Air quality is Severe (AQI {aqi}), which affects healthy adults and poses serious risk to sensitive groups."
+        )
+    if aqi >= 301:
+        return (
+            f"वायु गुणवत्ता बहुत खराब ({label_hi}, AQI {aqi}) है, जिससे लंबे समय तक बाहर रहने पर श्वसन दबाव बढ़ सकता है।"
+            if is_hi
+            else f"Air quality is Very Poor (AQI {aqi}), increasing the risk of airway irritation and respiratory strain on prolonged exposure."
+        )
+    if aqi >= 201:
+        return (
+            f"वायु गुणवत्ता खराब ({label_hi}, AQI {aqi}) है; आज सभी के लिए बाहरी व्यायाम से बचना आवश्यक है।"
+            if is_hi
+            else f"Air quality is Poor (AQI {aqi}); everyone should avoid prolonged outdoor exertion today."
+        )
+    if aqi >= 101:
+        return (
+            f"वायु गुणवत्ता मध्यम ({label_hi}, AQI {aqi}) है; संवेदनशील लोगों को अतिरिक्त सावधानी बरतनी चाहिए।"
+            if is_hi
+            else f"Air quality is Moderate (AQI {aqi}), which can trigger breathing discomfort for sensitive households."
+        )
+    return (
+        f"वायु गुणवत्ता {label_hi} (AQI {aqi}) है और अधिकांश लोगों के लिए सामान्य दैनिक गतिविधियां आरामदायक हैं।"
+        if is_hi
+        else f"Air quality is {label_en} (AQI {aqi}), making normal daily routines comfortable for most people."
+    )
+
+
+def _children_advisory_sentence(is_hi: bool, aqi: int) -> str:
+    if aqi >= 201:
+        return (
+            "बच्चों के लिए: आज सुबह और शाम के बाहरी खेल रद्द करें और सभी खेलकूद घर के अंदर रखें।"
+            if is_hi
+            else "For children: Keep playtime and school sports indoors today because young lungs absorb a higher PM2.5 dose per breath."
+        )
+    if aqi >= 101:
+        return (
+            "बच्चों के लिए: भारी दौड़-भाग से बचें और केवल दोपहर 1–4 बजे की स्वच्छ अवधि में हल्की गतिविधि चुनें।"
+            if is_hi
+            else "For children: Limit vigorous outdoor play and keep brief outdoor breaks to the cleaner 1–4 PM window away from busy roads."
+        )
+    return (
+        "बच्चों के लिए: सड़क से दूर पार्कों में सामान्य बाहरी खेल सुरक्षित है।"
+        if is_hi
+        else "For children: Regular outdoor play in parks away from heavy traffic is fine today."
+    )
+
+
+def _elderly_advisory_sentence(is_hi: bool, aqi: int) -> str:
+    if aqi >= 201:
+        return (
+            "बुजुर्ग सदस्यों (60+) के लिए: सुबह की सैर टालें, घर के अंदर साफ हवा वाले कमरे में रहें और पर्याप्त पानी पिएं।"
+            if is_hi
+            else "For older adults (60+): Skip morning and evening walks, stay in a well-sealed indoor room, and stay well hydrated."
+        )
+    if aqi >= 101:
+        return (
+            "बुजुर्ग सदस्यों (60+) के लिए: सैर को दोपहर की धूप वाले समय तक सीमित रखें और मुख्य ट्रैफ़िक से दूर रहें।"
+            if is_hi
+            else "For older adults (60+): Shift gentle walks to the midday daylight window and pause immediately if any fatigue or shortness of breath occurs."
+        )
+    return (
+        "बुजुर्ग सदस्यों (60+) के लिए: हल्की सैर सामान्य रूप से सुरक्षित है, पर भारी ट्रैफ़िक क्षेत्रों से बचें।"
+        if is_hi
+        else "For older adults (60+): Routine walks are comfortable today, though avoiding busy intersections remains helpful."
+    )
+
+
 def build_health_advisory(profile: UserProfile, aqi: int) -> str:
     """Composes a grammatically clean health advisory by CPCB tier and vulnerability flags."""
     is_hi = profile.language == "hi"
     cat = get_aqi_category(aqi)
-    sentences: list[str] = []
-
-    if aqi >= 401:
-        sentences.append(
-            f"वायु गुणवत्ता गंभीर स्तर ({cat.label_hi}, AQI {aqi}) पर है, जो स्वस्थ लोगों और संवेदनशील वर्गों दोनों को प्रभावित करती है।"
-            if is_hi
-            else f"Air quality is Severe (AQI {aqi}), which affects healthy adults and poses serious risk to sensitive groups."
-        )
-    elif aqi >= 301:
-        sentences.append(
-            f"वायु गुणवत्ता बहुत खराब ({cat.label_hi}, AQI {aqi}) है, जिससे लंबे समय तक बाहर रहने पर श्वसन दबाव बढ़ सकता है।"
-            if is_hi
-            else f"Air quality is Very Poor (AQI {aqi}), increasing the risk of airway irritation and respiratory strain on prolonged exposure."
-        )
-    elif aqi >= 201:
-        sentences.append(
-            f"वायु गुणवत्ता खराब ({cat.label_hi}, AQI {aqi}) है; आज सभी के लिए बाहरी व्यायाम से बचना आवश्यक है।"
-            if is_hi
-            else f"Air quality is Poor (AQI {aqi}); everyone should avoid prolonged outdoor exertion today."
-        )
-    elif aqi >= 101:
-        sentences.append(
-            f"वायु गुणवत्ता मध्यम ({cat.label_hi}, AQI {aqi}) है; संवेदनशील लोगों को अतिरिक्त सावधानी बरतनी चाहिए।"
-            if is_hi
-            else f"Air quality is Moderate (AQI {aqi}), which can trigger breathing discomfort for sensitive households."
-        )
-    else:
-        sentences.append(
-            f"वायु गुणवत्ता {cat.label_hi} (AQI {aqi}) है और अधिकांश लोगों के लिए सामान्य दैनिक गतिविधियां आरामदायक हैं।"
-            if is_hi
-            else f"Air quality is {cat.label_en} (AQI {aqi}), making normal daily routines comfortable for most people."
-        )
+    sentences: list[str] = [_tier_advisory_sentence(is_hi, aqi, cat.label_en, cat.label_hi)]
 
     if profile.has_children:
-        if aqi >= 201:
-            sentences.append(
-                "बच्चों के लिए: आज सुबह और शाम के बाहरी खेल रद्द करें और सभी खेलकूद घर के अंदर रखें।"
-                if is_hi
-                else "For children: Keep playtime and school sports indoors today because young lungs absorb a higher PM2.5 dose per breath."
-            )
-        elif aqi >= 101:
-            sentences.append(
-                "बच्चों के लिए: भारी दौड़-भाग से बचें और केवल दोपहर 1–4 बजे की स्वच्छ अवधि में हल्की गतिविधि चुनें।"
-                if is_hi
-                else "For children: Limit vigorous outdoor play and keep brief outdoor breaks to the cleaner 1–4 PM window away from busy roads."
-            )
-        else:
-            sentences.append(
-                "बच्चों के लिए: सड़क से दूर पार्कों में सामान्य बाहरी खेल सुरक्षित है।"
-                if is_hi
-                else "For children: Regular outdoor play in parks away from heavy traffic is fine today."
-            )
-
+        sentences.append(_children_advisory_sentence(is_hi, aqi))
     if profile.has_elderly:
-        if aqi >= 201:
-            sentences.append(
-                "बुजुर्ग सदस्यों (60+) के लिए: सुबह की सैर टालें, घर के अंदर साफ हवा वाले कमरे में रहें और पर्याप्त पानी पिएं।"
-                if is_hi
-                else "For older adults (60+): Skip morning and evening walks, stay in a well-sealed indoor room, and stay well hydrated."
-            )
-        elif aqi >= 101:
-            sentences.append(
-                "बुजुर्ग सदस्यों (60+) के लिए: सैर को दोपहर की धूप वाले समय तक सीमित रखें और मुख्य ट्रैफ़िक से दूर रहें।"
-                if is_hi
-                else "For older adults (60+): Shift gentle walks to the midday daylight window and pause immediately if any fatigue or shortness of breath occurs."
-            )
-        else:
-            sentences.append(
-                "बुजुर्ग सदस्यों (60+) के लिए: हल्की सैर सामान्य रूप से सुरक्षित है, पर भारी ट्रैफ़िक क्षेत्रों से बचें।"
-                if is_hi
-                else "For older adults (60+): Routine walks are comfortable today, though avoiding busy intersections remains helpful."
-            )
-
+        sentences.append(_elderly_advisory_sentence(is_hi, aqi))
     if profile.has_respiratory_condition:
         if aqi >= 101:
             sentences.append(

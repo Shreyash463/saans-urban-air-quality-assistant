@@ -1,420 +1,272 @@
 import type { LanguageCode } from '../types';
 
-export const TRANSLATIONS = {
-  en: {
-    // Skip & Navigation
-    skipToMain: 'Skip to main content',
-    brandName: 'Saans',
-    navHowItWorks: 'How it works',
-    navProfile: 'Your profile',
-    navPlan: 'Your plan',
-    navSimulator: 'Impact simulator',
-    navChat: 'Ask Saans',
-    navGetPlan: 'Get clean-air plan',
-    switchToLight: 'Switch to light theme',
-    switchToDark: 'Switch to dark theme',
-    switchLanguageLabel: 'Switch language to Hindi',
-    reduceMotionLabel: 'Reduce motion',
-    reduceMotionOn: 'Motion reduced',
-    reduceMotionOff: 'Reduce motion',
+const ENGLISH_TRANSLATIONS = {
+  // Skip & Navigation
+  skipToMain: 'Skip to main content',
+  brandName: 'Saans',
+  navHowItWorks: 'How it works',
+  navProfile: 'Your profile',
+  navPlan: 'Your plan',
+  navSimulator: 'Impact simulator',
+  navChat: 'Ask Saans',
+  navGetPlan: 'Get clean-air plan',
+  switchToLight: 'Switch to light theme',
+  switchToDark: 'Switch to dark theme',
+  switchLanguageLabel: 'हिन्दी — Switch language to Hindi',
+  reduceMotionLabel: 'Reduce motion',
+  reduceMotionOn: 'Motion reduced',
+  reduceMotionOff: 'Reduce motion',
 
-    // Hero
-    heroEyebrow: 'Urban Air Quality Assistant · Indian CPCB Scale',
-    heroTitle: 'Saans',
-    heroPromise: 'Breathe easier, one smart choice at a time',
-    heroDescription:
-      'Navigate severe winter smog and urban air pollution with tailored low-emission daily routines, practical indoor air quality hacks, and sustainable swaps—with clear, honest impact estimates for every choice.',
-    heroPrimaryCta: 'Get my clean-air plan',
-    heroSecondaryCta: 'See how it works',
-    heroDemoCaption: 'Sample reading for demo',
-    sampleReadingForDemo: 'Sample reading for demo',
-    demoInfoTooltipLabel: 'About sample demo readings',
-    demoInfoTooltipText: 'Live data connects when the backend is enabled.',
+  // Hero
+  heroEyebrow: 'Urban Air Quality Assistant · Indian CPCB Scale',
+  heroTitle: 'Saans',
+  heroPromise: 'Breathe easier, one smart choice at a time',
+  heroDescription:
+    'Navigate severe winter smog and urban air pollution with tailored low-emission daily routines, practical indoor air quality hacks, and sustainable swaps—with clear, honest impact estimates for every choice.',
+  heroPrimaryCta: 'Get my clean-air plan',
+  heroSecondaryCta: 'See how it works',
+  heroDemoCaption: 'Sample reading for demo',
+  sampleReadingForDemo: 'Sample reading for demo',
+  demoInfoTooltipLabel: 'About sample demo readings',
+  demoInfoTooltipText: 'Live data connects when the backend is enabled.',
 
-    // How it works
-    howItWorksHeading: 'How Saans works',
-    step1Title: 'Tell us about your day',
-    step1Desc:
-      'Share your city, household members, commute, home type, cooking fuel, and budget.',
-    step2Title: 'Get your personalized plan',
-    step2Desc:
-      'Receive a CPCB-calibrated daily routine, indoor air hacks, mask guidance, and clean swaps.',
-    step3Title: 'See the real impact of every choice',
-    step3Desc:
-      'Toggle everyday changes in the live simulator to compare PM2.5 exposure and monthly CO2 reductions.',
+  // How it works
+  howItWorksHeading: 'How Saans works',
+  step1Title: 'Tell us about your day',
+  step1Desc:
+    'Share your city, household members, commute, home type, cooking fuel, and budget.',
+  step2Title: 'Get your personalized plan',
+  step2Desc:
+    'Receive a CPCB-calibrated daily routine, indoor air hacks, mask guidance, and clean swaps.',
+  step3Title: 'See the real impact of every choice',
+  step3Desc:
+    'Toggle everyday changes in the live simulator to compare PM2.5 exposure and monthly CO2 reductions.',
 
-    // Profile form
-    profileHeading: 'Tell us about your life',
-    profileSubheading:
-      'Tailor your routine, indoor air hacks, and clean swaps to your household and city.',
-    cityLabel: 'Your city',
-    cityPlaceholder: 'e.g., Delhi, Lucknow, Pune',
-    cityQuickPickLabel: 'Use demo city:',
-    householdSizeLabel: 'Household size',
-    householdSizeDecrease: 'Decrease household size',
-    householdSizeIncrease: 'Increase household size',
-    householdMembersUnit: 'people',
-    sensitivityLegend: 'Household health & vulnerability',
-    hasChildrenLabel: 'Children at home (under 14)',
-    hasElderlyLabel: 'Older adults (60+)',
-    hasRespiratoryLabel: 'Asthma, COPD, or respiratory sensitivity',
-    commuteLegend: 'Primary daily commute',
-    commuteCar: 'Private car',
-    commuteTwoWheeler: 'Two-wheeler',
-    commutePublic: 'Metro / Bus',
-    commuteWalkCycle: 'Walk / Cycle',
-    commuteWfh: 'Work from home',
-    commuteKmLabel: 'Daily round-trip distance',
-    commuteKmUnit: 'km / day',
-    homeLegend: 'Home environment',
-    homeTypeLabel: 'Home type',
-    homeApartment: 'Apartment / Flat',
-    homeHouse: 'Independent house',
-    purifierLabel: 'Do you already own an air purifier?',
-    yes: 'Yes',
-    no: 'No',
-    cookingLegend: 'Primary cooking fuel',
-    fuelLpg: 'LPG cylinder',
-    fuelInduction: 'Induction / Electric',
-    fuelPipedGas: 'Piped natural gas (PNG)',
-    fuelBiomass: 'Wood / Biomass / Coal',
-    budgetLegend: 'Monthly budget for clean-air upgrades',
-    budgetLow: 'Low (prioritize free & DIY)',
-    budgetMedium: 'Medium (balanced)',
-    budgetHigh: 'High (full protection)',
-    submitProfile: 'Build my clean-air plan',
-    submitProfileLoading: 'Building your clean-air plan...',
-    clearMyData: 'Clear my data',
-    dataClearedNotice: 'Saved browser preferences have been cleared.',
+  // Profile form
+  profileHeading: 'Tell us about your life',
+  profileSubheading:
+    'Tailor your routine, indoor air hacks, and clean swaps to your household and city.',
+  cityLabel: 'Your city',
+  cityPlaceholder: 'e.g., Delhi, Lucknow, Pune',
+  cityQuickPickLabel: 'Use demo city:',
+  useMyLocation: 'Use my location',
+  useMyLocationLoading: 'Locating...',
+  locationApproxLabel: 'Your location (approx.)',
+  locationDeniedNotice:
+    'Location permission declined—please type your city above or pick a demo city.',
+  locationUnsupportedNotice:
+    'Geolocation is unavailable in this browser—please enter your city manually.',
+  householdSizeLabel: 'Household size',
+  householdSizeDecrease: 'Decrease household size',
+  householdSizeIncrease: 'Increase household size',
+  householdMembersUnit: 'people',
+  sensitivityLegend: 'Household health & vulnerability',
+  hasChildrenLabel: 'Children at home (under 14)',
+  hasElderlyLabel: 'Older adults (60+)',
+  hasRespiratoryLabel: 'Asthma, COPD, or respiratory sensitivity',
+  commuteLegend: 'Primary daily commute',
+  commuteCar: 'Private car',
+  commuteTwoWheeler: 'Two-wheeler',
+  commutePublic: 'Metro / Bus',
+  commuteWalkCycle: 'Walk / Cycle',
+  commuteWfh: 'Work from home',
+  commuteKmLabel: 'Daily round-trip distance',
+  commuteKmUnit: 'km / day',
+  homeLegend: 'Home environment',
+  homeTypeLabel: 'Home type',
+  homeApartment: 'Apartment / Flat',
+  homeHouse: 'Independent house',
+  purifierLabel: 'Do you already own an air purifier?',
+  yes: 'Yes',
+  no: 'No',
+  cookingLegend: 'Primary cooking fuel',
+  fuelLpg: 'LPG cylinder',
+  fuelInduction: 'Induction / Electric',
+  fuelPipedGas: 'Piped natural gas (PNG)',
+  fuelBiomass: 'Wood / Biomass / Coal',
+  budgetLegend: 'Monthly budget for clean-air upgrades',
+  budgetLow: 'Low (prioritize free & DIY)',
+  budgetMedium: 'Medium (balanced)',
+  budgetHigh: 'High (full protection)',
+  submitProfile: 'Build my clean-air plan',
+  submitProfileLoading: 'Building your clean-air plan...',
+  clearMyData: 'Clear my data',
+  dataClearedNotice: 'Saved browser preferences have been cleared.',
 
-    // Validation Errors
-    errorCityRequired: 'Please enter your city name or pick a demo city above.',
-    errorCityInvalidChars:
-      'City name can only contain letters, spaces, commas, periods, or hyphens.',
-    errorCityTooLong: 'City name must be 60 characters or fewer.',
-    errorChatRequired: 'Please type a question before sending.',
-    errorChatTooLong: 'Questions must be 500 characters or fewer.',
+  // Validation Errors
+  errorCityRequired: 'Please enter your city name or pick a demo city above.',
+  errorCityInvalidChars:
+    'City name can only contain letters, spaces, commas, periods, or hyphens.',
+  errorCityTooLong: 'City name must be 60 characters or fewer.',
+  errorChatRequired: 'Please type a question before sending.',
+  errorChatTooLong: 'Questions must be 500 characters or fewer.',
 
-    // Dashboard
-    planReadyAnnouncement: 'Your personalized clean-air plan is ready.',
-    planLoadingLabel: 'Personalizing your clean-air plan...',
-    loadingStageAqi: 'Checking live air quality',
-    loadingStageGemini: 'Personalizing with Gemini',
-    loadingStageSafety: 'Running safety checks',
-    loadingWakingServer:
-      'First request may take 15–30s while waking up the server — thank you for your patience.',
-    generatedByGemini: 'Generated by Gemini',
-    generatedByRules: 'Rule-based fallback',
-    dashboardHeading: 'Your personalized clean-air plan',
-    dashboardEmptyHeading: 'Ready when you are',
-    dashboardEmptyBody:
-      'Complete your household profile above to generate a CPCB-calibrated daily routine, indoor air quality hacks, and sustainable swaps.',
-    printPlanButton: 'Print / Save plan',
-    downloadPlanButton: 'Download plan (.txt)',
-    copyPlanButton: 'Copy plan',
-    copiedConfirmation: 'Clean-air plan copied to clipboard.',
-    downloadedConfirmation: 'Clean-air plan downloaded as a text file.',
-    printBlockedNotice:
-      'Print dialog is unavailable in this window—use Download plan (.txt) or Copy plan instead.',
-    sourceLive: 'Live AQI',
-    sourceDemo: 'Demo AQI',
-    dominantPollutantLabel: 'Dominant pollutant',
-    updatedAtLabel: 'Updated',
-    cpcbScaleLabel: 'Indian CPCB AQI Scale',
-    healthAdvisoryHeading: 'Personalized health advisory',
-    notMedicalAdviceBadge: 'Not medical advice',
-    routineHeading: "Today's low-emission routine",
-    slotMorning: 'Morning (6–10 AM)',
-    slotMidday: 'Midday (12–4 PM)',
-    slotEvening: 'Evening (5–9 PM)',
-    slotNight: 'Night (9 PM–6 AM)',
-    impactLabel: 'Direct impact',
-    indoorHacksHeading: 'Indoor air quality hacks',
-    indoorHacksSubtitle: 'Ranked for your selected budget and home setup',
-    estimatedBenefitLabel: 'Estimated benefit',
-    costFree: 'Free',
-    costLow: 'Low cost',
-    costMedium: 'Medium cost',
-    costHigh: 'Higher cost',
-    alternativesHeading: 'Sustainable alternatives',
-    alternativesSubtitle:
-      'Practical swaps that lower both personal PM2.5 and monthly carbon emissions',
-    currentHabitLabel: 'Current',
-    betterSwapLabel: 'Better swap',
-    pm25DropLabel: 'PM2.5 reduction',
-    co2SavedLabel: 'CO2 saved / month',
-    co2Pm25Only: 'PM2.5 only',
-    maskGuidanceHeading: 'Mask & outdoor-activity guidance',
+  // Dashboard
+  planReadyAnnouncement: 'Your personalized clean-air plan is ready.',
+  planLoadingLabel: 'Personalizing your clean-air plan...',
+  loadingStageAqi: 'Checking live air quality',
+  loadingStageGemini: 'Personalizing with Gemini',
+  loadingStageSafety: 'Running safety checks',
+  loadingWakingServer:
+    'First request may take 15–30s while waking up the server — thank you for your patience.',
+  generatedByGemini: 'Generated by Gemini',
+  generatedByRules: 'Rule-based fallback',
+  dashboardHeading: 'Your personalized clean-air plan',
+  dashboardEmptyHeading: 'Ready when you are',
+  dashboardEmptyBody:
+    'Complete your household profile above to generate a CPCB-calibrated daily routine, indoor air quality hacks, and sustainable swaps.',
+  printPlanButton: 'Print / Save plan',
+  downloadPlanButton: 'Download plan (.txt)',
+  copyPlanButton: 'Copy plan',
+  copiedConfirmation: 'Clean-air plan copied to clipboard.',
+  downloadedConfirmation: 'Clean-air plan downloaded as a text file.',
+  printBlockedNotice:
+    'Print dialog is unavailable in this window—use Download plan (.txt) or Copy plan instead.',
+  sourceLive: 'Live AQI',
+  sourceDemo: 'Demo AQI',
+  dominantPollutantLabel: 'Dominant pollutant',
+  updatedAtLabel: 'Updated',
+  cpcbScaleLabel: 'Indian CPCB AQI Scale',
+  healthAdvisoryHeading: 'Personalized health advisory',
+  notMedicalAdviceBadge: 'Not medical advice',
+  routineHeading: "Today's low-emission routine",
+  slotMorning: 'Morning (6–10 AM)',
+  slotMidday: 'Midday (12–4 PM)',
+  slotEvening: 'Evening (5–9 PM)',
+  slotNight: 'Night (9 PM–6 AM)',
+  impactLabel: 'Direct impact',
+  indoorHacksHeading: 'Indoor air quality hacks',
+  indoorHacksSubtitle: 'Ranked for your selected budget and home setup',
+  estimatedBenefitLabel: 'Estimated benefit',
+  costFree: 'Free',
+  costLow: 'Low cost',
+  costMedium: 'Medium cost',
+  costHigh: 'Higher cost',
+  alternativesHeading: 'Sustainable alternatives',
+  alternativesSubtitle:
+    'Practical swaps that lower both personal PM2.5 and monthly carbon emissions',
+  currentHabitLabel: 'Current',
+  betterSwapLabel: 'Better swap',
+  pm25DropLabel: 'PM2.5 reduction',
+  co2SavedLabel: 'CO2 saved / month',
+  co2Pm25Only: 'PM2.5 only',
+  communityHeading: 'Make it a community effort',
+  communitySubtitle:
+    'Collective actions for your RWA, neighbours, school, or workplace',
+  communityActorRwa: 'RWA',
+  communityActorSchool: 'School',
+  communityActorWorkplace: 'Workplace',
+  communityActorNeighbours: 'Neighbours',
+  effortLow: 'Low effort',
+  effortMedium: 'Medium effort',
+  effortHigh: 'Higher effort',
+  communityImpactLabel: 'Collective impact',
+  maskGuidanceHeading: 'Mask & outdoor-activity guidance',
 
-    // Impact Simulator
-    simulatorHeading: 'See the impact of your choices',
-    simulatorSubheading:
-      'Tailored to your profile: habits you already follow count in your baseline, while new switches show additional PM2.5 and CO2 savings.',
-    simulatorReset: 'Reset choices',
-    alreadyDoingBadge: 'Already doing ✓',
-    alreadyDoingNote: 'Counted in your baseline exposure today',
-    recommendedBadge: 'Recommended for you',
-    notApplicableNote: 'Not applicable to your current commute',
-    exposureTodayLabel: 'Your exposure today',
-    exposureAfterLabel: 'With your chosen habits',
-    meterPm25Label: 'Additional exposure cut',
-    meterCo2Label: 'New CO2 saved / month',
-    meterScoreLabel: 'Air-friendly score',
-    meterOutOf100: '/ 100',
-    scoreFormulaNote: 'Score = 100 − remaining exposure (max 95 with 5% floor)',
-    co2NotApplicable: 'CO2: —',
-    meterActiveChoicesHeading: 'What your chosen habits add',
-    meterEmptyChoices:
-      'Toggle one or more applicable switches to compare how much further you can lower exposure.',
-    howCalculatedToggle: 'How we calculated this',
-    howCalculatedIntro:
-      'All figures are approximate household-level estimates for planning—not lab measurements. Habits you already follow establish your baseline exposure; new choices stack multiplicatively (1 − Π(1 − rᵢ)) with a hard 95% reduction cap (5% minimum residual exposure). Air-friendly score equals round(100 − residual exposure). CO2 is counted only for emission-changing actions (commute, carpool, cooking fuel, waste burning).',
+  // Impact Simulator
+  simulatorHeading: 'See the impact of your choices',
+  simulatorSubheading:
+    'Tailored to your profile: habits you already follow count in your baseline, while new switches show additional PM2.5 and CO2 savings.',
+  simulatorReset: 'Reset choices',
+  alreadyDoingBadge: 'Already doing ✓',
+  alreadyDoingNote: 'Counted in your baseline exposure today',
+  recommendedBadge: 'Recommended for you',
+  notApplicableNote: 'Not applicable to your current commute',
+  exposureTodayLabel: 'Your exposure today',
+  exposureAfterLabel: 'With your chosen habits',
+  meterPm25Label: 'Additional exposure cut',
+  meterCo2Label: 'New CO2 saved / month',
+  meterScoreLabel: 'Air-friendly score',
+  meterOutOf100: '/ 100',
+  scoreFormulaNote: 'Score = 100 − remaining exposure (max 95 with 5% floor)',
+  co2NotApplicable: 'CO2: —',
+  meterActiveChoicesHeading: 'What your chosen habits add',
+  meterEmptyChoices:
+    'Toggle one or more applicable switches to compare how much further you can lower exposure.',
+  communityScaleHeading: 'Scale it to your community',
+  communityScaleLabel: 'Participating households',
+  communityScaleHomesUnit: 'households',
+  communityScaleCo2Label: 'Est. community CO2 avoided / month',
+  communityScaleWasteNote: 'Households stopping leaf/waste or solid-fuel burning',
+  communityScaleSelectHint:
+    'Scaled linearly from your household CO2 savings when similar neighbours adopt these choices.',
+  howCalculatedToggle: 'How we calculated this',
+  howCalculatedIntro:
+    'All figures are approximate household-level estimates for planning—not lab measurements. Habits you already follow establish your baseline exposure; new choices stack multiplicatively (1 − Π(1 − rᵢ)) with a hard 95% reduction cap (5% minimum residual exposure). Air-friendly score equals round(100 − residual exposure). CO2 is counted only for emission-changing actions. The "Scale it to your community" multiplier projects collective monthly CO2 avoided across 10–500 participating households.',
 
-    // Chat
-    chatHeading: 'Ask Saans',
-    chatSubheading:
-      'Have a specific question about smog, indoor air, masks, or kids playing outside? Ask below.',
-    chatSuggestionsLabel: 'Suggested questions',
-    chatSuggestion1: 'Is it safe for my kid to play outside today?',
-    chatSuggestion2: 'Cheapest way to improve indoor air?',
-    chatSuggestion3: 'Do air plants really work?',
-    chatInputLabel: 'Ask a follow-up question',
-    chatInputPlaceholder:
-      'Ask about masks, ventilation windows, DIY filters, cooking, or symptoms...',
-    chatSend: 'Ask',
-    chatSending: 'Thinking...',
-    chatTypingSr: 'Saans is typing a reply',
-    chatEmptyState:
-      'Pick a suggested question or type your own to get guidance grounded in your household profile.',
-    chatErrorFallback:
-      'Could not reach the assistant right now. Please try again in a moment.',
+  // Chat
+  chatHeading: 'Ask Saans',
+  chatSubheading:
+    'Have a specific question about smog, indoor air, masks, or kids playing outside? Ask below.',
+  chatSuggestionsLabel: 'Suggested questions',
+  chatSuggestion1: 'Is it safe for my kid to play outside today?',
+  chatSuggestion2: 'Cheapest way to improve indoor air?',
+  chatSuggestion3: 'Do air plants really work?',
+  chatInputLabel: 'Ask a follow-up question',
+  chatInputPlaceholder:
+    'Ask about masks, ventilation windows, DIY filters, cooking, or symptoms...',
+  chatSend: 'Ask',
+  chatSending: 'Thinking...',
+  chatTypingSr: 'Saans is typing a reply',
+  chatEmptyState:
+    'Pick a suggested question or type your own to get guidance grounded in your household profile.',
+  chatErrorFallback:
+    'Could not reach the assistant right now. Please try again in a moment.',
 
-    // Fallback notice
-    apiFallbackNotice:
-      'Live backend is temporarily unreachable—showing built-in deterministic Saans guidance instead.',
+  // Fallback notice
+  apiFallbackNotice:
+    'Live backend is temporarily unreachable—showing built-in deterministic Saans guidance instead.',
 
-    // Footer
-    footerAboutHeading: 'About Saans',
-    footerAboutText:
-      'Saans ("breath") is an urban air quality assistant built to help families and communities navigate severe winter smog with clear, low-emission daily actions.',
-    footerMedicalHeading: 'Health disclaimer',
-    footerMedicalText:
-      'Not medical advice. Saans provides general air-quality guidance and approximate exposure estimates. Consult a qualified doctor for asthma, COPD, heart disease, or acute symptoms.',
-    footerPrivacyHeading: 'Data & privacy',
-    footerPrivacyText:
-      'Your answers stay in your browser unless you submit them for a plan. No account, tracking cookies, or sensitive personal identifiers are collected.',
-    footerA11yHeading: 'Accessibility',
-    footerA11yText:
-      'Designed for keyboard navigation, screen readers, WCAG AA contrast in both light and dark modes, reduced motion, and bilingual EN/HI reading.',
-  },
-  hi: {
-    // Skip & Navigation
-    skipToMain: 'मुख्य सामग्री पर जाएं',
-    brandName: 'सांस (Saans)',
-    navHowItWorks: 'यह कैसे काम करता है',
-    navProfile: 'आपकी प्रोफ़ाइल',
-    navPlan: 'आपकी योजना',
-    navSimulator: 'प्रभाव सिम्युलेटर',
-    navChat: 'सांस से पूछें',
-    navGetPlan: 'योजना बनाएं',
-    switchToLight: 'लाइट थीम पर जाएं',
-    switchToDark: 'डार्क थीम पर जाएं',
-    switchLanguageLabel: 'भाषा अंग्रेज़ी में बदलें',
-    reduceMotionLabel: 'कम गति मोड',
-    reduceMotionOn: 'गति कम है',
-    reduceMotionOff: 'गति कम करें',
-
-    // Hero
-    heroEyebrow: 'शहरी वायु गुणवत्ता सहायक · भारतीय CPCB पैमाना',
-    heroTitle: 'सांस',
-    heroPromise: 'हर समझदार कदम के साथ लें साफ सांस',
-    heroDescription:
-      'सर्दियों के घने स्मॉग और शहरी वायु प्रदूषण से निपटने के लिए अपनी दिनचर्या, घर की हवा साफ रखने के व्यावहारिक उपाय और टिकाऊ विकल्प पाएं—हर बदलाव के स्पष्ट प्रभाव के साथ।',
-    heroPrimaryCta: 'मेरी स्वच्छ-वायु योजना बनाएं',
-    heroSecondaryCta: 'जानें यह कैसे काम करता है',
-    heroDemoCaption: 'डेमो के लिए नमूना रीडिंग',
-    sampleReadingForDemo: 'डेमो के लिए नमूना रीडिंग',
-    demoInfoTooltipLabel: 'नमूना डेमो रीडिंग की जानकारी',
-    demoInfoTooltipText: 'बैकएंड सक्षम होने पर लाइव डेटा जुड़ जाता है।',
-
-    // How it works
-    howItWorksHeading: 'सांस कैसे काम करता है',
-    step1Title: 'अपनी दिनचर्या बताएं',
-    step1Desc:
-      'अपना शहर, परिवार के सदस्य, यात्रा का तरीका, घर का प्रकार, रसोई ईंधन और बजट चुनें।',
-    step2Title: 'व्यक्तिगत योजना पाएं',
-    step2Desc:
-      'CPCB आधारित दैनिक दिनचर्या, घर के अंदर हवा सुधारने के उपाय, मास्क सलाह और टिकाऊ विकल्प पाएं।',
-    step3Title: 'हर विकल्प का असर देखें',
-    step3Desc: 'लाइव सिम्युलेटर में आदतें बदलकर PM2.5 संपर्क और मासिक CO2 में अनुमानित कमी देखें।',
-
-    // Profile form
-    profileHeading: 'अपने जीवन के बारे में बताएं',
-    profileSubheading:
-      'अपने शहर और परिवार के अनुसार दैनिक दिनचर्या, इनडोर उपाय और टिकाऊ विकल्प तैयार करें।',
-    cityLabel: 'आपका शहर',
-    cityPlaceholder: 'जैसे: Delhi, Lucknow, Pune',
-    cityQuickPickLabel: 'डेमो शहर चुनें:',
-    householdSizeLabel: 'परिवार के सदस्य',
-    householdSizeDecrease: 'सदस्यों की संख्या घटाएं',
-    householdSizeIncrease: 'सदस्यों की संख्या बढ़ाएं',
-    householdMembersUnit: 'लोग',
-    sensitivityLegend: 'परिवार का स्वास्थ्य और संवेदनशीलता',
-    hasChildrenLabel: 'घर में बच्चे हैं (14 वर्ष से कम)',
-    hasElderlyLabel: 'बुजुर्ग सदस्य हैं (60+)',
-    hasRespiratoryLabel: 'दमा, COPD या सांस की संवेदनशीलता',
-    commuteLegend: 'दैनिक यात्रा का मुख्य तरीका',
-    commuteCar: 'निजी कार',
-    commuteTwoWheeler: 'दोपहिया वाहन',
-    commutePublic: 'मेट्रो / बस',
-    commuteWalkCycle: 'पैदल / साइकिल',
-    commuteWfh: 'घर से काम (WFH)',
-    commuteKmLabel: 'दैनिक आने-जाने की दूरी',
-    commuteKmUnit: 'किमी / दिन',
-    homeLegend: 'घर का वातावरण',
-    homeTypeLabel: 'घर का प्रकार',
-    homeApartment: 'अपार्टमेंट / फ्लैट',
-    homeHouse: 'स्वतंत्र मकान',
-    purifierLabel: 'क्या आपके पास पहले से एयर प्यूरीफायर है?',
-    yes: 'हाँ',
-    no: 'नहीं',
-    cookingLegend: 'खाना पकाने का मुख्य ईंधन',
-    fuelLpg: 'LPG सिलेंडर',
-    fuelInduction: 'इंडक्शन / इलेक्ट्रिक',
-    fuelPipedGas: 'पाइप्ड गैस (PNG)',
-    fuelBiomass: 'लकड़ी / बायोमास / कोयला',
-    budgetLegend: 'स्वच्छ हवा के उपायों के लिए मासिक बजट',
-    budgetLow: 'कम (मुफ्त और DIY प्राथमिकता)',
-    budgetMedium: 'मध्यम (संतुलित)',
-    budgetHigh: 'अधिक (पूर्ण सुरक्षा)',
-    submitProfile: 'मेरी स्वच्छ-वायु योजना बनाएं',
-    submitProfileLoading: 'आपकी योजना तैयार हो रही है...',
-    clearMyData: 'मेरा डेटा हटाएं',
-    dataClearedNotice: 'ब्राउज़र में सहेजी गई प्राथमिकताएं हटा दी गई हैं।',
-
-    // Validation Errors
-    errorCityRequired: 'कृपया शहर का नाम दर्ज करें या ऊपर से डेमो शहर चुनें।',
-    errorCityInvalidChars: 'शहर के नाम में केवल अक्षर, स्पेस, कॉमा, बिंदु या हाइफ़न हो सकते हैं।',
-    errorCityTooLong: 'शहर का नाम 60 अक्षरों या उससे कम होना चाहिए।',
-    errorChatRequired: 'कृपया भेजने से पहले एक प्रश्न लिखें।',
-    errorChatTooLong: 'प्रश्न 500 अक्षरों या उससे कम होना चाहिए।',
-
-    // Dashboard
-    planReadyAnnouncement: 'आपकी व्यक्तिगत स्वच्छ-वायु योजना तैयार है।',
-    planLoadingLabel: 'आपकी व्यक्तिगत योजना तैयार की जा रही है...',
-    loadingStageAqi: 'लाइव वायु गुणवत्ता जांच रहे हैं',
-    loadingStageGemini: 'Gemini के साथ व्यक्तिगत योजना बना रहे हैं',
-    loadingStageSafety: 'सुरक्षा जांच कर रहे हैं',
-    loadingWakingServer:
-      'पहले अनुरोध पर सर्वर शुरू होने में 15–30 सेकंड लग सकते हैं — कृपया प्रतीक्षा करें।',
-    generatedByGemini: 'Gemini द्वारा तैयार',
-    generatedByRules: 'नियम-आधारित फ़ॉलबैक',
-    dashboardHeading: 'आपकी व्यक्तिगत स्वच्छ-वायु योजना',
-    dashboardEmptyHeading: 'शुरू करने के लिए तैयार',
-    dashboardEmptyBody:
-      'CPCB आधारित दिनचर्या, इनडोर उपाय और टिकाऊ विकल्प पाने के लिए ऊपर अपनी पारिवारिक प्रोफ़ाइल भरें।',
-    printPlanButton: 'योजना प्रिंट / सेव करें',
-    downloadPlanButton: 'डाउनलोड (.txt)',
-    copyPlanButton: 'योजना कॉपी करें',
-    copiedConfirmation: 'स्वच्छ-वायु योजना क्लिपबोर्ड पर कॉपी हो गई है।',
-    downloadedConfirmation: 'स्वच्छ-वायु योजना टेक्स्ट फ़ाइल के रूप में डाउनलोड हो गई है।',
-    printBlockedNotice:
-      'इस विंडो में प्रिंट संवाद उपलब्ध नहीं है—कृपया डाउनलोड (.txt) या कॉपी करें का उपयोग करें।',
-    sourceLive: 'लाइव AQI',
-    sourceDemo: 'डेमो AQI',
-    dominantPollutantLabel: 'मुख्य प्रदूषक',
-    updatedAtLabel: 'अपडेट समय',
-    cpcbScaleLabel: 'भारतीय CPCB AQI पैमाना',
-    healthAdvisoryHeading: 'व्यक्तिगत स्वास्थ्य सलाह',
-    notMedicalAdviceBadge: 'चिकित्सीय सलाह नहीं',
-    routineHeading: 'आज की कम-उत्सर्जन दिनचर्या',
-    slotMorning: 'सुबह (6–10 बजे)',
-    slotMidday: 'दोपहर (12–4 बजे)',
-    slotEvening: 'शाम (5–9 बजे)',
-    slotNight: 'रात (9 बजे–6 बजे)',
-    impactLabel: 'सीधा प्रभाव',
-    indoorHacksHeading: 'घर की हवा साफ रखने के उपाय',
-    indoorHacksSubtitle: 'आपके बजट और घर के अनुसार क्रमबद्ध',
-    estimatedBenefitLabel: 'अनुमानित लाभ',
-    costFree: 'निःशुल्क',
-    costLow: 'कम खर्च',
-    costMedium: 'मध्यम खर्च',
-    costHigh: 'अधिक खर्च',
-    alternativesHeading: 'टिकाऊ विकल्प',
-    alternativesSubtitle:
-      'व्यावहारिक बदलाव जो व्यक्तिगत PM2.5 और मासिक कार्बन उत्सर्जन दोनों घटाते हैं',
-    currentHabitLabel: 'वर्तमान आदत',
-    betterSwapLabel: 'बेहतर विकल्प',
-    pm25DropLabel: 'PM2.5 में कमी',
-    co2SavedLabel: 'मासिक CO2 बचत',
-    co2Pm25Only: 'केवल PM2.5',
-    maskGuidanceHeading: 'मास्क और बाहरी गतिविधियों की सलाह',
-
-    // Impact Simulator
-    simulatorHeading: 'अपने विकल्पों का प्रभाव देखें',
-    simulatorSubheading:
-      'आपकी प्रोफ़ाइल के अनुसार: जो आदतें आप पहले से अपना रहे हैं वे बेसलाइन में गिनी जाती हैं, और नए बदलाव अतिरिक्त लाभ दिखाते हैं।',
-    simulatorReset: 'विकल्प रीसेट करें',
-    alreadyDoingBadge: 'पहले से कर रहे हैं ✓',
-    alreadyDoingNote: 'आपके आज के बेसलाइन में शामिल',
-    recommendedBadge: 'आपके लिए अनुशंसित',
-    notApplicableNote: 'आपकी वर्तमान यात्रा पर लागू नहीं',
-    exposureTodayLabel: 'आज आपका संपर्क',
-    exposureAfterLabel: 'चुने हुए बदलावों के साथ',
-    meterPm25Label: 'अतिरिक्त PM2.5 कमी',
-    meterCo2Label: 'नई मासिक CO2 बचत',
-    meterScoreLabel: 'वायु-अनुकूल स्कोर',
-    meterOutOf100: '/ 100',
-    scoreFormulaNote: 'स्कोर = 100 − शेष संपर्क (अधिकतम 95)',
-    co2NotApplicable: 'CO2: —',
-    meterActiveChoicesHeading: 'आपके चुने गए नए बदलावों का असर',
-    meterEmptyChoices: 'अतिरिक्त लाभ देखने के लिए ऊपर दिए गए एक या अधिक लागू स्विच चालू करें।',
-    howCalculatedToggle: 'हमने इसकी गणना कैसे की',
-    howCalculatedIntro:
-      'ये सभी आंकड़े योजना बनाने के लिए अनुमानित पारिवारिक स्तर के मान हैं—लैब माप नहीं। आपकी मौजूदा आदतें बेसलाइन तय करती हैं और नए बदलाव गुणात्मक रूप से (1 − Π(1 − rᵢ)) जुड़ते हैं (अधिकतम 95% सीमा)। स्कोर = round(100 − शेष संपर्क)। CO2 केवल उत्सर्जन घटाने वाले कदमों के लिए गिना जाता है।',
-
-    // Chat
-    chatHeading: 'सांस से पूछें',
-    chatSubheading:
-      'स्मॉग, घर की हवा, मास्क या बच्चों के बाहर खेलने के बारे में कोई सवाल है? नीचे पूछें।',
-    chatSuggestionsLabel: 'सुझाए गए प्रश्न',
-    chatSuggestion1: 'क्या आज मेरे बच्चे का बाहर खेलना सुरक्षित है?',
-    chatSuggestion2: 'घर की हवा सुधारने का सबसे सस्ता तरीका क्या है?',
-    chatSuggestion3: 'क्या इंडोर पौधे सच में हवा साफ करते हैं?',
-    chatInputLabel: 'अपना अगला प्रश्न पूछें',
-    chatInputPlaceholder: 'मास्क, वेंटिलेशन समय, DIY फ़िल्टर, रसोई या लक्षणों के बारे में पूछें...',
-    chatSend: 'पूछें',
-    chatSending: 'सोच रहा है...',
-    chatTypingSr: 'सांस उत्तर तैयार कर रहा है',
-    chatEmptyState:
-      'अपनी पारिवारिक प्रोफ़ाइल के आधार पर सलाह पाने के लिए सुझाया गया प्रश्न चुनें या अपना सवाल लिखें।',
-    chatErrorFallback: 'अभी सहायक से संपर्क नहीं हो सका। कृपया कुछ क्षण बाद पुनः प्रयास करें।',
-
-    // Fallback notice
-    apiFallbackNotice:
-      'लाइव बैकएंड अभी उपलब्ध नहीं है—अंतर्निहित सांस डेमो मार्गदर्शन दिखाया जा रहा है।',
-
-    // Footer
-    footerAboutHeading: 'सांस के बारे में',
-    footerAboutText:
-      'सांस एक शहरी वायु गुणवत्ता सहायक है जो परिवारों और समुदायों को सर्दियों के गंभीर स्मॉग से निपटने के लिए स्पष्ट, कम-उत्सर्जन उपाय सुझाता है।',
-    footerMedicalHeading: 'स्वास्थ्य अस्वीकरण',
-    footerMedicalText:
-      'यह चिकित्सीय सलाह नहीं है। सांस सामान्य वायु-गुणवत्ता मार्गदर्शन और अनुमानित प्रभाव देता है। दमा, COPD या गंभीर लक्षणों के लिए डॉक्टर से परामर्श लें।',
-    footerPrivacyHeading: 'डेटा और गोपनीयता',
-    footerPrivacyText:
-      'जब तक आप योजना के लिए सबमिट नहीं करते, आपके उत्तर केवल आपके ब्राउज़र में रहते हैं। कोई खाता या ट्रैकिंग कुकी नहीं।',
-    footerA11yHeading: 'सुगम्यता (Accessibility)',
-    footerA11yText:
-      'कीबोर्ड नेविगेशन, स्क्रीन रीडर, लाइट और डार्क दोनों मोड में WCAG AA कंट्रास्ट, कम गति (reduced motion) और द्विभाषी (EN/HI) पठन के लिए डिज़ाइन किया गया।',
-  },
+  // Footer
+  footerAboutHeading: 'About Saans',
+  footerAboutText:
+    'Saans ("breath") is an urban air quality assistant built to help families and communities navigate severe winter smog with clear, low-emission daily actions.',
+  footerMedicalHeading: 'Health disclaimer',
+  footerMedicalText:
+    'Not medical advice. Saans provides general air-quality guidance and approximate exposure estimates. Consult a qualified doctor for asthma, COPD, heart disease, or acute symptoms.',
+  footerPrivacyHeading: 'Data & privacy',
+  footerPrivacyText:
+    'Your answers stay in your browser unless you submit them for a plan. No account, tracking cookies, or geolocation coordinates are stored.',
+  footerA11yHeading: 'Accessibility',
+  footerA11yText:
+    'Designed for keyboard navigation, screen readers, WCAG AA contrast in both light and dark modes, reduced motion, and bilingual EN/HI reading.',
 } as const;
 
-export type TranslationKey = keyof typeof TRANSLATIONS.en;
+export type TranslationKey = keyof typeof ENGLISH_TRANSLATIONS;
+export type TranslationDictionary = Record<TranslationKey, string>;
+
+let hindiDictionary: TranslationDictionary | null = null;
+let hindiLoadPromise: Promise<TranslationDictionary> | null = null;
+
+/**
+ * Dynamically loads the Hindi dictionary and Devanagari subset font chunk
+ * only when Hindi is selected (0 bytes loaded on English sessions).
+ */
+export async function loadLanguageBundle(
+  language: LanguageCode
+): Promise<TranslationDictionary> {
+  if (language === 'en') {
+    return ENGLISH_TRANSLATIONS;
+  }
+  if (hindiDictionary !== null) {
+    return hindiDictionary;
+  }
+  if (hindiLoadPromise === null) {
+    hindiLoadPromise = import('./i18n.hi').then((mod) => {
+      hindiDictionary = mod.HINDI_TRANSLATIONS;
+      return mod.HINDI_TRANSLATIONS;
+    });
+  }
+  return hindiLoadPromise;
+}
 
 /**
  * Looks up a localized string for the active language ('en' or 'hi').
+ * Falls back cleanly to English if the async Hindi chunk is still loading.
  */
 export function t(language: LanguageCode, key: TranslationKey): string {
-  return TRANSLATIONS[language][key];
+  if (language === 'hi' && hindiDictionary !== null) {
+    return hindiDictionary[key];
+  }
+  return ENGLISH_TRANSLATIONS[key];
 }

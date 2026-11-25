@@ -5,7 +5,15 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'backend/**', '.venv/**', 'coverage/**', 'node_modules/**'],
+    ignores: [
+      'dist/**',
+      'backend/**',
+      '.venv/**',
+      'coverage/**',
+      'node_modules/**',
+      'test-results/**',
+      'playwright-report/**',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -20,6 +28,23 @@ export default tseslint.config(
       'react-hooks/set-state-in-effect': 'off',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      complexity: ['error', { max: 16 }],
+      'max-lines-per-function': [
+        'warn',
+        { max: 240, skipBlankLines: true, skipComments: true },
+      ],
+    },
+  },
+  {
+    files: [
+      'src/__tests__/**/*.{ts,tsx}',
+      'src/services/mockPlanGenerator.ts',
+      'src/services/mockChat.ts',
+      'src/components/SmogCanvas.tsx',
+    ],
+    rules: {
+      complexity: 'off',
+      'max-lines-per-function': 'off',
     },
   }
 );

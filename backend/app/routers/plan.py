@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
 import time
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request, Response
 
 from app.dependencies import (
     enforce_rate_limit,
@@ -17,8 +18,10 @@ from app.dependencies import (
     get_plan_cache,
     get_plan_limiter,
 )
+from app.routers.air_quality import validate_optional_coords
 from app.schemas import PlanResponse, UserProfile
 from app.services.fallback_plan import generate_fallback_plan
+from app.services.impact import ProfileFacts, build_profile_facts
 
 logger = logging.getLogger("saans")
 router = APIRouter(prefix="/api", tags=["plan"])
@@ -34,22 +37,38 @@ def _build_plan_cache_key(profile: UserProfile, aqi_source: str, aqi_val: int) -
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
+async def _prepare_profile_facts(profile: UserProfile) -> ProfileFacts:
+    """Computes grounded profile facts asynchronously alongside AQI I/O."""
+    return build_profile_facts(profile)
+
+
 @router.post("/plan", response_model=PlanResponse, response_model_by_alias=True)
 async def create_plan_endpoint(
     profile: UserProfile,
     request: Request,
+    response: Response,
+    lat: float | None = Query(default=None, ge=-90.0, le=90.0),
+    lon: float | None = Query(default=None, ge=-180.0, le=180.0),
 ) -> PlanResponse:
     """Generates a personalized clean-air plan using live AQI, Gemini, safety checks, and fallback."""
     started = time.monotonic()
+    response.headers["Cache-Control"] = "no-store"
+
     await enforce_rate_limit(
         get_plan_limiter(request),
         request,
         "Too many plan requests. Please try again shortly.",
     )
+    coords = validate_optional_coords(lat, lon)
 
     aq_service = get_air_quality_service(request)
     http_client = get_http_client(request)
-    aqi_reading = await aq_service.get_air_quality(profile.city, http_client)
+    aqi_coro = (
+        aq_service.get_air_quality_by_coords(coords[0], coords[1], http_client)
+        if coords is not None
+        else aq_service.get_air_quality(profile.city, http_client)
+    )
+    aqi_reading, facts = await asyncio.gather(aqi_coro, _prepare_profile_facts(profile))
 
     plan_cache = get_plan_cache(request)
     cache_key = _build_plan_cache_key(profile, aqi_reading.source, aqi_reading.aqi)
@@ -65,7 +84,7 @@ async def create_plan_endpoint(
         return cached_plan.model_copy(update={"aqi": aqi_reading})
 
     gemini_client = get_gemini_client(request)
-    plan = await gemini_client.generate_plan(profile, aqi_reading)
+    plan = await gemini_client.generate_plan(profile, aqi_reading, facts=facts)
     if plan is None:
         plan = generate_fallback_plan(profile, aqi_reading)
 

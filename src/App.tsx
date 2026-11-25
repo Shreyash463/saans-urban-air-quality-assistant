@@ -9,15 +9,20 @@ import { useScrollProgress } from './hooks/useScrollProgress';
 import { useScrollSpy } from './hooks/useScrollSpy';
 import { useSmoothScroll } from './hooks/useSmoothScroll';
 import { useTheme } from './hooks/useTheme';
-import { t } from './lib/i18n';
+import { getMockAirQuality } from './lib/demoCities';
+import { loadLanguageBundle, t } from './lib/i18n';
 import { PLAN_SKELETON_DELAY_MS } from './lib/motion';
 import { Dashboard } from './sections/Dashboard';
 import { Footer } from './sections/Footer';
 import { Hero } from './sections/Hero';
 import { ProfileForm } from './sections/ProfileForm';
 import { generatePlan, getAirQuality, subscribeApiFallback } from './services/api';
-import { getMockAirQuality } from './services/mockPlanGenerator';
-import type { AirQualityReading, PlanResponse, UserProfile } from './types';
+import type {
+  AirQualityReading,
+  Coordinates,
+  PlanResponse,
+  UserProfile,
+} from './types';
 
 const loadSimulator = () => import('./sections/Simulator');
 const loadChat = () => import('./sections/Chat');
@@ -53,9 +58,19 @@ export default function App() {
   const [planAnnouncement, setPlanAnnouncement] = useState('');
   const [apiFallbackActive, setApiFallbackActive] = useState(false);
   const [infoNotice, setInfoNotice] = useState<string | null>(null);
+  const [locationCoords, setLocationCoords] = useState<Coordinates | null>(null);
+  const [, setLangRevision] = useState(0);
   const [previewReading, setPreviewReading] = useState<AirQualityReading>(() =>
     getMockAirQuality(profile.city)
   );
+
+  useEffect(() => {
+    if (profile.language === 'hi') {
+      void loadLanguageBundle('hi').then(() => {
+        setLangRevision((n) => n + 1);
+      });
+    }
+  }, [profile.language]);
 
   useScrollProgress(reducedMotion);
   const { scrollToElement } = useSmoothScroll(reducedMotion);
@@ -98,15 +113,22 @@ export default function App() {
   const handleToggleLanguage = useCallback(() => {
     const nextLanguage = profile.language === 'en' ? 'hi' : 'en';
     const nextProfile: UserProfile = { ...profile, language: nextLanguage };
-    updateProfile(nextProfile);
+    const switchAndLocalize = async () => {
+      if (nextLanguage === 'hi') {
+        await loadLanguageBundle('hi');
+        setLangRevision((n) => n + 1);
+      }
+      updateProfile(nextProfile);
 
-    if (plan) {
-      void generatePlan(nextProfile).then((localizedPlan) => {
-        setPlan(localizedPlan);
-        setPreviewReading(localizedPlan.aqi);
-      });
-    }
-  }, [plan, profile, updateProfile]);
+      if (plan) {
+        void generatePlan(nextProfile, locationCoords).then((localizedPlan) => {
+          setPlan(localizedPlan);
+          setPreviewReading(localizedPlan.aqi);
+        });
+      }
+    };
+    void switchAndLocalize();
+  }, [locationCoords, plan, profile, updateProfile]);
 
   const handleSubmitProfile = useCallback(
     async (submittedProfile: UserProfile) => {
@@ -120,7 +142,7 @@ export default function App() {
       try {
         const delayMs = reducedMotion ? 0 : PLAN_SKELETON_DELAY_MS;
         const [result] = await Promise.all([
-          generatePlan(submittedProfile),
+          generatePlan(submittedProfile, locationCoords),
           delayMs > 0
             ? new Promise<void>((resolve) => {
                 globalThis.setTimeout(resolve, delayMs);
@@ -140,11 +162,12 @@ export default function App() {
         setIsGenerating(false);
       }
     },
-    [reducedMotion, scrollToElement, updateProfile]
+    [locationCoords, reducedMotion, scrollToElement, updateProfile]
   );
 
   const handleClearData = useCallback(() => {
     clearPrefs();
+    setLocationCoords(null);
     setPlan(null);
     setPlanAnnouncement('');
     void getAirQuality('Delhi').then(setPreviewReading);
@@ -207,6 +230,8 @@ export default function App() {
           onClearData={handleClearData}
           isSubmitting={isGenerating}
           onPreviewReadingChange={setPreviewReading}
+          onLocationChange={setLocationCoords}
+          hasActiveLocation={locationCoords !== null}
         />
 
         <Dashboard

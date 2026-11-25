@@ -118,7 +118,11 @@ export function Header({
             type="button"
             onClick={onToggleReducedMotion}
             aria-pressed={reducedMotion}
-            aria-label={t(language, 'reduceMotionLabel')}
+            aria-label={
+              reducedMotion
+                ? t(language, 'reduceMotionOn')
+                : t(language, 'reduceMotionOff')
+            }
             title={
               reducedMotion
                 ? t(language, 'reduceMotionOn')

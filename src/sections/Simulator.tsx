@@ -42,6 +42,7 @@ export default function Simulator({ profile }: SimulatorProps) {
   const [selectedIds, setSelectedIds] = useState<ImpactActionId[]>(() =>
     getRecommendedInitialActions(profile)
   );
+  const [communityHouseholds, setCommunityHouseholds] = useState(50);
   const [showMethodology, setShowMethodology] = useState(false);
 
   // Drop selections that become already-doing or inapplicable when profile changes
@@ -69,6 +70,12 @@ export default function Simulator({ profile }: SimulatorProps) {
     () => calculateImpact(profile, selectedIds),
     [profile, selectedIds]
   );
+
+  const communityCo2Kg = impact.co2SavedKgPerMonth * communityHouseholds;
+  const stopsBurningOrBiomass =
+    selectedSet.has('stop_waste_burning') ||
+    selectedSet.has('clean_cooking') ||
+    profile.cookingFuel === 'induction_electric';
 
   return (
     <section
@@ -140,8 +147,62 @@ export default function Simulator({ profile }: SimulatorProps) {
           </div>
 
           {/* Right: Live BEFORE -> AFTER Impact Meter */}
-          <div className="lg:col-span-5 lg:sticky lg:top-20">
+          <div className="lg:col-span-5 lg:sticky lg:top-20 space-y-4">
             <ImpactMeter impact={impact} language={language} />
+
+            {/* Community multiplier slider */}
+            <div className="saans-theme-surface rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C2E] p-5 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <label
+                  htmlFor="saans-community-scale"
+                  className="text-base font-semibold text-slate-900 dark:text-slate-100"
+                >
+                  {t(language, 'communityScaleHeading')}
+                </label>
+                <span
+                  className="text-sm font-semibold text-teal-800 dark:text-teal-300 tabular-nums"
+                  style={{ fontFamily: 'var(--font-mono)' }}
+                >
+                  {communityHouseholds} {t(language, 'communityScaleHomesUnit')}
+                </span>
+              </div>
+
+              <input
+                id="saans-community-scale"
+                type="range"
+                min={10}
+                max={500}
+                step={5}
+                value={communityHouseholds}
+                onChange={(e) => setCommunityHouseholds(Number(e.target.value))}
+                aria-label={`${t(language, 'communityScaleLabel')}: ${communityHouseholds}`}
+                className="saans-slider w-full h-2 rounded-lg bg-slate-200 dark:bg-slate-800 cursor-pointer"
+              />
+
+              <div className="flex items-baseline justify-between gap-2 pt-1 text-sm">
+                <span className="text-slate-600 dark:text-slate-300">
+                  {t(language, 'communityScaleCo2Label')}
+                </span>
+                <span
+                  data-testid="community-co2-value"
+                  className="text-lg font-semibold text-slate-900 dark:text-slate-50 tabular-nums"
+                  style={{ fontFamily: 'var(--font-mono)' }}
+                >
+                  ~{communityCo2Kg.toLocaleString()} kg
+                </span>
+              </div>
+
+              {stopsBurningOrBiomass ? (
+                <p className="text-xs sm:text-sm text-teal-800 dark:text-teal-300 font-medium">
+                  {communityHouseholds} {t(language, 'communityScaleHomesUnit')} —{' '}
+                  {t(language, 'communityScaleWasteNote')}
+                </p>
+              ) : (
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+                  {t(language, 'communityScaleSelectHint')}
+                </p>
+              )}
+            </div>
           </div>
         </div>
 

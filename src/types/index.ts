@@ -14,6 +14,15 @@ export type BudgetLevel = 'low' | 'medium' | 'high';
 
 export type LanguageCode = 'en' | 'hi';
 
+export type CommunityActor = 'rwa' | 'school' | 'workplace' | 'neighbours';
+
+export type EffortLevel = 'low' | 'medium' | 'high';
+
+export interface Coordinates {
+  lat: number;
+  lon: number;
+}
+
 export interface UserProfile {
   city: string;
   householdSize: number;
@@ -60,6 +69,14 @@ export interface Alternative {
   co2SavedKgPerMonth: number;
 }
 
+export interface CommunityAction {
+  title: string;
+  who: CommunityActor;
+  howTo: string;
+  estimatedImpact: string;
+  effort: EffortLevel;
+}
+
 export interface PlanResponse {
   aqi: AirQualityReading;
   summary: string;
@@ -67,6 +84,7 @@ export interface PlanResponse {
   routine: RoutineItem[];
   indoorHacks: IndoorHack[];
   alternatives: Alternative[];
+  communityActions?: CommunityAction[];
   maskGuidance: string;
   disclaimer: string;
   generatedBy?: 'gemini' | 'rules';

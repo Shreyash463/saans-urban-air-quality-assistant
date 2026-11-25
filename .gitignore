@@ -11,6 +11,9 @@ __pycache__/
 .mypy_cache/
 .coverage
 htmlcov/
+test-results/
+playwright-report/
+blob-report/
 .aistudio/
 .DS_Store
 *.log

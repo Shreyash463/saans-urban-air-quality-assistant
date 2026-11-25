@@ -1,11 +1,11 @@
 import { getAqiCategory } from '../lib/aqi';
+import { getMockAirQuality, QUICK_PICK_CITIES } from '../lib/demoCities';
 import { getAlternativeMetrics } from '../lib/impactFactors';
-import { sanitizeCity } from '../lib/validation';
 import type {
-  AirQualityReading,
   Alternative,
   BudgetLevel,
   ChatReply,
+  CommunityAction,
   IndoorHack,
   PlanResponse,
   RoutineItem,
@@ -13,66 +13,7 @@ import type {
 } from '../types';
 import { generateSmartMockChatReply } from './mockChat';
 
-interface DemoCityEntry {
-  displayName: string;
-  aqi: number;
-  dominantPollutant: string;
-}
-
-const DEMO_CITY_TABLE: Readonly<Record<string, DemoCityEntry>> = {
-  delhi: { displayName: 'Delhi', aqi: 380, dominantPollutant: 'PM2.5' },
-  'new delhi': { displayName: 'New Delhi', aqi: 380, dominantPollutant: 'PM2.5' },
-  lucknow: { displayName: 'Lucknow', aqi: 310, dominantPollutant: 'PM2.5' },
-  kolkata: { displayName: 'Kolkata', aqi: 240, dominantPollutant: 'PM2.5' },
-  mumbai: { displayName: 'Mumbai', aqi: 150, dominantPollutant: 'PM10' },
-  pune: { displayName: 'Pune', aqi: 130, dominantPollutant: 'PM10' },
-  noida: { displayName: 'Noida', aqi: 365, dominantPollutant: 'PM2.5' },
-  gurugram: { displayName: 'Gurugram', aqi: 350, dominantPollutant: 'PM2.5' },
-  patna: { displayName: 'Patna', aqi: 295, dominantPollutant: 'PM2.5' },
-  bengaluru: { displayName: 'Bengaluru', aqi: 95, dominantPollutant: 'PM10' },
-  chennai: { displayName: 'Chennai', aqi: 110, dominantPollutant: 'PM10' },
-};
-
-const UNKNOWN_CITY_AQI = 160;
-
-/** Quick-pick demo cities displayed in the profile form. */
-export const QUICK_PICK_CITIES: readonly string[] = [
-  'Delhi',
-  'Mumbai',
-  'Pune',
-  'Lucknow',
-  'Kolkata',
-];
-
-/**
- * Deterministic lookup of a city's demo AQI reading.
- * Returns fixed values for known Indian cities and 160 for unknown cities.
- */
-export function getMockAirQuality(city: string): AirQualityReading {
-  const cleaned = sanitizeCity(city) || 'Delhi';
-  const normalized = cleaned.toLowerCase();
-  const entry = DEMO_CITY_TABLE[normalized];
-
-  if (entry) {
-    return {
-      city: entry.displayName,
-      aqi: entry.aqi,
-      dominantPollutant: entry.dominantPollutant,
-      updatedAt: '',
-      source: 'demo',
-      sourceDetail: 'Sample reading',
-    };
-  }
-
-  return {
-    city: cleaned,
-    aqi: UNKNOWN_CITY_AQI,
-    dominantPollutant: 'PM2.5',
-    updatedAt: '',
-    source: 'demo',
-    sourceDetail: 'Sample reading',
-  };
-}
+export { getMockAirQuality, QUICK_PICK_CITIES };
 
 function sortHacksByBudget(hacks: IndoorHack[], budget: BudgetLevel): IndoorHack[] {
   const rankMap: Record<BudgetLevel, Record<IndoorHack['costLevel'], number>> = {
@@ -659,6 +600,69 @@ function buildMaskGuidance(profile: UserProfile, aqi: number): string {
     : `At AQI ${aqi}, normal outdoor activity and exercise are fine. Masks are optional for routine trips, though wearing an N95 near heavy traffic or construction dust remains helpful. Not medical advice.`;
 }
 
+function buildCommunityActions(profile: UserProfile, aqi: number): CommunityAction[] {
+  const isHi = profile.language === 'hi';
+  const actions: CommunityAction[] = [
+    {
+      title: isHi
+        ? 'RWA में अलाव की जगह गार्डों के लिए इलेक्ट्रिक हीटर और पत्तों की खाद'
+        : 'Replace winter watchman bonfires with shared RWA electric heaters & leaf composting',
+      who: 'rwa',
+      howTo: isHi
+        ? 'सोसाइटी की बैठक में गार्ड केबिन के लिए छोटे इलेक्ट्रिक हीटर और पत्तों के खाद गड्ढे का प्रस्ताव रखें ताकि रात में कचरा न जलाया जाए।'
+        : 'Propose electric cabin heaters for night guards and a shared compost pit to your RWA so dry leaves are never burned.',
+      estimatedImpact: isHi
+        ? '~16% स्थानीय PM2.5 में कमी और 50 घरों में ~1,400 किग्रा CO2/माह बचत'
+        : 'Cuts night-time block PM2.5 spikes (~16% local cut) and avoids ~1,400 kg CO2/mo across 50 homes.',
+      effort: 'low',
+    },
+    {
+      title: isHi
+        ? 'पड़ोसियों के साथ नो-बर्निंग अलर्ट और निर्माण धूल नियंत्रण ग्रुप'
+        : 'Start a lane WhatsApp alert for wet construction cover and zero waste burning',
+      who: 'neighbours',
+      howTo: isHi
+        ? '20–50 पड़ोसी घरों के साथ खुले कचरे पर रोक, सुबह सड़क पर हल्का पानी छिड़काव और निर्माण रेत को ढकवाने की साझा पहल करें।'
+        : 'Coordinate 20–50 neighbours to spot open trash fires early, damp-sprinkle dusty lanes, and ask builders to cover sand piles.',
+      estimatedImpact: isHi
+        ? 'गली स्तर पर PM10 और धुएं के तेज उछाल से बचाव'
+        : 'Prevents sudden residential lane PM10/PM2.5 spikes.',
+      effort: 'low',
+    },
+  ];
+
+  if (profile.hasChildren || aqi >= 201) {
+    actions.push({
+      title: isHi
+        ? 'स्कूलों में उच्च AQI पर इनडोर खेल और कारपूल नियम'
+        : 'Request an AQI-triggered indoor recess & anti-idling carpool zone at school',
+      who: 'school',
+      howTo: isHi
+        ? 'अभिभावक समूह द्वारा AQI >= 201 होने पर सुबह की प्रार्थना व खेल अंदर कराने और स्कूल गेट पर इंजन बंद रखने का अनुरोध करें।'
+        : 'Work with parents to shift assemblies indoors above AQI 200 and establish an engine-off, carpool-first pick-up zone.',
+      estimatedImpact: isHi
+        ? 'बच्चों के सुबह 6–10 बजे के स्मॉग संपर्क में भारी कमी'
+        : 'Shields students from morning inversion fumes and trims school-gate exhaust.',
+      effort: 'medium',
+    });
+  } else {
+    actions.push({
+      title: isHi
+        ? 'दफ़्तर में हाइब्रिड स्मॉग डेज़ और सहकर्मी कारपूल बोर्ड'
+        : 'Organize a workplace smog-day WFH policy and corridor carpool board',
+      who: 'workplace',
+      howTo: isHi
+        ? 'अधिक AQI दिनों में हाइब्रिड वर्क विकल्प और समान रूट वाले सहकर्मियों की साप्ताहिक राइड-शेयर सूची शुरू करें।'
+        : 'Ask HR/team leads for flexible WFH on Poor+ smog episodes and share a commute carpool sheet.',
+      estimatedImpact: isHi
+        ? 'प्रति प्रतिभागी ~34–62 किग्रा CO2/माह बचत'
+        : 'Avoids ~34–62 kg CO2/month per participating commuter.',
+      effort: 'medium',
+    });
+  }
+  return actions;
+}
+
 /**
  * Generates a deterministic, rule-based clean-air plan tailored to the user's profile.
  */
@@ -688,6 +692,7 @@ export function generateMockPlan(profile: UserProfile): PlanResponse {
     routine: buildRoutine(profile, aqiReading.aqi),
     indoorHacks: buildIndoorHacks(profile),
     alternatives: buildAlternatives(profile),
+    communityActions: buildCommunityActions(profile, aqiReading.aqi),
     maskGuidance: buildMaskGuidance(profile, aqiReading.aqi),
     disclaimer,
     generatedBy: 'rules',

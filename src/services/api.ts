@@ -4,19 +4,16 @@
  * ============================================================================
  * This is the ONLY file in the frontend that performs network requests.
  *
- * Configuration:
- *   VITE_API_BASE_URL (default: "" — same-origin /api, proxied to FastAPI in dev)
- *   VITE_USE_MOCK     ("true" forces built-in deterministic mock mode)
- *
  * Resilience & Security:
- * - Enforces a 30-second AbortController timeout for plan/chat requests.
+ * - Enforces explicit AbortController timeouts for plan, chat, and AQI calls.
  * - Sanitizes all user inputs before dispatch.
- * - Validates every response against strict runtime type guards.
- * - Network, timeout, HTTP, or schema errors fall back seamlessly to the
- *   deterministic mock generator and emit a non-blocking notice to the UI.
+ * - Dynamically imports deterministic mock generators only when forced or offline
+ *   so the initial JS bundle stays lean.
+ * - Never persists or logs geolocation coordinates.
  * ============================================================================
  */
 
+import { getMockAirQuality } from '../lib/demoCities';
 import {
   isAirQualityReading,
   isChatReply,
@@ -25,15 +22,17 @@ import {
   sanitizeCity,
   sanitizeUserProfile,
 } from '../lib/validation';
-import type { AirQualityReading, ChatReply, PlanResponse, UserProfile } from '../types';
-import {
-  generateMockChatReply,
-  generateMockPlan,
-  getMockAirQuality,
-} from './mockPlanGenerator';
+import type {
+  AirQualityReading,
+  ChatReply,
+  Coordinates,
+  PlanResponse,
+  UserProfile,
+} from '../types';
 
 export const REQUEST_TIMEOUT_MS = 35_000;
 export const AIR_QUALITY_TIMEOUT_MS = 12_000;
+const APPROX_LOCATION_LABEL = 'Your location (approx.)';
 
 /**
  * Returns true only when VITE_USE_MOCK="true" is explicitly configured.
@@ -114,19 +113,31 @@ async function fetchJsonWithTimeout(
 
 /**
  * Generates a personalized clean-air plan for the given household profile.
- * Calls POST {API_BASE_URL}/api/plan by default, or uses mock when forced/unreachable.
+ * Optionally passes ephemeral geolocation coordinates via query parameters
+ * without ever storing them in the profile or browser storage.
  */
-export async function generatePlan(profile: UserProfile): Promise<PlanResponse> {
+export async function generatePlan(
+  profile: UserProfile,
+  coords?: Coordinates | null
+): Promise<PlanResponse> {
   const cleanProfile = sanitizeUserProfile(profile);
 
   if (isMockForced()) {
     notifyFallback(false);
-    return generateMockPlan(cleanProfile);
+    const { generateMockPlan } = await import('./mockPlanGenerator');
+    const mock = generateMockPlan(cleanProfile);
+    return coords
+      ? { ...mock, aqi: { ...mock.aqi, city: APPROX_LOCATION_LABEL } }
+      : mock;
   }
 
   try {
+    const path =
+      coords && Number.isFinite(coords.lat) && Number.isFinite(coords.lon)
+        ? `/api/plan?lat=${encodeURIComponent(coords.lat.toFixed(4))}&lon=${encodeURIComponent(coords.lon.toFixed(4))}`
+        : '/api/plan';
     const payload = await fetchJsonWithTimeout(
-      buildApiUrl('/api/plan'),
+      buildApiUrl(path),
       {
         method: 'POST',
         body: JSON.stringify(cleanProfile),
@@ -142,13 +153,16 @@ export async function generatePlan(profile: UserProfile): Promise<PlanResponse> 
     return payload;
   } catch {
     notifyFallback(true);
-    return generateMockPlan(cleanProfile);
+    const { generateMockPlan } = await import('./mockPlanGenerator');
+    const mock = generateMockPlan(cleanProfile);
+    return coords
+      ? { ...mock, aqi: { ...mock.aqi, city: APPROX_LOCATION_LABEL } }
+      : mock;
   }
 }
 
 /**
  * Sends a follow-up question contextualized by the user's profile and active plan.
- * Calls POST {API_BASE_URL}/api/chat by default, or uses mock when forced/unreachable.
  */
 export async function askFollowUp(
   question: string,
@@ -160,6 +174,7 @@ export async function askFollowUp(
 
   if (isMockForced()) {
     notifyFallback(false);
+    const { generateMockChatReply } = await import('./mockPlanGenerator');
     return generateMockChatReply(cleanQuestion, cleanProfile, plan);
   }
 
@@ -185,13 +200,13 @@ export async function askFollowUp(
     return payload;
   } catch {
     notifyFallback(true);
+    const { generateMockChatReply } = await import('./mockPlanGenerator');
     return generateMockChatReply(cleanQuestion, cleanProfile, plan);
   }
 }
 
 /**
  * Fetches the current air quality reading for a city.
- * Calls GET {API_BASE_URL}/api/air-quality?city=... by default, or uses mock when forced/unreachable.
  */
 export async function getAirQuality(city: string): Promise<AirQualityReading> {
   const cleanCity = sanitizeCity(city) || 'Delhi';
@@ -218,5 +233,39 @@ export async function getAirQuality(city: string): Promise<AirQualityReading> {
   } catch {
     notifyFallback(true);
     return getMockAirQuality(cleanCity);
+  }
+}
+
+/**
+ * Fetches live air quality directly for ephemeral geolocation coordinates.
+ */
+export async function getAirQualityByCoords(
+  lat: number,
+  lon: number
+): Promise<AirQualityReading> {
+  if (isMockForced()) {
+    notifyFallback(false);
+    return { ...getMockAirQuality('Delhi'), city: APPROX_LOCATION_LABEL };
+  }
+
+  try {
+    const url = buildApiUrl(
+      `/api/air-quality?lat=${encodeURIComponent(lat.toFixed(4))}&lon=${encodeURIComponent(lon.toFixed(4))}`
+    );
+    const payload = await fetchJsonWithTimeout(
+      url,
+      { method: 'GET' },
+      AIR_QUALITY_TIMEOUT_MS
+    );
+
+    if (!isAirQualityReading(payload)) {
+      throw new Error('Invalid AirQualityReading payload');
+    }
+
+    notifyFallback(false);
+    return payload;
+  } catch {
+    notifyFallback(true);
+    return { ...getMockAirQuality('Delhi'), city: APPROX_LOCATION_LABEL };
   }
 }

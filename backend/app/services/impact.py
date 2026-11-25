@@ -240,24 +240,26 @@ def calculate_profile_impact(
     }
 
 
-def build_profile_facts(profile: UserProfile) -> ProfileFacts:
-    """Computes grounded household facts, existing habits, and deterministic swap numbers."""
-    already_doing: list[str] = []
+def _collect_already_doing(profile: UserProfile) -> list[str]:
+    done: list[str] = []
     if profile.commute_mode == "public_transport":
-        already_doing.append("Already uses low-emission metro/bus public transport")
+        done.append("Already uses low-emission metro/bus public transport")
     elif profile.commute_mode == "walk_cycle":
-        already_doing.append("Already commutes zero-tailpipe by walking or cycling")
+        done.append("Already commutes zero-tailpipe by walking or cycling")
     elif profile.commute_mode == "work_from_home":
-        already_doing.append("Already works from home with zero daily commute tailpipe emissions")
+        done.append("Already works from home with zero daily commute tailpipe emissions")
 
     if profile.cooking_fuel == "induction_electric":
-        already_doing.append("Already cooks with clean electric induction")
+        done.append("Already cooks with clean electric induction")
     elif profile.cooking_fuel == "piped_gas":
-        already_doing.append("Already uses cleaner piped natural gas (PNG)")
+        done.append("Already uses cleaner piped natural gas (PNG)")
 
     if profile.has_air_purifier:
-        already_doing.append("Already owns an indoor air purifier")
+        done.append("Already owns an indoor air purifier")
+    return done
 
+
+def _collect_vulnerabilities(profile: UserProfile) -> list[str]:
     vulnerabilities: list[str] = []
     if profile.has_children:
         vulnerabilities.append("children under 14")
@@ -265,7 +267,10 @@ def build_profile_facts(profile: UserProfile) -> ProfileFacts:
         vulnerabilities.append("older adults (60+)")
     if profile.has_respiratory_condition:
         vulnerabilities.append("asthma/COPD or respiratory sensitivity")
+    return vulnerabilities
 
+
+def _select_recommended_actions(profile: UserProfile) -> list[str]:
     done_ids = get_already_doing_ids(profile)
     inapplicable_ids = get_inapplicable_ids(profile)
     applicable = []
@@ -278,39 +283,41 @@ def build_profile_facts(profile: UserProfile) -> ProfileFacts:
         co2_bonus = float(co2_val) * 0.15 if co2_val is not None else 0.0
         applicable.append((pm_score + co2_bonus, aid))
     applicable.sort(reverse=True)
-    recommended_actions = [aid for _, aid in applicable[:TOP_RECOMMENDED_COUNT]]
+    return [aid for _, aid in applicable[:TOP_RECOMMENDED_COUNT]]
 
-    swap_keys: list[str] = []
-    if profile.commute_mode == "car":
-        swap_keys.append("commute_car_to_transit")
-    elif profile.commute_mode == "two_wheeler":
-        swap_keys.append("commute_two_wheeler_to_transit")
-    else:
-        swap_keys.append("fitted_n95_mask")
 
-    if profile.cooking_fuel == "biomass_wood":
-        swap_keys.append("cooking_biomass_to_clean")
-    elif profile.cooking_fuel in {"lpg", "piped_gas"}:
-        swap_keys.append("cooking_gas_to_induction")
-    else:
-        swap_keys.append("cooking_ventilation_only")
-
-    if not profile.has_air_purifier:
-        swap_keys.append("bedroom_purifier")
-    else:
-        swap_keys.append("seal_door_gaps")
-
-    swap_keys.append("stop_waste_burning")
-
-    swap_targets = [
-        (key, *get_alternative_numbers(key, profile.commute_km)) for key in swap_keys
+def _select_swap_keys(profile: UserProfile) -> list[str]:
+    commute_map = {
+        "car": "commute_car_to_transit",
+        "two_wheeler": "commute_two_wheeler_to_transit",
+    }
+    cooking_key = (
+        "cooking_biomass_to_clean"
+        if profile.cooking_fuel == "biomass_wood"
+        else "cooking_gas_to_induction"
+        if profile.cooking_fuel in {"lpg", "piped_gas"}
+        else "cooking_ventilation_only"
+    )
+    sleep_key = "seal_door_gaps" if profile.has_air_purifier else "bedroom_purifier"
+    return [
+        commute_map.get(profile.commute_mode, "fitted_n95_mask"),
+        cooking_key,
+        sleep_key,
+        "stop_waste_burning",
     ]
 
+
+def build_profile_facts(profile: UserProfile) -> ProfileFacts:
+    """Computes grounded household facts, existing habits, and deterministic swap numbers."""
+    swap_targets = [
+        (key, *get_alternative_numbers(key, profile.commute_km))
+        for key in _select_swap_keys(profile)
+    ]
     return ProfileFacts(
-        already_doing=already_doing,
-        recommended_actions=recommended_actions,
+        already_doing=_collect_already_doing(profile),
+        recommended_actions=_select_recommended_actions(profile),
         swap_targets=swap_targets,
-        vulnerabilities=vulnerabilities,
+        vulnerabilities=_collect_vulnerabilities(profile),
     )
 
 

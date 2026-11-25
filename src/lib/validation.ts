@@ -2,6 +2,7 @@ import type {
   AirQualityReading,
   Alternative,
   ChatReply,
+  CommunityAction,
   IndoorHack,
   PlanResponse,
   RoutineItem,
@@ -137,59 +138,84 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
+function isFiniteNum(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function allItems<T>(
+  arr: unknown,
+  predicate: (item: unknown) => item is T
+): arr is T[] {
+  return Array.isArray(arr) && arr.length > 0 && arr.every(predicate);
+}
+
 /**
  * Type guard verifying an external API payload matches AirQualityReading.
  */
 export function isAirQualityReading(value: unknown): value is AirQualityReading {
   if (!isRecord(value)) return false;
+  const validSource = value.source === 'live' || value.source === 'demo';
+  const validDetail = value.sourceDetail === undefined || isString(value.sourceDetail);
   return (
-    typeof value.city === 'string' &&
+    isString(value.city) &&
     value.city.trim().length > 0 &&
-    typeof value.aqi === 'number' &&
-    Number.isFinite(value.aqi) &&
+    isFiniteNum(value.aqi) &&
     value.aqi >= 0 &&
     value.aqi <= 1000 &&
-    typeof value.dominantPollutant === 'string' &&
-    typeof value.updatedAt === 'string' &&
-    (value.source === 'live' || value.source === 'demo') &&
-    (value.sourceDetail === undefined || typeof value.sourceDetail === 'string')
+    isString(value.dominantPollutant) &&
+    isString(value.updatedAt) &&
+    validSource &&
+    validDetail
   );
 }
 
 function isRoutineItem(value: unknown): value is RoutineItem {
   if (!isRecord(value)) return false;
-  const validSlots = ['morning', 'midday', 'evening', 'night'];
   return (
-    typeof value.timeSlot === 'string' &&
-    validSlots.includes(value.timeSlot) &&
-    typeof value.title === 'string' &&
-    typeof value.detail === 'string' &&
-    typeof value.impactNote === 'string'
+    isString(value.timeSlot) &&
+    ['morning', 'midday', 'evening', 'night'].includes(value.timeSlot) &&
+    isString(value.title) &&
+    isString(value.detail) &&
+    isString(value.impactNote)
   );
 }
 
 function isIndoorHack(value: unknown): value is IndoorHack {
   if (!isRecord(value)) return false;
-  const validCosts = ['free', 'low', 'medium', 'high'];
   return (
-    typeof value.title === 'string' &&
-    typeof value.howTo === 'string' &&
-    typeof value.estimatedBenefit === 'string' &&
-    typeof value.costLevel === 'string' &&
-    validCosts.includes(value.costLevel)
+    isString(value.title) &&
+    isString(value.howTo) &&
+    isString(value.estimatedBenefit) &&
+    isString(value.costLevel) &&
+    ['free', 'low', 'medium', 'high'].includes(value.costLevel)
   );
 }
 
 function isAlternative(value: unknown): value is Alternative {
   if (!isRecord(value)) return false;
   return (
-    typeof value.current === 'string' &&
-    typeof value.swap === 'string' &&
-    typeof value.why === 'string' &&
-    typeof value.pm25ReductionPct === 'number' &&
-    Number.isFinite(value.pm25ReductionPct) &&
-    typeof value.co2SavedKgPerMonth === 'number' &&
-    Number.isFinite(value.co2SavedKgPerMonth)
+    isString(value.current) &&
+    isString(value.swap) &&
+    isString(value.why) &&
+    isFiniteNum(value.pm25ReductionPct) &&
+    isFiniteNum(value.co2SavedKgPerMonth)
+  );
+}
+
+function isCommunityAction(value: unknown): value is CommunityAction {
+  if (!isRecord(value)) return false;
+  return (
+    isString(value.title) &&
+    isString(value.who) &&
+    ['rwa', 'school', 'workplace', 'neighbours'].includes(value.who) &&
+    isString(value.howTo) &&
+    isString(value.estimatedImpact) &&
+    isString(value.effort) &&
+    ['low', 'medium', 'high'].includes(value.effort)
   );
 }
 
@@ -198,24 +224,25 @@ function isAlternative(value: unknown): value is Alternative {
  */
 export function isPlanResponse(value: unknown): value is PlanResponse {
   if (!isRecord(value)) return false;
+  const validCommunity =
+    value.communityActions === undefined ||
+    (Array.isArray(value.communityActions) &&
+      value.communityActions.every(isCommunityAction));
+  const validGen =
+    value.generatedBy === undefined ||
+    value.generatedBy === 'gemini' ||
+    value.generatedBy === 'rules';
   return (
     isAirQualityReading(value.aqi) &&
-    typeof value.summary === 'string' &&
-    typeof value.healthAdvisory === 'string' &&
-    Array.isArray(value.routine) &&
-    value.routine.length > 0 &&
-    value.routine.every(isRoutineItem) &&
-    Array.isArray(value.indoorHacks) &&
-    value.indoorHacks.length > 0 &&
-    value.indoorHacks.every(isIndoorHack) &&
-    Array.isArray(value.alternatives) &&
-    value.alternatives.length > 0 &&
-    value.alternatives.every(isAlternative) &&
-    typeof value.maskGuidance === 'string' &&
-    typeof value.disclaimer === 'string' &&
-    (value.generatedBy === undefined ||
-      value.generatedBy === 'gemini' ||
-      value.generatedBy === 'rules')
+    isString(value.summary) &&
+    isString(value.healthAdvisory) &&
+    allItems(value.routine, isRoutineItem) &&
+    allItems(value.indoorHacks, isIndoorHack) &&
+    allItems(value.alternatives, isAlternative) &&
+    validCommunity &&
+    isString(value.maskGuidance) &&
+    isString(value.disclaimer) &&
+    validGen
   );
 }
 

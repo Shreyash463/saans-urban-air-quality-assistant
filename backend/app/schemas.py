@@ -24,6 +24,8 @@ ReadingSource = Literal["live", "demo"]
 RoutineTimeSlot = Literal["morning", "midday", "evening", "night"]
 CostLevel = Literal["free", "low", "medium", "high"]
 GeneratedBy = Literal["gemini", "rules"]
+CommunityActor = Literal["rwa", "school", "workplace", "neighbours"]
+EffortLevel = Literal["low", "medium", "high"]
 
 _CONTROL_CHARS_RE = re.compile(r"[\x00-\x1f\x7f\u200b-\u200f\u202a-\u202e\u2066-\u2069]")
 _WHITESPACE_RE = re.compile(r"\s+")
@@ -133,6 +135,16 @@ class Alternative(CamelBaseModel):
     co2_saved_kg_per_month: int = Field(ge=0, le=1000)
 
 
+class CommunityAction(CamelBaseModel):
+    """Neighborhood, RWA, school, or workplace collective clean-air action."""
+
+    title: str = Field(min_length=1, max_length=220)
+    who: CommunityActor
+    how_to: str = Field(min_length=1, max_length=700)
+    estimated_impact: str = Field(min_length=1, max_length=400)
+    effort: EffortLevel
+
+
 class PlanResponse(CamelBaseModel):
     """Complete personalized clean-air plan matching src/types/index.ts."""
 
@@ -142,6 +154,7 @@ class PlanResponse(CamelBaseModel):
     routine: list[RoutineItem] = Field(min_length=4, max_length=4)
     indoor_hacks: list[IndoorHack] = Field(min_length=1, max_length=10)
     alternatives: list[Alternative] = Field(min_length=1, max_length=8)
+    community_actions: list[CommunityAction] = Field(default_factory=list, max_length=6)
     mask_guidance: str = Field(min_length=1, max_length=1500)
     disclaimer: str = Field(min_length=1, max_length=1000)
     generated_by: GeneratedBy | None = None
@@ -179,3 +192,4 @@ class HealthResponse(CamelBaseModel):
     status: Literal["ok"]
     gemini_configured: bool
     selected_model: str | None = None
+    commit_sha: str | None = Field(default=None, max_length=64)

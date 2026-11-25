@@ -8,18 +8,36 @@
 
 ---
 
-## Problem Statement Alignment
+## Challenge Mapping (Problem Statement -> Code)
 
 > *"Create a GenAI-powered assistant that helps families and communities navigate severe winter smog and urban air pollution. It should suggest low-emission daily routines, indoor air quality hacks, and sustainable alternatives tailored to their location and lifestyle, while clearly explaining the direct impact of their choices."*
 
-| Problem Statement Requirement | Saans Implementation |
-| --- | --- |
-| **Navigate severe winter smog & urban pollution** | Live Open-Meteo PM2.5/PM10 readings mapped to the Indian CPCB AQI scale (0–500) with color + icon + text indicators, deterministic health advisories, and tiered N95/FFP2 mask guidance. |
-| **Tailored to location and lifestyle** | Multi-field household profile capturing city, household size, children/older adults/respiratory vulnerability, commute mode & distance, home type, air purifier ownership, cooking fuel, budget, and language (`en` / `hi`). |
-| **Low-emission daily routines** | Coherent 4-slot daily routine (`morning`, `midday`, `evening`, `night`) accounting for winter thermal inversions (6–10 AM, 6–10 PM), the cleaner 1–4 PM cross-ventilation dip, and the user's exact commute and home setup. |
-| **Indoor air quality hacks** | 5–7 practical India-context hacks (wet mopping vs dry sweeping, skipping incense/coils, EPDM weather-stripping, DIY box-fan + True HEPA filter, kitchen exhaust, honest plant myth debunking) ranked by budget and purifier ownership. |
-| **Sustainable alternatives & direct impact** | Lifestyle swaps paired with bounded PM2.5 reduction (%) and monthly CO2 savings (kg) shown **only** for emission-changing actions, plus an interactive **Impact Simulator** showing BEFORE → AFTER exposure and consistent `score = round(100 - residualExposure)`. |
-| **Conversational follow-up** | **Ask Saans** assistant grounded in the active household plan and AQI with prompt-injection defense, medical-emergency escalation, off-topic polite declines, and deterministic fallback. |
+| Problem Statement Requirement | Saans Implementation | Code Location |
+| --- | --- | --- |
+| **Navigate severe winter smog & urban pollution** | Live Open-Meteo 24h PM2.5/PM10 mapped to the Indian CPCB AQI scale (0–500) with deterministic health advisories and tiered N95/FFP2 mask guidance. | [`backend/app/services/cpcb.py`](backend/app/services/cpcb.py), [`backend/app/services/safety.py`](backend/app/services/safety.py), [`src/components/AqiGauge.tsx`](src/components/AqiGauge.tsx) |
+| **Helps families AND communities** | Household vulnerability awareness (`children`, `elderly`, `respiratory`) plus **"Make it a community effort"** RWA/school/workplace/neighbour cards and a **Scale it to your community** simulator slider (`10–500` homes). | [`src/components/CommunityActionsSection.tsx`](src/components/CommunityActionsSection.tsx), [`src/sections/Simulator.tsx`](src/sections/Simulator.tsx), [`backend/app/services/fallback_plan.py`](backend/app/services/fallback_plan.py) |
+| **Tailored to location and lifestyle** | Multi-field profile (`city`, size, commute, home, purifier, cooking, budget, EN/HI) plus opt-in **"Use my location"** Geolocation (`GET /api/air-quality?lat=...&lon=...`, `"Your location (approx.)"`, zero logging/storage). | [`src/sections/ProfileForm.tsx`](src/sections/ProfileForm.tsx), [`backend/app/routers/air_quality.py`](backend/app/routers/air_quality.py) |
+| **Low-emission daily routines** | Coherent 4-slot routine (`morning`, `midday`, `evening`, `night`) accounting for winter thermal inversions (6–10 AM/PM) and the 1–4 PM cross-ventilation dip. | [`backend/app/prompts.py`](backend/app/prompts.py), [`src/components/DashboardPlanCards.tsx`](src/components/DashboardPlanCards.tsx) |
+| **Indoor air quality hacks** | Budget-ranked Indian hacks (wet mopping, skipping incense/coils, EPDM sealing, DIY box-fan + HEPA, debunking plant myths). | [`backend/app/services/gemini/client.py`](backend/app/services/gemini/client.py), [`src/components/DashboardPlanCards.tsx`](src/components/DashboardPlanCards.tsx) |
+| **Sustainable alternatives & direct impact** | Lifestyle swaps paired with bounded PM2.5 (%) and monthly CO2 (kg, nonzero only on emission actions) plus an interactive multiplicative **Impact Simulator** (`1 - Π(1 - rᵢ)`). | [`contract/impact-factors.json`](contract/impact-factors.json), [`src/lib/impact.ts`](src/lib/impact.ts), [`backend/app/services/impact.py`](backend/app/services/impact.py) |
+| **Conversational GenAI follow-up** | **Ask Saans** grounded in active plan/AQI with `<user_question>` prompt-injection defense, emergency care escalation, and rule fallback. | [`backend/app/routers/chat.py`](backend/app/routers/chat.py), [`src/sections/Chat.tsx`](src/sections/Chat.tsx) |
+
+---
+
+## Efficiency Benchmarks (Measured Before vs. After Optimization)
+
+Reproducible backend benchmarks live in [`backend/scripts/bench.py`](backend/scripts/bench.py).
+
+| Metric | Before Baseline (`4b3a4db`) | After Optimization | Improvement / Mechanism |
+| --- | --- | --- | --- |
+| **Initial JS (`index-*.js`)** | `394.12 kB` (`115.61 kB` gzip) | `315.88 kB` (`93.39 kB` gzip / `77.4 kB` approx. `.br`) | Lazy-loaded `i18n.hi.ts` & mock generators |
+| **External Font Requests** | `4` Google Fonts CDN fonts (`205 kB` incl. `120 kB` Devanagari) | `0` external CDNs on English sessions | Self-hosted subsetted Latin `@fontsource` + preloads |
+| **Mobile Lighthouse (Perf / A11y / BP / SEO)** | `91 / 100 / 100 / 100` (`CLS 0.107`, `LCP 2.2 s`) | `99 / 100 / 100 / 100` (`CLS 0`, `LCP 1.4 s`) | Self-hosted fonts, preloads, layout reservation |
+| **Desktop Lighthouse (Perf / A11y / BP / SEO)** | `95 / 100 / 100 / 100` (`LCP 0.9 s`, `CLS 0.005`) | `100 / 100 / 100 / 100` (`LCP 0.2 s`, `CLS 0.004`) | Brotli precompression + `immutable` `/assets/*` |
+| **Gemini Failover & Prompt Bloat** | Walks failing models on every request; `2,477`-char prompt + `1,200`-char schema | `ModelCircuitBreaker` (`60s` 429 / `300s` 503 / `900s` 404); narrative-only schema | Skips tripped models (`0 ms` overhead) & trims output schema |
+| **Stubbed Backend Median Latency** | — | `2.99 ms` plan miss / `2.31 ms` plan hit / `2.62 ms` chat | In-flight AQI coalescing + concurrent fact prep |
+
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/DECISIONS.md`](docs/DECISIONS.md) for system diagrams and Architecture Decision Records.
 
 ---
 
@@ -113,18 +131,19 @@ See [`.env.example`](.env.example):
 All payloads use camelCase JSON matching [`src/types/index.ts`](src/types/index.ts) and [`backend/app/schemas.py`](backend/app/schemas.py).
 
 ### `GET /api/health`
-Returns service readiness and active model selection (never exposes secrets).
+Returns service readiness, active healthy model selection, and short commit SHA (`commitSha`, reading `RENDER_GIT_COMMIT[:7]` or `"dev"`).
 
 ```json
 {
   "status": "ok",
   "geminiConfigured": false,
-  "selectedModel": null
+  "selectedModel": null,
+  "commitSha": "dev"
 }
 ```
 
-### `GET /api/air-quality?city=Pune`
-Returns live Open-Meteo CPCB-calibrated reading (cached 10 minutes) or `"demo"` fallback.
+### `GET /api/air-quality?city=Pune` or `?lat=28.6139&lon=77.2090`
+Returns live Open-Meteo CPCB-calibrated reading (cached 10 minutes; `Cache-Control: public, max-age=180` for city lookups, `"Your location (approx.)"` with zero log/disk persistence for coordinates) or `"demo"` fallback.
 
 ```json
 {
@@ -137,7 +156,7 @@ Returns live Open-Meteo CPCB-calibrated reading (cached 10 minutes) or `"demo"` 
 }
 ```
 
-### `POST /api/plan`
+### `POST /api/plan` (optional `?lat=...&lon=...`)
 Request body (`UserProfile`):
 
 ```json
@@ -157,7 +176,7 @@ Request body (`UserProfile`):
 }
 ```
 
-Response (`PlanResponse`): returns `aqi`, `summary`, `healthAdvisory`, `routine` (4 slots), `indoorHacks` (5–7 items), `alternatives` (3–5 items), `maskGuidance`, `disclaimer`, and `generatedBy` (`"gemini" | "rules"`).
+Response (`PlanResponse`): returns `aqi`, `summary`, `healthAdvisory`, `routine` (4 slots), `indoorHacks` (5–7 items), `alternatives` (3–5 items), optional `communityActions` (3–5 RWA/school/workplace/neighbour items), `maskGuidance`, `disclaimer`, and `generatedBy` (`"gemini" | "rules"`).
 
 <details>
 <summary>Sanitized Real Gemini Example Responses (captured live on <code>gemini-3.5-flash-lite</code> + Open-Meteo)</summary>
@@ -324,8 +343,9 @@ docker run --rm -p 8000:8000 -e ENVIRONMENT=production --env-file .env saans-ass
 - Interactive API docs (`/docs`, `/redoc`, `/openapi.json`) and stack traces are disabled in `ENVIRONMENT=production`.
 - Strict Pydantic v2 schemas (`extra="forbid"`, city regex/length `<= 60`, `householdSize` `1–20`, `commuteKm` `0–300`, `question` `<= 500`, control-char stripping).
 - Prompt-injection defense: user text is sanitized, angle-brackets escaped, enclosed in `<user_question>...</user_question>` delimiters, and post-checked against secret/prompt leakage and medical rules.
-- Sliding-window per-IP rate limiter (`20 req/min` on `/api/plan` and `/api/chat`, `60 req/min` on `/api/air-quality`, returning `429` + `Retry-After`) with trusted-proxy rightmost `X-Forwarded-For` validation to block header spoofing.
-- `20 KB` max request body middleware, strict CORS origin allowlist, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, HSTS over HTTPS, and strict CSP (`script-src 'self'`).
+- Sliding-window per-IP rate limiter (`20 req/min` on `/api/plan` and `/api/chat`, `60 req/min` on `/api/air-quality`, returning `429` + `Retry-After`) with idle-bucket eviction and trusted-proxy rightmost `X-Forwarded-For` validation to block header spoofing.
+- Opt-in browser geolocation (`"Use my location"`) requires explicit click, allows `Permissions-Policy: geolocation=(self)`, and never persists coordinates in `localStorage` or logs coordinates (`httpx`/`httpcore` info logging silenced & access-log query params stripped).
+- `20 KB` max request body middleware, strict CORS origin allowlist, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, HSTS over HTTPS, and strict CSP (`script-src 'self'; style-src 'self'; font-src 'self'`). See [`SECURITY.md`](SECURITY.md).
 
 ---
 

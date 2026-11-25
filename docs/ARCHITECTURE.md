@@ -1,0 +1,62 @@
+# Saans System Architecture
+
+## Overview
+
+Saans runs as a single-origin containerized web service (FastAPI serving compiled static Vite/React assets plus JSON `/api/*` endpoints).
+
+```mermaid
+flowchart LR
+    B["Browser SPA (React 19, Lazy Hindi & Mocks, Self-Hosted WOFF2)"]
+    B -->|"GET / (ETag, no-cache, br/gzip)"| GW["FastAPI Static + Security Middleware\n(CSP, HSTS, XFO, 20KB Cap, Rate Limiter)"]
+    B -->|"GET /assets/* (1y immutable, .br)"| GW
+    B -->|"GET /api/air-quality?city or ?lat&lon"| AQ["AirQualityService\n(In-Flight Coalescing + 10m TTL Cache)"]
+    AQ -->|"India-Preferred Geocode + 24h PM2.5/PM10"| OM["Open-Meteo APIs"]
+    AQ -->|"Piecewise Interpolation"| CPCB["Indian CPCB AQI Engine"]
+    B -->|"POST /api/plan & /api/chat (no-store)"| PLAN["Plan & Chat Routers\n(asyncio.gather + SHA-256 Plan Cache)"]
+    PLAN --> IMP["Grounded Impact Engine\n(contract/impact-factors.json)"]
+    PLAN --> GEM["GeminiClient\n(Circuit Breaker + Compact Narrative Schema)"]
+    GEM -->|"Validated Narrative + Deterministic Numbers"| SAF["Safety & Medical Boundary Layer"]
+    PLAN -->|"On missing key / open circuit / error"| FB["Deterministic Rule Fallback"]
+    SAF --> B
+    FB --> B
+```
+
+## Request Lifecycle (`POST /api/plan`)
+
+```mermaid
+sequenceDiagram
+    participant U as Browser
+    participant API as FastAPI Plan Router
+    participant AQ as AirQualityService
+    participant CB as ModelCircuitBreaker
+    participant G as Google Gemini API
+    participant S as Safety & Grounding
+
+    U->>API: POST /api/plan (+ optional ?lat&lon)
+    par Concurrent Prep & AQI
+        API->>AQ: get_air_quality (cache -> coalesced -> Open-Meteo)
+        API->>API: build_profile_facts(profile)
+    end
+    AQ-->>API: AirQualityReading (CPCB AQI)
+    API->>API: Lookup SHA-256 plan_cache(profile, aqiBucket)
+    alt Cache Miss
+        API->>CB: filter_candidates(model_chain)
+        alt Healthy Candidate Available
+            API->>G: generate_content(compact prompt & schema)
+            G-->>API: narrative JSON + usage_metadata tokens
+            API->>CB: record_success(model)
+            API->>S: inject deterministic healthAdvisory, maskGuidance & contract numbers
+        else All Open / Error
+            API->>CB: record_failure(429/503/404)
+            API->>S: generate_fallback_plan(profile, aqi)
+        end
+        API->>API: Store in TTL plan_cache
+    end
+    API-->>U: PlanResponse (Cache-Control: no-store)
+```
+
+## Module Boundaries
+
+- **Shared Grounding Contract**: `contract/impact-factors.json` is imported statically by frontend (`src/lib/impactFactors.ts`) and backend (`backend/app/services/impact.py`), guaranteeing identical math (`1 - prod(1 - r_i)` capped at `95%`).
+- **Gemini Isolation**: `backend/app/services/gemini/` isolates circuit breaking (`circuit_breaker.py`), model ranking & ThinkingConfig (`model_selection.py`), compact output schema (`schema.py`), and async failover (`client.py`).
+- **Single Network Boundary**: All browser `fetch` calls live strictly in `src/services/api.ts`.

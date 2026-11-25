@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import time
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Response
 
 from app.dependencies import enforce_rate_limit, get_chat_limiter, get_gemini_client
 from app.schemas import ChatReply, ChatRequest
@@ -19,9 +19,12 @@ router = APIRouter(prefix="/api", tags=["chat"])
 async def chat_endpoint(
     body: ChatRequest,
     request: Request,
+    response: Response,
 ) -> ChatReply:
     """Answers follow-up questions grounded in household profile, active plan, and AQI."""
     started = time.monotonic()
+    response.headers["Cache-Control"] = "no-store"
+
     await enforce_rate_limit(
         get_chat_limiter(request),
         request,

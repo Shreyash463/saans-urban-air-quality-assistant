@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 AIR_QUALITY_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
+APPROX_LOCATION_LABEL = "Your location (approx.)"
 
 DEMO_CITY_TABLE: dict[str, tuple[str, int, str]] = {
     "delhi": ("Delhi", 380, "PM2.5"),
@@ -53,8 +55,7 @@ DEMO_SOURCE_DETAIL = "Sample reading"
 def get_demo_air_quality(city: str) -> AirQualityReading:
     """Returns deterministic demo AQI reading matching frontend mock table."""
     cleaned = strip_control_chars(city) or "Delhi"
-    normalized = cleaned.lower()
-    entry = DEMO_CITY_TABLE.get(normalized)
+    entry = DEMO_CITY_TABLE.get(cleaned.lower())
     if entry is not None:
         display_name, aqi, dominant = entry
         return AirQualityReading(
@@ -99,15 +100,10 @@ def _parse_hourly_series(
     times = hourly.get("time")
     pm25_raw = hourly.get("pm2_5")
     pm10_raw = hourly.get("pm10")
-
-    if not isinstance(times, list) or not times:
+    if not isinstance(times, list) or not isinstance(pm25_raw, list) or not isinstance(pm10_raw, list):
         return None
-    if not isinstance(pm25_raw, list):
-        pm25_raw = [None] * len(times)
-    if not isinstance(pm10_raw, list):
-        pm10_raw = [None] * len(times)
 
-    offset_seconds = int(payload.get("utc_offset_seconds") or 0)
+    offset_seconds = int(payload.get("utc_offset_seconds", 0) or 0)
     tz = timezone(timedelta(seconds=offset_seconds))
     reference_now = (now_utc or datetime.now(UTC)).astimezone(tz)
 
@@ -126,7 +122,6 @@ def _parse_hourly_series(
 
         pm25_val = pm25_raw[idx] if idx < len(pm25_raw) else None
         pm10_val = pm10_raw[idx] if idx < len(pm10_raw) else None
-
         pm25_num = float(pm25_val) if isinstance(pm25_val, (int, float)) else None
         pm10_num = float(pm10_val) if isinstance(pm10_val, (int, float)) else None
 
@@ -138,28 +133,22 @@ def _parse_hourly_series(
     if len(series) < 12:
         return None
 
-    pm25_list = [row[1] for row in series]
-    pm10_list = [row[2] for row in series]
-    computed = compute_cpcb_aqi_from_hourly(pm25_list, pm10_list)
+    computed = compute_cpcb_aqi_from_hourly([r[1] for r in series], [r[2] for r in series])
     if computed is None:
         return None
-
     aqi, dominant = computed
 
-    latest_dt: datetime | None = None
-    for dt, p25, p10 in reversed(series[-24:]):
-        if (p25 is not None and p25 >= 0) or (p10 is not None and p10 >= 0):
-            latest_dt = dt
-            break
-
+    latest_dt = next(
+        (dt for dt, p25, p10 in reversed(series[-24:]) if (p25 is not None and p25 >= 0) or (p10 is not None and p10 >= 0)),
+        None,
+    )
     if latest_dt is None:
         return None
-
     return aqi, dominant, latest_dt.isoformat()
 
 
 class AirQualityService:
-    """Fetches, computes, caches, and falls back for city air quality readings."""
+    """Fetches, computes, coalesces, and caches city/coordinate air quality readings."""
 
     def __init__(
         self,
@@ -168,31 +157,76 @@ class AirQualityService:
     ) -> None:
         self._cache = cache
         self._timeout_seconds = timeout_seconds
+        self._in_flight: dict[str, asyncio.Task[AirQualityReading]] = {}
 
     async def get_air_quality(
         self,
         city: str,
         http_client: httpx.AsyncClient,
     ) -> AirQualityReading:
-        """Fetches live Open-Meteo AQI for city (cached 10 min) or falls back to demo."""
+        """Fetches live Open-Meteo AQI for city (cached & coalesced) or falls back to demo."""
         cleaned = strip_control_chars(city) or "Delhi"
-        cache_key = cleaned.lower()
+        cache_key = f"city:{cleaned.lower()}"
 
         cached = await self._cache.get(cache_key)
         if cached is not None:
             return cached
 
+        return await self._coalesced_fetch(
+            cache_key=cache_key,
+            cache_on_live=True,
+            fetcher=lambda: self._fetch_city_with_fallback(cleaned, http_client),
+        )
+
+    async def get_air_quality_by_coords(
+        self,
+        lat: float,
+        lon: float,
+        http_client: httpx.AsyncClient,
+    ) -> AirQualityReading:
+        """Fetches live Open-Meteo AQI directly for coordinates without logging/storing coords."""
         try:
-            reading = await self._fetch_live(cleaned, http_client)
+            reading = await self._fetch_aq_at_coords(lat, lon, APPROX_LOCATION_LABEL, http_client)
         except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
-            logger.warning("Air quality lookup failed for city=%r (%s); using demo", cleaned, type(exc).__name__)
-            return get_demo_air_quality(cleaned)
+            logger.warning("Coordinate air quality lookup failed (%s); using demo", type(exc).__name__)
+            return get_demo_air_quality("Delhi").model_copy(update={"city": APPROX_LOCATION_LABEL})
 
         if reading is None:
-            return get_demo_air_quality(cleaned)
-
-        await self._cache.set(cache_key, reading)
+            return get_demo_air_quality("Delhi").model_copy(update={"city": APPROX_LOCATION_LABEL})
         return reading
+
+    async def _coalesced_fetch(
+        self,
+        cache_key: str,
+        cache_on_live: bool,
+        fetcher: Any,
+    ) -> AirQualityReading:
+        task = self._in_flight.get(cache_key)
+        if task is None:
+            task = asyncio.create_task(fetcher())
+            self._in_flight[cache_key] = task
+        try:
+            reading = await task
+        finally:
+            if self._in_flight.get(cache_key) is task and task.done():
+                self._in_flight.pop(cache_key, None)
+
+        if cache_on_live and reading.source == "live":
+            await self._cache.set(cache_key, reading)
+        return reading
+
+    async def _fetch_city_with_fallback(
+        self,
+        cleaned_city: str,
+        http_client: httpx.AsyncClient,
+    ) -> AirQualityReading:
+        try:
+            reading = await self._fetch_live(cleaned_city, http_client)
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
+            logger.warning("Air quality lookup failed for city=%r (%s); using demo", cleaned_city, type(exc).__name__)
+            return get_demo_air_quality(cleaned_city)
+
+        return reading if reading is not None else get_demo_air_quality(cleaned_city)
 
     async def _fetch_live(
         self,
@@ -202,12 +236,7 @@ class AirQualityService:
         query_city = _DEVANAGARI_CITY_MAP.get(city, city)
         geo_resp = await http_client.get(
             GEOCODING_URL,
-            params={
-                "name": query_city,
-                "count": 10,
-                "language": "en",
-                "format": "json",
-            },
+            params={"name": query_city, "count": 10, "language": "en", "format": "json"},
             timeout=self._timeout_seconds,
         )
         geo_resp.raise_for_status()
@@ -226,7 +255,15 @@ class AirQualityService:
             return None
 
         resolved_name = str(match.get("name") or city).strip() or city
+        return await self._fetch_aq_at_coords(float(lat), float(lon), resolved_name, http_client)
 
+    async def _fetch_aq_at_coords(
+        self,
+        lat: float,
+        lon: float,
+        label: str,
+        http_client: httpx.AsyncClient,
+    ) -> AirQualityReading | None:
         aq_resp = await http_client.get(
             AIR_QUALITY_URL,
             params={
@@ -250,7 +287,7 @@ class AirQualityService:
 
         aqi, dominant, updated_at = parsed
         return AirQualityReading(
-            city=resolved_name,
+            city=label,
             aqi=aqi,
             dominant_pollutant=dominant,
             updated_at=updated_at,

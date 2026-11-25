@@ -1,6 +1,0 @@
-{
-  "name": "Saans — Urban Air Quality Assistant",
-  "description": "Navigate severe winter smog and urban air pollution with personalized low-emission daily routines, indoor air quality hacks, sustainable alternatives, and a live impact simulator.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

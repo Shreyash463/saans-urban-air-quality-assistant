@@ -97,6 +97,29 @@
       "co2SavedKgPerMonth": 28
     }
   ],
+  "communityActions": [
+    {
+      "title": "Replace winter watchman bonfires with shared RWA electric heaters & leaf composting",
+      "who": "rwa",
+      "howTo": "Propose that your RWA place low-watt electric cabin heaters for night guards and set up a leaf-compost pit so garden waste is never burned at night.",
+      "estimatedImpact": "Cuts stagnant night-time block PM2.5 spikes (~16% local cut) and avoids ~1,400 kg CO2/mo across 50 homes.",
+      "effort": "low"
+    },
+    {
+      "title": "Start a lane WhatsApp alert for wet construction cover and zero waste burning",
+      "who": "neighbours",
+      "howTo": "Coordinate 20–50 neighbouring households to report open trash fires cleanly, water-sprinkle dusty lanes instead of dry sweeping, and ask builders to tarp sand/cement.",
+      "estimatedImpact": "Prevents sudden neighbourhood PM10/PM2.5 spikes within your immediate residential lane.",
+      "effort": "low"
+    },
+    {
+      "title": "Request an AQI-triggered indoor recess & anti-idling carpool zone at local schools",
+      "who": "school",
+      "howTo": "Encourage your PTA group to move assemblies and sports indoors when AQI exceeds 200 and adopt engine-off + shared carpool drop-off lanes.",
+      "estimatedImpact": "Shields students from 6–10 AM peak inversion fumes and trims school-gate tailpipe exhaust.",
+      "effort": "medium"
+    }
+  ],
   "maskGuidance": "At AQI 380, avoid outdoor exertion and prolonged outdoor exercise entirely for everyone. Keep children, older adults, and anyone with respiratory sensitivity indoors in clean air. For essential trips only, prefer the 1–4 PM window and wear a snugly fitted N95/FFP2 respirator. Not medical advice; consult a doctor if you have a respiratory or cardiac condition.",
   "disclaimer": "Not medical advice. This plan offers general environmental and low-emission lifestyle guidance. Always consult a qualified physician for asthma, COPD, cardiovascular conditions, or acute respiratory symptoms.",
   "generatedBy": "gemini"
