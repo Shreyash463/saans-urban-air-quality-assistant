@@ -460,6 +460,32 @@ async def test_real_gemini_response_fixtures_assemble_cleanly(
     assert plan.alternatives[2].co2_saved_kg_per_month == 0
 
 
+def test_vary_header_deduplicated_and_413_has_security_headers(tmp_path: Path) -> None:
+    dist_dir = tmp_path / "dist"
+    dist_dir.mkdir()
+    (dist_dir / "index.html").write_text("<html><body>Saans</body></html>", encoding="utf-8")
+    settings = Settings(
+        gemini_api_key="",
+        allowed_origins="https://example.com",
+        max_body_bytes=1024,
+    )
+    app = create_app(settings=settings, http_client=build_mock_http_client(), dist_dir=dist_dir)
+    with TestClient(app) as client:
+        res_ok = client.get("/", headers={"Origin": "https://example.com", "Accept-Encoding": "gzip"})
+        assert res_ok.status_code == 200
+        vary_tokens = [v.strip().lower() for v in res_ok.headers.get("vary", "").split(",") if v.strip()]
+        assert vary_tokens.count("origin") <= 1
+
+        res_413 = client.post(
+            "/api/plan",
+            content=b"{" + b"a" * 1200 + b"}",
+            headers={"Content-Type": "application/json", "Origin": "https://example.com"},
+        )
+        assert res_413.status_code == 413
+        assert res_413.headers.get("x-content-type-options") == "nosniff"
+        assert res_413.headers.get("x-frame-options") == "DENY"
+
+
 @pytest.mark.live
 @pytest.mark.asyncio
 async def test_live_gemini_smoke_optional() -> None:

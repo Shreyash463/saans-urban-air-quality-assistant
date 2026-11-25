@@ -306,7 +306,6 @@ def create_app(
     )
 
     app.add_middleware(GZipMiddleware, minimum_size=500, compresslevel=6)
-    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(MaxBodySizeMiddleware, max_bytes=resolved_settings.max_body_bytes)
     app.add_middleware(
         CORSMiddleware,
@@ -315,6 +314,7 @@ def create_app(
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["Content-Type", "Accept"],
     )
+    app.add_middleware(SecurityHeadersMiddleware)
 
     _register_exception_handlers(app)
     app.include_router(health.router)

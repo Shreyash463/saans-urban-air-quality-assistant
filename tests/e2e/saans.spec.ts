@@ -6,6 +6,12 @@ const require = createRequire(import.meta.url);
 const axeSource = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
 
 async function runAxeAudit(page: Page) {
+  await page.evaluate(async () => {
+    const finiteAnims = document
+      .getAnimations()
+      .filter((anim) => anim.effect?.getComputedTiming().iterations !== Infinity);
+    await Promise.all(finiteAnims.map((anim) => anim.finished.catch(() => undefined)));
+  });
   await page.evaluate(axeSource);
   const results = await page.evaluate(async () => {
     const w = window as unknown as {

@@ -21,11 +21,8 @@ export function Footer({
   return (
     <footer className="saans-theme-surface mt-8 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0E1627]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
-        <div
-          data-reveal-group
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 text-sm"
-        >
-          <div data-reveal>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 text-sm">
+          <div>
             <h3 className="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-slate-100">
               <Wind
                 className="w-4 h-4 text-teal-700 dark:text-teal-400 shrink-0"
@@ -38,7 +35,7 @@ export function Footer({
             </p>
           </div>
 
-          <div data-reveal>
+          <div>
             <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
               {t(language, 'footerMedicalHeading')}
             </h3>
@@ -47,7 +44,7 @@ export function Footer({
             </p>
           </div>
 
-          <div data-reveal>
+          <div>
             <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
               {t(language, 'footerPrivacyHeading')}
             </h3>
@@ -56,7 +53,7 @@ export function Footer({
             </p>
           </div>
 
-          <div data-reveal>
+          <div>
             <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
               {t(language, 'footerA11yHeading')}
             </h3>

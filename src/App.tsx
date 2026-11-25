@@ -196,25 +196,6 @@ export default function App() {
         activeSection={activeSection}
       />
 
-      {apiFallbackActive || infoNotice ? (
-        <div className="max-w-6xl w-full mx-auto px-4 sm:px-6 pt-4 space-y-2">
-          {apiFallbackActive ? (
-            <NoticeBanner
-              message={t(profile.language, 'apiFallbackNotice')}
-              onDismiss={() => setApiFallbackActive(false)}
-              tone="warning"
-            />
-          ) : null}
-          {infoNotice ? (
-            <NoticeBanner
-              message={infoNotice}
-              onDismiss={() => setInfoNotice(null)}
-              tone="info"
-            />
-          ) : null}
-        </div>
-      ) : null}
-
       <main id="main-content" className="flex-1">
         <Hero
           language={profile.language}
@@ -222,6 +203,25 @@ export default function App() {
           reducedMotion={reducedMotion}
           isDark={theme === 'dark'}
         />
+
+        {apiFallbackActive || infoNotice ? (
+          <div className="max-w-6xl w-full mx-auto px-4 sm:px-6 pb-4 space-y-2">
+            {apiFallbackActive ? (
+              <NoticeBanner
+                message={t(profile.language, 'apiFallbackNotice')}
+                onDismiss={() => setApiFallbackActive(false)}
+                tone="warning"
+              />
+            ) : null}
+            {infoNotice ? (
+              <NoticeBanner
+                message={infoNotice}
+                onDismiss={() => setInfoNotice(null)}
+                tone="info"
+              />
+            ) : null}
+          </div>
+        ) : null}
 
         <ProfileForm
           profile={profile}
