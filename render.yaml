@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: saans-urban-air-quality-assistant
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: TRUST_PROXY_HEADERS
+        value: 'true'
+      - key: TRUSTED_PROXY_HOPS
+        value: '1'
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        sync: false

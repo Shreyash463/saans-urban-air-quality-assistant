@@ -1,6 +1,10 @@
 # Saans — Urban Air Quality Assistant
 
+[![CI](https://github.com/Shreyash463/saans-urban-air-quality-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/Shreyash463/saans-urban-air-quality-assistant/actions/workflows/ci.yml)
+
 **Saans** (Hindi for *"breath"*) is a bilingual (**English + हिन्दी**) full-stack web application built to help Indian households and communities navigate severe winter smog and urban air pollution. It combines a React + TypeScript + Vite frontend with a hardened FastAPI + Google Gemini backend, live Open-Meteo particulate data calibrated to the **Indian CPCB National AQI scale**, deterministic safety guardrails, and an interactive multiplicative impact simulator.
+
+- **One-Click Cloud Deploy (Render Free Tier)**: [Deploy to Render](https://render.com/deploy?repo=https://github.com/Shreyash463/saans-urban-air-quality-assistant) (uses [`render.yaml`](render.yaml) + [`Dockerfile`](Dockerfile))
 
 ---
 
@@ -93,9 +97,12 @@ See [`.env.example`](.env.example):
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
+| `ENVIRONMENT` | `production` | `production` disables `/docs`, `/redoc`, and `/openapi.json` (set `development` locally to browse docs). |
 | `GEMINI_API_KEY` | *(unset)* | Server-side Google Gemini API key read from root `.env`. Missing/invalid keys automatically use rule-based fallback. |
-| `GEMINI_MODEL` | *(auto)* | Optional model ID override (e.g. `gemini-3.8-flash`). Auto-discovers newest flash model at startup when blank. |
+| `GEMINI_MODEL` | *(auto)* | Optional model ID override (e.g. `gemini-3.8-flash` or `gemini-2.5-flash`). Auto-discovers newest flash model at startup when blank. |
 | `ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:4173` | Comma-separated CORS origin allowlist (never `*`). |
+| `TRUST_PROXY_HEADERS` | `false` | Set `true` behind Render/Cloud Run/nginx so rate limiting extracts client IPs safely from the rightmost `trusted_proxy_hops` entry of `X-Forwarded-For`. |
+| `TRUSTED_PROXY_HOPS` | `1` | Number of trusted proxy hops to strip from the right of `X-Forwarded-For`. |
 | `VITE_API_BASE_URL` | `""` | Frontend API base URL; empty string uses same-origin `/api`. |
 | `VITE_USE_MOCK` | `false` | Set `"true"` to run the frontend strictly on the built-in client mock without calling `/api`. |
 
@@ -177,6 +184,7 @@ npm audit --omit=dev
 
 # Backend checks (inside backend/)
 ruff check app tests
+mypy app
 pyright --project pyproject.toml
 pytest --cov=app --cov-report=term-missing
 pip-audit -r requirements.txt
@@ -184,13 +192,38 @@ pip-audit -r requirements.txt
 
 ---
 
-## Docker
+## Deployment
 
-Multi-stage build (Node 24 builds frontend → slim Python 3.13 non-root runtime serves static `dist/` + `/api` on port `8000`):
+### Option 1: Render (60-Second Blueprint Deploy — Free Tier)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Shreyash463/saans-urban-air-quality-assistant)
+
+1. Open `https://render.com/deploy?repo=https://github.com/Shreyash463/saans-urban-air-quality-assistant` and authorize GitHub access for the repository.
+2. When prompted by [`render.yaml`](render.yaml), paste your server-side `GEMINI_API_KEY` (leave `GEMINI_MODEL` blank to auto-select the newest Flash model).
+3. Click **Deploy Blueprint** — Render builds [`Dockerfile`](Dockerfile), serves the React SPA and FastAPI `/api` on a single HTTPS origin, and monitors `/api/health`.
+
+### Option 2: Google Cloud Run
+
+```bash
+gcloud run deploy saans-assistant --source . --region asia-south1 --allow-unauthenticated \
+  --set-env-vars ENVIRONMENT=production,TRUST_PROXY_HEADERS=true --set-secrets GEMINI_API_KEY=gemini-api-key:latest
+```
+
+### Option 3: Vercel (Frontend) + Hosted FastAPI Backend
+
+Deploy the static Vite SPA to Vercel while pointing `VITE_API_BASE_URL` at your Cloud Run or Render backend URL (adding the Vercel domain to `ALLOWED_ORIGINS` on the backend):
+
+```bash
+vercel --prod   # Build command: npm run build | Output dir: dist | Env: VITE_API_BASE_URL=https://<backend-url>
+```
+
+### Option 4: Local Docker
+
+Multi-stage build (Node 24 builds frontend → slim Python 3.13 non-root runtime serves static `dist/` + `/api` on `$PORT`, defaulting to `8000`):
 
 ```bash
 docker build -t saans-assistant .
-docker run --rm -p 8000:8000 --env-file .env saans-assistant
+docker run --rm -p 8000:8000 -e ENVIRONMENT=production --env-file .env saans-assistant
 ```
 
 ---
@@ -198,10 +231,11 @@ docker run --rm -p 8000:8000 --env-file .env saans-assistant
 ## Security Notes
 
 - `GEMINI_API_KEY` stays strictly server-side in `.env` (gitignored); never logged or returned in API errors.
+- Interactive API docs (`/docs`, `/redoc`, `/openapi.json`) and stack traces are disabled in `ENVIRONMENT=production`.
 - Strict Pydantic v2 schemas (`extra="forbid"`, city regex/length `<= 60`, `householdSize` `1–20`, `commuteKm` `0–300`, `question` `<= 500`, control-char stripping).
 - Prompt-injection defense: user text is sanitized, angle-brackets escaped, enclosed in `<user_question>...</user_question>` delimiters, and post-checked against secret/prompt leakage and medical rules.
-- Sliding-window per-IP rate limiter (`20 req/min` on `/api/plan` and `/api/chat`, `60 req/min` on `/api/air-quality`, returning `429` + `Retry-After`).
-- `20 KB` max request body middleware, strict CORS origin allowlist, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, and strict CSP (`script-src 'self'`).
+- Sliding-window per-IP rate limiter (`20 req/min` on `/api/plan` and `/api/chat`, `60 req/min` on `/api/air-quality`, returning `429` + `Retry-After`) with trusted-proxy rightmost `X-Forwarded-For` validation to block header spoofing.
+- `20 KB` max request body middleware, strict CORS origin allowlist, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, HSTS over HTTPS, and strict CSP (`script-src 'self'`).
 
 ---
 

@@ -11,9 +11,9 @@ jobs:
     name: Frontend Lint, Typecheck, Test & Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: npm
@@ -29,9 +29,9 @@ jobs:
     name: Backend Lint, Typecheck, Test & Audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
           cache: pip
@@ -44,3 +44,36 @@ jobs:
           mypy app
           pytest --cov=app --cov-report=term-missing
           pip-audit -r requirements.txt
+
+  docker:
+    name: Docker Build & Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: saans-assistant:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Container smoke test
+        run: |
+          docker run -d --name saans-ci -p 8000:8000 -e ENVIRONMENT=production saans-assistant:ci
+          trap 'docker rm -f saans-ci' EXIT
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:8000/api/health; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8000/api/health | grep -q '"status":"ok"'
+          curl -fsS http://127.0.0.1:8000/ | grep -qi "Saans"
+          docs_status=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/docs)
+          test "$docs_status" = "404"
