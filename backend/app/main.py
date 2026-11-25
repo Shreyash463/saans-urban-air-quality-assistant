@@ -6,6 +6,7 @@ import logging
 import mimetypes
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from email.utils import formatdate
 from pathlib import Path
 
@@ -158,34 +159,64 @@ def _guess_media_type(file_path: Path) -> str:
     return guessed or "application/octet-stream"
 
 
-def _serve_spa_file(
-    request: Request,
-    file_path: Path,
-    cache_control: str,
-) -> Response:
-    """Serves a static file with ETag/304 negotiation, Cache-Control, and precompressed .br."""
-    stat = file_path.stat()
-    etag = f'W/"{stat.st_size:x}-{stat.st_mtime_ns:x}"'
-    last_modified = formatdate(stat.st_mtime, usegmt=True)
-    headers: dict[str, str] = {
-        "Cache-Control": cache_control,
-        "ETag": etag,
-        "Last-Modified": last_modified,
-    }
+@dataclass(frozen=True, slots=True)
+class _StaticAsset:
+    """Pre-indexed static bundle entry resolved safely at app creation."""
 
-    accept_encoding = request.headers.get("accept-encoding", "").lower()
-    br_path = file_path.with_name(f"{file_path.name}.br")
-    use_br = "br" in accept_encoding and br_path.is_file() and not file_path.name.endswith(".br")
-    if br_path.is_file():
+    file_path: Path
+    br_path: Path | None
+    etag: str
+    last_modified: str
+    media_type: str
+    cache_control: str
+
+
+def _build_static_index(dist_dir: Path) -> dict[str, _StaticAsset]:
+    """Indexes dist files once so HTTP requests never construct filesystem paths from user input."""
+    if not dist_dir.is_dir():
+        return {}
+    dist_root = dist_dir.resolve()
+    assets: dict[str, _StaticAsset] = {}
+    for entry in dist_root.rglob("*"):
+        if not entry.is_file() or entry.name.endswith(".br"):
+            continue
+        rel = entry.relative_to(dist_root).as_posix()
+        stat = entry.stat()
+        candidate_br = entry.with_name(f"{entry.name}.br")
+        br_path = candidate_br if candidate_br.is_file() else None
+        cache_control = (
+            "public, max-age=31536000, immutable"
+            if rel.startswith("assets/")
+            else "no-cache"
+        )
+        assets[rel] = _StaticAsset(
+            file_path=entry,
+            br_path=br_path,
+            etag=f'W/"{stat.st_size:x}-{stat.st_mtime_ns:x}"',
+            last_modified=formatdate(stat.st_mtime, usegmt=True),
+            media_type=_guess_media_type(entry),
+            cache_control=cache_control,
+        )
+    return assets
+
+
+def _serve_indexed_asset(request: Request, asset: _StaticAsset) -> Response:
+    """Serves a pre-indexed static file with ETag/304 negotiation and optional .br."""
+    headers: dict[str, str] = {
+        "Cache-Control": asset.cache_control,
+        "ETag": asset.etag,
+        "Last-Modified": asset.last_modified,
+    }
+    if asset.br_path is not None:
         headers["Vary"] = "Accept-Encoding"
-    if request.headers.get("if-none-match") == etag:
+    if request.headers.get("if-none-match") == asset.etag:
         return Response(status_code=304, headers=headers)
 
-    media_type = _guess_media_type(file_path)
-    if use_br:
+    accept_encoding = request.headers.get("accept-encoding", "").lower()
+    if asset.br_path is not None and "br" in accept_encoding:
         headers["Content-Encoding"] = "br"
-        return FileResponse(br_path, media_type=media_type, headers=headers)
-    return FileResponse(file_path, media_type=media_type, headers=headers)
+        return FileResponse(asset.br_path, media_type=asset.media_type, headers=headers)
+    return FileResponse(asset.file_path, media_type=asset.media_type, headers=headers)
 
 
 def _register_exception_handlers(app: FastAPI) -> None:
@@ -322,27 +353,23 @@ def create_app(
     app.include_router(plan.router)
     app.include_router(chat.router)
 
+    static_index = _build_static_index(resolved_dist)
+
     @app.get("/{full_path:path}", include_in_schema=False)
     async def spa_fallback(request: Request, full_path: str) -> Response:
         if full_path.startswith("api/") or full_path == "api":
             return JSONResponse(status_code=404, content={"detail": "Not found."})
         if not docs_enabled and full_path.rstrip("/") in {"docs", "redoc", "openapi.json"}:
             return JSONResponse(status_code=404, content={"detail": "Not found."})
-        if not resolved_dist.is_dir():
+        if not static_index:
             return JSONResponse(status_code=404, content={"detail": "Not found."})
-        dist_root = resolved_dist.resolve()
-        if full_path and not full_path.endswith(".br"):
-            candidate = (dist_root / full_path).resolve()
-            if candidate.is_relative_to(dist_root) and candidate.is_file():
-                cache_hdr = (
-                    "public, max-age=31536000, immutable"
-                    if full_path.startswith("assets/")
-                    else "no-cache"
-                )
-                return _serve_spa_file(request, candidate, cache_hdr)
-        index_file = dist_root / "index.html"
-        if index_file.is_file():
-            return _serve_spa_file(request, index_file, "no-cache")
+        normalized = full_path.lstrip("/")
+        matched = static_index.get(normalized) if normalized else None
+        if matched is not None:
+            return _serve_indexed_asset(request, matched)
+        index_asset = static_index.get("index.html")
+        if index_asset is not None:
+            return _serve_indexed_asset(request, index_asset)
         return JSONResponse(status_code=404, content={"detail": "Not found."})
 
     return app
