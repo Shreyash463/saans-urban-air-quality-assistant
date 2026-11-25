@@ -37,8 +37,43 @@ jobs:
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
-        env:
-          ACTIONS_STEP_DEBUG: 'true'
         with:
           category: '/language:${{ matrix.language }}'
-          upload-database: false
+          output: sarif-results
+          upload: 'false'
+
+      - name: Verify zero CodeQL findings in SARIF
+        shell: bash
+        run: |
+          python3 - <<'EOF'
+          import glob, json, sys
+
+          sarifs = sorted(glob.glob("sarif-results/*.sarif"))
+          if not sarifs:
+              print("ERROR: No SARIF files produced by CodeQL.")
+              sys.exit(1)
+
+          findings = []
+          for path in sarifs:
+              data = json.load(open(path, encoding="utf-8"))
+              for run in data.get("runs", []):
+                  rules = len(run.get("tool", {}).get("driver", {}).get("rules", []))
+                  res = run.get("results", [])
+                  print(f"{path}: rules={rules} findings={len(res)}")
+                  for item in res:
+                      findings.append((path, item.get("ruleId"), item.get("level"), item.get("message", {}).get("text")))
+
+          if findings:
+              for f in findings:
+                  print("FINDING:", f)
+              sys.exit(1)
+          print("CodeQL verification passed: 0 security findings.")
+          EOF
+
+      - name: Upload SARIF artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: sarif-results/*.sarif
+          retention-days: 14
