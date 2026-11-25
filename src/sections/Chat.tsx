@@ -24,8 +24,22 @@ export default function Chat({ profile, plan }: ChatProps) {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [wakingServer, setWakingServer] = useState(false);
   const [errorKey, setErrorKey] = useState<TranslationKey | null>(null);
   const logRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isLoading) {
+      setWakingServer(false);
+      return;
+    }
+    const timer = globalThis.setTimeout(() => {
+      setWakingServer(true);
+    }, 6000);
+    return () => {
+      globalThis.clearTimeout(timer);
+    };
+  }, [isLoading]);
 
   const suggestions: readonly string[] = [
     t(language, 'chatSuggestion1'),
@@ -197,7 +211,7 @@ export default function Chat({ profile, plan }: ChatProps) {
 
             {isLoading ? (
               <div
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-[#131C2E] border border-slate-200 dark:border-slate-700 w-fit"
+                className="flex flex-col gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-[#131C2E] border border-slate-200 dark:border-slate-700 w-fit"
                 role="status"
                 aria-live="polite"
               >
@@ -219,6 +233,11 @@ export default function Chat({ profile, plan }: ChatProps) {
                     style={{ animationDelay: '320ms' }}
                   />
                 </span>
+                {wakingServer ? (
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    {t(language, 'loadingWakingServer')}
+                  </p>
+                ) : null}
               </div>
             ) : null}
           </div>

@@ -61,16 +61,24 @@ const LOADING_STAGE_KEYS: readonly TranslationKey[] = [
 export function PlanLoadingStatus({ language }: { language: LanguageCode }) {
   const reducedMotion = useReducedMotion();
   const [stageIndex, setStageIndex] = useState(0);
+  const [wakingServer, setWakingServer] = useState(false);
 
   useEffect(() => {
     setStageIndex(0);
+    setWakingServer(false);
+    const wakeTimer = globalThis.setTimeout(() => {
+      setWakingServer(true);
+    }, 6000);
     if (reducedMotion) {
-      return;
+      return () => {
+        globalThis.clearTimeout(wakeTimer);
+      };
     }
     const interval = globalThis.setInterval(() => {
       setStageIndex((prev) => (prev < LOADING_STAGE_KEYS.length - 1 ? prev + 1 : prev));
     }, 1100);
     return () => {
+      globalThis.clearTimeout(wakeTimer);
       globalThis.clearInterval(interval);
     };
   }, [reducedMotion]);
@@ -86,6 +94,11 @@ export function PlanLoadingStatus({ language }: { language: LanguageCode }) {
         <p className="text-sm font-semibold text-teal-900 dark:text-teal-200">
           {t(language, LOADING_STAGE_KEYS[stageIndex])}
         </p>
+        {wakingServer ? (
+          <p className="mt-1.5 text-xs sm:text-sm text-teal-800 dark:text-teal-300">
+            {t(language, 'loadingWakingServer')}
+          </p>
+        ) : null}
         <ol className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs sm:text-sm">
           {LOADING_STAGE_KEYS.map((key, idx) => {
             const done = idx < stageIndex;

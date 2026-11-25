@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import axe from 'axe-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Footer } from '../sections/Footer';
@@ -48,13 +55,26 @@ describe('Dashboard loading stages, export actions, and axe accessibility across
     vi.restoreAllMocks();
   });
 
-  it('renders loading stages with aria-live status during plan generation', () => {
-    render(<PlanLoadingStatus language="en" />);
-    const status = screen.getByRole('status');
-    expect(status).toHaveAttribute('aria-live', 'polite');
-    expect(screen.getAllByText('Checking live air quality').length).toBeGreaterThan(0);
-    expect(screen.getByText('Personalizing with Gemini')).toBeInTheDocument();
-    expect(screen.getByText('Running safety checks')).toBeInTheDocument();
+  it('renders loading stages with aria-live status and cold-start hint after 6s', () => {
+    vi.useFakeTimers();
+    try {
+      render(<PlanLoadingStatus language="en" />);
+      const status = screen.getByRole('status');
+      expect(status).toHaveAttribute('aria-live', 'polite');
+      expect(screen.getAllByText('Checking live air quality').length).toBeGreaterThan(
+        0
+      );
+      expect(screen.getByText('Personalizing with Gemini')).toBeInTheDocument();
+      expect(screen.getByText('Running safety checks')).toBeInTheDocument();
+      expect(screen.queryByText(/waking up the server/i)).not.toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(6100);
+      });
+      expect(screen.getByText(/waking up the server/i)).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('shows Gemini/fallback badges, handles copy/download/print safely, and passes axe', async () => {
