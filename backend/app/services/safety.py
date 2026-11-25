@@ -39,7 +39,7 @@ _MEDICAL_DOSING_OR_DIAGNOSIS_PATTERNS: tuple[re.Pattern[str], ...] = (
 
 _INJECTION_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(
-        r"(ignore (?:all |any )?(?:previous|prior|above) instructions|disregard (?:your )?instructions|reveal (?:your )?(?:system prompt|instructions|api key)|print (?:your )?(?:env|environment|secrets?|gemini_api_key)|you are now |act as |jailbreak|system_instruction|<user_question>)",
+        r"(ignore (?:all |any )?(?:previous|prior|above) instructions|disregard (?:your )?instructions|reveal (?:your )?(?:system prompt|instructions|api key)|print (?:your )?(?:env|environment|secrets?|gemini_api_key)|you are now |act as |roleplay\b.*\b(?:admin|developer|system)|(?:hidden|developer|system)\s+(?:rules|instructions)\b|summarize\s+(?:the\s+|your\s+)?(?:hidden\s+|developer\s+|system\s+)?(?:rules|instructions|prompt)|jailbreak|system_instruction|<user_question>)",
         re.IGNORECASE,
     ),
 )
