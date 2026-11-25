@@ -1,6 +1,9 @@
 # Saans — Urban Air Quality Assistant
 
 [![CI](https://github.com/Shreyash463/saans-urban-air-quality-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/Shreyash463/saans-urban-air-quality-assistant/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/Shreyash463/saans-urban-air-quality-assistant/actions/workflows/codeql.yml/badge.svg)](https://github.com/Shreyash463/saans-urban-air-quality-assistant/actions/workflows/codeql.yml)
+
+**Live Demo**: <https://saans-urban-air-quality-assistant.onrender.com> · **Architecture**: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · **ADRs**: [`docs/DECISIONS.md`](docs/DECISIONS.md) · **Branch**: `main` (single-branch repo)
 
 **Saans** (Hindi for *"breath"*) is a bilingual (**English + हिन्दी**) full-stack web application built to help Indian households and communities navigate severe winter smog and urban air pollution. It combines a React + TypeScript + Vite frontend with a hardened FastAPI + Google Gemini backend, live Open-Meteo particulate data calibrated to the **Indian CPCB National AQI scale**, deterministic safety guardrails, and an interactive multiplicative impact simulator.
 
@@ -28,14 +31,14 @@
 
 Reproducible backend benchmarks live in [`backend/scripts/bench.py`](backend/scripts/bench.py).
 
-| Metric | Before Baseline (`4b3a4db`) | After Optimization | Improvement / Mechanism |
+| Metric | Before Baseline (`4b3a4db`) | After Optimization (`ed4c20a`) | Improvement / Mechanism |
 | --- | --- | --- | --- |
-| **Initial JS (`index-*.js`)** | `394.12 kB` (`115.61 kB` gzip) | `315.88 kB` (`93.39 kB` gzip / `77.4 kB` approx. `.br`) | Lazy-loaded `i18n.hi.ts` & mock generators |
+| **Initial JS (`index-*.js`)** | `394.12 kB` (`115.61 kB` gzip) | `315.36 kB` (`93.57 kB` gzip) | Lazy-loaded `i18n.hi.ts` & mock generators |
 | **External Font Requests** | `4` Google Fonts CDN fonts (`205 kB` incl. `120 kB` Devanagari) | `0` external CDNs on English sessions | Self-hosted subsetted Latin `@fontsource` + preloads |
-| **Mobile Lighthouse (Perf / A11y / BP / SEO)** | `91 / 100 / 100 / 100` (`CLS 0.107`, `LCP 2.2 s`) | `99 / 100 / 100 / 100` (`CLS 0`, `LCP 1.4 s`) | Self-hosted fonts, preloads, layout reservation |
-| **Desktop Lighthouse (Perf / A11y / BP / SEO)** | `95 / 100 / 100 / 100` (`LCP 0.9 s`, `CLS 0.005`) | `100 / 100 / 100 / 100` (`LCP 0.2 s`, `CLS 0.004`) | Brotli precompression + `immutable` `/assets/*` |
-| **Gemini Failover & Prompt Bloat** | Walks failing models on every request; `2,477`-char prompt + `1,200`-char schema | `ModelCircuitBreaker` (`60s` 429 / `300s` 503 / `900s` 404); narrative-only schema | Skips tripped models (`0 ms` overhead) & trims output schema |
-| **Stubbed Backend Median Latency** | — | `2.99 ms` plan miss / `2.31 ms` plan hit / `2.62 ms` chat | In-flight AQI coalescing + concurrent fact prep |
+| **Live Mobile Lighthouse (Perf / A11y / BP / SEO)** | `91 / 100 / 100 / 100` (`CLS 0.107`, `LCP 2.2 s`) | `100 / 100 / 100 / 100` (`CLS 0`, `LCP 1.1 s`) | Self-hosted fonts, preloads, layout reservation |
+| **Live Desktop Lighthouse (Perf / A11y / BP / SEO)** | `95 / 100 / 100 / 100` (`LCP 0.9 s`, `CLS 0.005`) | `100 / 100 / 100 / 100` (`LCP 0.6 s`, `CLS 0.004`) | Brotli precompression + `immutable` `/assets/*` |
+| **Gemini Failover & Prompt Bloat** | Walks failing models on every request; `2,477`-char system + `1,171`-char user prompt | `ModelCircuitBreaker` (`60s` 429 / `300s` 503 / `900s` 404); `1,384 + 472`-char prompt (`-49.1%`) | Skips tripped models (`0 ms` overhead) & trims output schema |
+| **Stubbed Backend Median Latency** | — | `5.12 ms` plan miss / `4.24 ms` plan hit / `4.06 ms` chat | In-flight AQI coalescing + concurrent fact prep |
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/DECISIONS.md`](docs/DECISIONS.md) for system diagrams and Architecture Decision Records.
 
@@ -74,7 +77,7 @@ flowchart LR
 
 1. **Startup Model Selection & Automatic Failover**: If `GEMINI_MODEL` is unset and `GEMINI_API_KEY` is provided in root `.env`, the backend calls `client.aio.models.list()` at startup (with a `3.5s` bounded timeout), filters text `flash` models supporting `generateContent` (excluding TTS/image/omni/live/embedding), ranks newest first (`gemini-3.8-flash` down through `gemini-3.5-flash`, `gemini-3.5-flash-lite`, and `gemini-3.1-flash-lite`), and automatically promotes whichever active model succeeds (`gemini-3.5-flash-lite` / `gemini-3.1-flash-lite` / `gemini-3.6-flash` observed live) if upstream capacity spikes (`503`/`429`) occur.
 2. **Grounding Before Generation**: `backend/app/services/impact.py` computes household `ProfileFacts` (already-followed habits, vulnerability flags, budget rank, and deterministic swap baselines from [`contract/impact-factors.json`](contract/impact-factors.json)).
-3. **Low-Latency Structured Generation**: Gemini writes tailored English or Hindi guidance using `_SIMPLE_PLAN_JSON_SCHEMA` (`response_mime_type="application/json"`, `temperature=0.3`, lowest-latency `ThinkingConfig` per model generation).
+3. **Low-Latency Structured Generation**: Gemini writes tailored English or Hindi guidance using `SIMPLE_PLAN_JSON_SCHEMA` (`response_mime_type="application/json"`, `temperature=0.3`, lowest-latency `ThinkingConfig` per model generation).
 4. **Post-Generation Enforcement**: `ground_alternatives_numbers()` replaces/clamps all numeric savings against `contract/impact-factors.json` (`0–95%` PM2.5, `0` CO2 for non-emission actions like masks/windows/purifiers/sealing), and `enforce_plan_safety()` validates `healthAdvisory` and `maskGuidance` against deterministic CPCB rules (e.g., never permitting outdoor exercise for vulnerable households at AQI ≥ 101 or anyone at AQI ≥ 201).
 5. **Resilient Fallback**: When `GEMINI_API_KEY` is missing or Gemini fails/times out/hits quota, `services/fallback_plan.py` produces a complete personalized plan tagged `generatedBy: "rules"`.
 
