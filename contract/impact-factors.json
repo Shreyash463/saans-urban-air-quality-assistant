@@ -1,0 +1,233 @@
+{
+  "constants": {
+    "MAX_PM25_REDUCTION_PCT": 95,
+    "MIN_RESIDUAL_EXPOSURE_PCT": 5,
+    "MAX_AIR_FRIENDLY_SCORE": 100,
+    "TOP_RECOMMENDED_COUNT": 3,
+    "REFERENCE_DAILY_COMMUTE_KM": 16,
+    "MIN_COMMUTE_SCALE": 0.5,
+    "MAX_COMMUTE_SCALE": 2.5
+  },
+  "actions": [
+    {
+      "id": "commute_transit",
+      "pm25ReductionFraction": 0.14,
+      "co2SavedKgPerMonth": 62,
+      "commuteScaled": true,
+      "emissionRelevant": true,
+      "label": {
+        "en": "Switch my commute to metro or bus",
+        "hi": "मेट्रो या बस से ऑफिस/कॉलेज जाना"
+      },
+      "impactSentence": {
+        "en": "Cuts tailpipe emissions on congested winter corridors and reduces time spent directly behind exhaust pipes.",
+        "hi": "भीड़भाड़ वाली सड़कों पर वाहनों का धुआं कम करता है और सीधे एग्जॉस्ट के संपर्क को घटाता है।"
+      },
+      "assumptionNote": {
+        "en": "Approximate estimate: ~14% lower roadside PM2.5 intake and ~62 kg CO2/month avoided (scaled to your daily commute distance over 22 workdays).",
+        "hi": "अनुमान: सड़क के PM2.5 संपर्क में ~14% कमी और ~62 किग्रा CO2/माह की बचत (22 कार्यदिवस के आधार पर)।"
+      }
+    },
+    {
+      "id": "stop_waste_burning",
+      "pm25ReductionFraction": 0.16,
+      "co2SavedKgPerMonth": 28,
+      "commuteScaled": false,
+      "emissionRelevant": true,
+      "label": {
+        "en": "Stop burning dry leaves or waste",
+        "hi": "सूखे पत्ते या कचरा जलाना बंद करना"
+      },
+      "impactSentence": {
+        "en": "Eliminates intense localized spikes of toxic smoke, soot, and dioxins right outside your home and street.",
+        "hi": "आपके घर और मोहल्ले के ठीक बाहर जहरीले धुएं, कालिख और हानिकारक कणों के अचानक उछाल को रोकता है।"
+      },
+      "assumptionNote": {
+        "en": "Approximate estimate: ~16% reduction in local neighborhood smoke infiltration and ~28 kg CO2/month avoided by composting dry leaves instead of burning.",
+        "hi": "अनुमान: स्थानीय PM2.5 में ~16% कमी और पत्तों की खाद बनाने से ~28 किग्रा CO2/माह की बचत।"
+      }
+    },
+    {
+      "id": "bedroom_purifier",
+      "pm25ReductionFraction": 0.42,
+      "co2SavedKgPerMonth": null,
+      "commuteScaled": false,
+      "emissionRelevant": false,
+      "label": {
+        "en": "Run a HEPA air purifier in the bedroom",
+        "hi": "बेडरूम में HEPA एयर प्यूरीफायर चलाना"
+      },
+      "impactSentence": {
+        "en": "Gives your lungs 8 hours of low-PM2.5 recovery overnight, cutting total daily inhaled particulate load.",
+        "hi": "रात में 8 घंटे साफ हवा देकर फेफड़ों को आराम देता है और पूरे दिन में सांस के साथ जाने वाले PM2.5 को काफी कम करता है।"
+      },
+      "assumptionNote": {
+        "en": "Approximate estimate: ~42% reduction in 24-hour personal PM2.5 dose using a True HEPA purifier (or DIY box-fan filter) in a closed bedroom overnight. CO2 impact: not applicable (—).",
+        "hi": "अनुमान: रात भर बंद बेडरूम में HEPA फ़िल्टर चलाने से 24 घंटे के PM2.5 संपर्क में ~42% कमी। CO2 बचत लागू नहीं (—)।"
+      }
+    },
+    {
+      "id": "close_windows_peak",
+      "pm25ReductionFraction": 0.22,
+      "co2SavedKgPerMonth": null,
+      "commuteScaled": false,
+      "emissionRelevant": false,
+      "label": {
+        "en": "Keep windows closed during peak smog (6–10 AM, 6–10 PM)",
+        "hi": "पीक स्मॉग (सुबह 6–10, शाम 6–10) में खिड़कियां बंद रखना"
+      },
+      "impactSentence": {
+        "en": "Blocks peak winter thermal-inversion smog from entering indoors, reserving cross-ventilation for the 1–4 PM dip.",
+        "hi": "सर्दियों में सुबह-शाम के घने स्मॉग को घर के अंदर आने से रोकता है, और दोपहर 1–4 बजे हवा बदलने की अनुमति देता है।"
+      },
+      "assumptionNote": {
+        "en": "Approximate estimate: ~22% reduction in indoor PM2.5 infiltration during morning/evening inversion peaks. CO2 impact: not applicable (—).",
+        "hi": "अनुमान: सुबह-शाम के पीक घंटों में घर के अंदर PM2.5 घुसने में ~22% कमी। CO2 बचत लागू नहीं (—)।"
+      }
+    },
+    {
+      "id": "clean_cooking",
+      "pm25ReductionFraction": 0.28,
+      "co2SavedKgPerMonth": 45,
+      "commuteScaled": false,
+      "emissionRelevant": true,
+      "label": {
+        "en": "Cook with induction or clean gas instead of wood/coal",
+        "hi": "लकड़ी/कोयले के बजाय इंडक्शन या स्वच्छ गैस पर खाना बनाना"
+      },
+      "impactSentence": {
+        "en": "Removes the largest indoor source of ultrafine kitchen smoke particles and lowers household carbon emissions.",
+        "hi": "रसोई में धुएं के सबसे बड़े स्रोत को हटाता है और घर के कार्बन उत्सर्जन को बहुत कम करता है।"
+      },
+      "assumptionNote": {
+        "en": "Approximate estimate: ~28% reduction in kitchen/home PM2.5 exposure and ~45 kg CO2/month avoided compared with biomass or solid-fuel cooking.",
+        "hi": "अनुमान: बायोमास/कोयले की तुलना में रसोई के PM2.5 में ~28% कमी और ~45 किग्रा CO2/माह की बचत।"
+      }
+    },
+    {
+      "id": "carpool_three_days",
+      "pm25ReductionFraction": 0.08,
+      "co2SavedKgPerMonth": 34,
+      "commuteScaled": true,
+      "emissionRelevant": true,
+      "label": {
+        "en": "Carpool 3 days a week",
+        "hi": "सप्ताह में 3 दिन कारपूल करना"
+      },
+      "impactSentence": {
+        "en": "Takes an extra vehicle off peak-hour roads three times a week, trimming both local exhaust and fuel burn.",
+        "hi": "सप्ताह में तीन दिन सड़कों से एक अतिरिक्त वाहन कम करता है, जिससे धुआं और ईंधन खर्च दोनों घटते हैं।"
+      },
+      "assumptionNote": {
+        "en": "Approximate estimate: ~8% personal/community PM2.5 benefit and ~34 kg CO2/month saved by sharing commutes 3 days per week (scaled to your commute distance).",
+        "hi": "अनुमान: सप्ताह में 3 दिन कारपूल करने से ~8% PM2.5 लाभ और ~34 किग्रा CO2/माह की बचत।"
+      }
+    },
+    {
+      "id": "fitted_n95_mask",
+      "pm25ReductionFraction": 0.35,
+      "co2SavedKgPerMonth": null,
+      "commuteScaled": false,
+      "emissionRelevant": false,
+      "label": {
+        "en": "Wear a fitted N95/FFP2 mask on high-AQI days",
+        "hi": "खराब AQI के दिनों में फिटेड N95/FFP2 मास्क पहनना"
+      },
+      "impactSentence": {
+        "en": "Filters over 90% of fine PM2.5 particles during outdoor commutes and errands when the nose-bridge seal is snug.",
+        "hi": "बाहर यात्रा और काम के दौरान नाक पर सही फिटिंग के साथ 90% से अधिक PM2.5 कणों को फ़िल्टर करता है।"
+      },
+      "assumptionNote": {
+        "en": "Approximate estimate: ~35% drop in total daily inhaled PM2.5 dose when wearing a properly sealed N95/FFP2 outdoors on Poor+ days. CO2 impact: not applicable (—).",
+        "hi": "अनुमान: खराब AQI में बाहर फिटेड N95/FFP2 पहनने से दैनिक PM2.5 संपर्क में ~35% कमी। CO2 बचत लागू नहीं (—)।"
+      }
+    },
+    {
+      "id": "seal_door_gaps",
+      "pm25ReductionFraction": 0.15,
+      "co2SavedKgPerMonth": null,
+      "commuteScaled": false,
+      "emissionRelevant": false,
+      "label": {
+        "en": "Seal door and window gaps with draft stoppers",
+        "hi": "दरवाज़ों और खिड़कियों की दरारें सील करना"
+      },
+      "impactSentence": {
+        "en": "Stops outdoor haze from leaking through under-door slits and loose frames, making indoor air cleaning far more effective.",
+        "hi": "दरवाज़ों के नीचे और खिड़कियों के किनारों से बाहरी धुंध का रिसाव रोकता है, जिससे घर के अंदर की हवा साफ रहती है।"
+      },
+      "assumptionNote": {
+        "en": "Approximate estimate: ~15% lower indoor PM2.5 leakage using EPDM foam weather-strips or rolled towels. CO2 impact: not applicable (—).",
+        "hi": "अनुमान: फोम स्ट्रिप या ड्राफ्ट स्टॉपर से घर में PM2.5 रिसाव में ~15% कमी। CO2 बचत लागू नहीं (—)।"
+      }
+    }
+  ],
+  "alternativeNumbers": {
+    "commute_car_to_transit": {
+      "pm25ReductionPct": 14,
+      "baseCo2KgPerMonth": 62,
+      "commuteScaled": true,
+      "emissionRelevant": true
+    },
+    "commute_two_wheeler_to_transit": {
+      "pm25ReductionPct": 24,
+      "baseCo2KgPerMonth": 32,
+      "commuteScaled": true,
+      "emissionRelevant": true
+    },
+    "commute_carpool": {
+      "pm25ReductionPct": 8,
+      "baseCo2KgPerMonth": 34,
+      "commuteScaled": true,
+      "emissionRelevant": true
+    },
+    "cooking_biomass_to_clean": {
+      "pm25ReductionPct": 45,
+      "baseCo2KgPerMonth": 45,
+      "commuteScaled": false,
+      "emissionRelevant": true
+    },
+    "cooking_gas_to_induction": {
+      "pm25ReductionPct": 16,
+      "baseCo2KgPerMonth": 22,
+      "commuteScaled": false,
+      "emissionRelevant": true
+    },
+    "cooking_ventilation_only": {
+      "pm25ReductionPct": 12,
+      "baseCo2KgPerMonth": 0,
+      "commuteScaled": false,
+      "emissionRelevant": false
+    },
+    "stop_waste_burning": {
+      "pm25ReductionPct": 16,
+      "baseCo2KgPerMonth": 28,
+      "commuteScaled": false,
+      "emissionRelevant": true
+    },
+    "bedroom_purifier": {
+      "pm25ReductionPct": 42,
+      "baseCo2KgPerMonth": 0,
+      "commuteScaled": false,
+      "emissionRelevant": false
+    },
+    "close_windows_peak": {
+      "pm25ReductionPct": 22,
+      "baseCo2KgPerMonth": 0,
+      "commuteScaled": false,
+      "emissionRelevant": false
+    },
+    "fitted_n95_mask": {
+      "pm25ReductionPct": 35,
+      "baseCo2KgPerMonth": 0,
+      "commuteScaled": false,
+      "emissionRelevant": false
+    },
+    "seal_door_gaps": {
+      "pm25ReductionPct": 15,
+      "baseCo2KgPerMonth": 0,
+      "commuteScaled": false,
+      "emissionRelevant": false
+    }
+  }
+}

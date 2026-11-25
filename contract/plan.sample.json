@@ -1,0 +1,103 @@
+{
+  "aqi": {
+    "city": "Delhi",
+    "aqi": 380,
+    "dominantPollutant": "PM2.5",
+    "updatedAt": "2026-11-25T12:00:00+05:30",
+    "source": "live",
+    "sourceDetail": "Open-Meteo, PM-based CPCB estimate"
+  },
+  "summary": "Delhi shows a live AQI of 380 (Very Poor), driven primarily by PM2.5. Built for your 4-person household, this plan avoids morning and evening winter inversion, prioritizes affordable indoor protection, and includes practical emission-cutting swaps.",
+  "healthAdvisory": "Air quality is Very Poor (AQI 380), increasing the risk of airway irritation and respiratory strain on prolonged exposure. For children: Keep playtime and school sports indoors today because young lungs absorb a higher PM2.5 dose per breath. This guidance is not medical advice; consult a qualified doctor promptly if coughing, wheezing, or breathlessness develops.",
+  "routine": [
+    {
+      "timeSlot": "morning",
+      "title": "Set car AC to recirculate and keep home windows shut (6–10 AM)",
+      "detail": "Switch your car cabin AC to recirculation mode in traffic so exhaust fumes stay outside, and keep home windows sealed during the morning winter inversion peak.",
+      "impactNote": "Cuts in-cabin exhaust spikes by ~40% and blocks morning smog from entering your home."
+    },
+    {
+      "timeSlot": "midday",
+      "title": "Ventilate your home for 20 minutes during the 1–4 PM AQI dip",
+      "detail": "Afternoon warmth lifts the inversion layer, making 1–4 PM the cleanest window of the day. Open opposite windows for 15–20 minutes to flush trapped indoor CO2.",
+      "impactNote": "Flushes indoor CO2 and kitchen aerosols during the lowest-AQI window of the day."
+    },
+    {
+      "timeSlot": "evening",
+      "title": "Seal windows by 5:30 PM and minimize evening indoor smoke",
+      "detail": "Run the kitchen exhaust fan during tadka or frying, and skip incense sticks (agarbatti) or mosquito coils indoors.",
+      "impactNote": "Prevents indoor PM2.5 spikes from evening inversion, tadka smoke, and incense."
+    },
+    {
+      "timeSlot": "night",
+      "title": "Create a sealed low-smog sleep zone in the bedroom",
+      "detail": "Close bedroom doors tightly, block under-door slits with a rolled towel, and run a DIY box-fan HEPA filter overnight.",
+      "impactNote": "Reduces overnight outdoor smog seepage into your sleeping space by ~15–20%."
+    }
+  ],
+  "indoorHacks": [
+    {
+      "title": "Switch from dry sweeping to wet mopping",
+      "howTo": "Replace dry jhadu sweeping and dry dusting with a damp microfiber mop or cloth once daily.",
+      "estimatedBenefit": "~20–30% less resuspended indoor dust (PM10/PM2.5)",
+      "costLevel": "free"
+    },
+    {
+      "title": "Skip incense sticks, dhoop, and mosquito coils indoors",
+      "howTo": "Use mosquito nets and keep kitchen exhaust running instead of burning incense or coils in closed rooms.",
+      "estimatedBenefit": "Eliminates sharp indoor smoke spikes (often 200–500 µg/m³)",
+      "costLevel": "free"
+    },
+    {
+      "title": "Don't rely on indoor plants for PM2.5 — use real filtration",
+      "howTo": "Prioritize airtight sealing and mechanical HEPA filtration rather than houseplants for winter smog removal.",
+      "estimatedBenefit": "Prevents false confidence so your budget goes to real PM2.5 cuts",
+      "costLevel": "free"
+    },
+    {
+      "title": "Weather-strip balcony sliding doors and entrance gaps",
+      "howTo": "Apply self-adhesive EPDM foam weather-stripping around loose window sashes and attach an under-door brush sweep.",
+      "estimatedBenefit": "~15% lower outdoor smog seepage; improves indoor filtration efficiency",
+      "costLevel": "low"
+    },
+    {
+      "title": "Build a DIY box-fan + HEPA filter (budget air cleaner)",
+      "howTo": "Seal a replacement True HEPA filter onto the intake side of a box or table fan using cardboard shrouding.",
+      "estimatedBenefit": "~50–70% bedroom PM2.5 drop at a fraction of retail purifier cost",
+      "costLevel": "low"
+    }
+  ],
+  "alternatives": [
+    {
+      "current": "Solo private car commute (18 km/day)",
+      "swap": "Take metro/bus or carpool 3 days/week + stay current on PUC checks",
+      "why": "Idling urban cars emit heavy NO2 and fine exhaust particles; shifting to metro/bus cuts corridor emissions and fuel costs.",
+      "pm25ReductionPct": 14,
+      "co2SavedKgPerMonth": 70
+    },
+    {
+      "current": "Using gas burners for boiling water, tea, and long simmering",
+      "swap": "Use an electric kettle or induction burner for boiling + run kitchen exhaust",
+      "why": "Open gas flames add indoor NO2 and ultrafine particles in sealed winter kitchens; moving boiling tasks to induction cleans kitchen air.",
+      "pm25ReductionPct": 16,
+      "co2SavedKgPerMonth": 22
+    },
+    {
+      "current": "Wearing cloth or loose surgical masks outdoors",
+      "swap": "Switch to a snugly fitted N95/FFP2 respirator on Poor+ days",
+      "why": "Cloth and loose surgical masks let fine PM2.5 leak past the edges; a sealed N95 blocks over 90% of particles during outdoor trips.",
+      "pm25ReductionPct": 35,
+      "co2SavedKgPerMonth": 0
+    },
+    {
+      "current": "Burning dry garden leaves/waste or winter bonfires",
+      "swap": "Compost dry leaves and encourage RWA electric heaters instead of bonfires",
+      "why": "On still winter nights, a single leaf or trash fire spikes PM2.5 across an entire residential block for hours.",
+      "pm25ReductionPct": 16,
+      "co2SavedKgPerMonth": 28
+    }
+  ],
+  "maskGuidance": "At AQI 380, avoid outdoor exertion and prolonged outdoor exercise entirely for everyone. Keep children, older adults, and anyone with respiratory sensitivity indoors in clean air. For essential trips only, prefer the 1–4 PM window and wear a snugly fitted N95/FFP2 respirator. Not medical advice; consult a doctor if you have a respiratory or cardiac condition.",
+  "disclaimer": "Not medical advice. This plan offers general environmental and low-emission lifestyle guidance. Always consult a qualified physician for asthma, COPD, cardiovascular conditions, or acute respiratory symptoms.",
+  "generatedBy": "gemini"
+}
