@@ -32,7 +32,7 @@ import {
   getMockAirQuality,
 } from './mockPlanGenerator';
 
-export const REQUEST_TIMEOUT_MS = 30_000;
+export const REQUEST_TIMEOUT_MS = 35_000;
 export const AIR_QUALITY_TIMEOUT_MS = 12_000;
 
 /**

@@ -30,8 +30,8 @@ describe('API layer backend-first default and resilient fallback behavior', () =
     vi.restoreAllMocks();
   });
 
-  it('uses a 30-second timeout for plan and chat generation', () => {
-    expect(REQUEST_TIMEOUT_MS).toBe(30_000);
+  it('uses a 35-second timeout for plan and chat generation', () => {
+    expect(REQUEST_TIMEOUT_MS).toBe(35_000);
   });
 
   it('calls same-origin /api/plan by default when VITE_USE_MOCK is not true', async () => {
