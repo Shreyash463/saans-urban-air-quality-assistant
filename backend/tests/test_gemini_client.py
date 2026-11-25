@@ -106,3 +106,72 @@ async def test_gemini_client_simplifies_schema_and_retries_invalid_json() -> Non
     assert plan is not None
     assert plan.generated_by == "gemini"
     assert calls == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "exc",
+    [
+        TimeoutError("Gemini timed out"),
+        RuntimeError("429 RESOURCE_EXHAUSTED: quota exceeded"),
+    ],
+)
+async def test_gemini_client_degrades_without_retry_storm_on_timeout_or_429(
+    exc: Exception,
+) -> None:
+    gen_calls = 0
+
+    class _SlowOrQuotaModels:
+        async def list(self) -> Any:
+            raise TimeoutError("discovery slow")
+
+        async def generate_content(self, **_kwargs: Any) -> Any:
+            nonlocal gen_calls
+            gen_calls += 1
+            raise exc
+
+    sdk = type("Sdk", (), {"aio": type("Aio", (), {"models": _SlowOrQuotaModels()})()})()
+    client = GeminiClient(
+        Settings(gemini_api_key="test-placeholder-for-mock", gemini_discovery_timeout_seconds=0.5),
+        sdk_client=sdk,
+    )
+    await client.initialize_models()
+    assert client.selected_model == "gemini-3.8-flash"
+
+    profile = UserProfile.model_validate(
+        {
+            "city": "Delhi",
+            "householdSize": 2,
+            "hasChildren": False,
+            "hasElderly": False,
+            "hasRespiratoryCondition": False,
+            "commuteMode": "car",
+            "commuteKm": 16,
+            "homeType": "apartment",
+            "hasAirPurifier": False,
+            "cookingFuel": "lpg",
+            "budget": "low",
+            "language": "en",
+        }
+    )
+    reading = AirQualityReading(
+        city="Delhi",
+        aqi=310,
+        dominantPollutant="PM2.5",
+        updated_at="2026-11-25T12:00:00+05:30",
+        source="live",
+    )
+    plan = await client.generate_plan(profile, reading)
+    assert plan is None
+    assert gen_calls == 1
+
+    gen_calls = 0
+    chat_reply = await client.generate_chat_reply("Can kids play outside?", profile, plan or _dummy_plan(profile, reading))
+    assert chat_reply is None
+    assert gen_calls == 1
+
+
+def _dummy_plan(profile: UserProfile, reading: AirQualityReading) -> Any:
+    from app.services.fallback_plan import generate_fallback_plan
+
+    return generate_fallback_plan(profile, reading)

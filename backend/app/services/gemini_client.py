@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import re
+import time
 from typing import Any
 
 from google import genai
@@ -27,6 +28,7 @@ from app.schemas import (
     IndoorHack,
     PlanResponse,
     RoutineItem,
+    RoutineTimeSlot,
     UserProfile,
 )
 from app.services.impact import build_profile_facts, ground_alternatives_numbers
@@ -45,7 +47,7 @@ logger = logging.getLogger(__name__)
 _DEFAULT_FLASH_FALLBACKS: tuple[str, ...] = (
     "gemini-3.8-flash",
     "gemini-3.5-flash-lite",
-    "gemini-4-hydrogen",
+    "gemini-2.5-flash",
 )
 
 _EXCLUDED_MODEL_MARKERS = (
@@ -173,8 +175,8 @@ def select_best_flash_models(models: list[Any]) -> list[str]:
             continue
         if any(marker in lower for marker in _EXCLUDED_MODEL_MARKERS):
             continue
-        actions = getattr(model, "supported_actions", None) or []
-        if "generateContent" not in actions:
+        actions = [str(action).lower() for action in (getattr(model, "supported_actions", None) or [])]
+        if "generatecontent" not in actions and "generate_content" not in actions:
             continue
         candidates.append(short_name)
 
@@ -199,8 +201,20 @@ def _is_schema_rejection(exc: Exception) -> bool:
     )
 
 
+def _is_quota_or_rate_limit(exc: Exception) -> bool:
+    code = getattr(exc, "code", None)
+    if code == 429:
+        return True
+    msg = str(exc).lower()
+    return any(tok in msg for tok in ("resource_exhausted", "quota", "rate limit", "429"))
+
+
+def _is_timeout_error(exc: Exception) -> bool:
+    return isinstance(exc, TimeoutError | asyncio.TimeoutError) or "timeout" in type(exc).__name__.lower()
+
+
 class GeminiClient:
-    """Async Gemini client managing model discovery, retries, timeouts, and structured outputs."""
+    """Async Gemini client managing model discovery, bounded timeouts, structured outputs, and fast fallback."""
 
     def __init__(self, settings: Settings, sdk_client: Any | None = None) -> None:
         self._settings = settings
@@ -208,6 +222,7 @@ class GeminiClient:
         self._client = sdk_client
         self._model_chain: list[str] = []
         self._selected_model: str | None = None
+        self._discovery_lock = asyncio.Lock()
 
         if self._client is None and self._api_key:
             timeout_ms = int(settings.gemini_timeout_seconds * 1000)
@@ -233,39 +248,40 @@ class GeminiClient:
         return self._selected_model
 
     async def initialize_models(self) -> None:
-        """Discovers the newest flash model at startup if GEMINI_MODEL is unset."""
+        """Discovers the newest flash model with bounded timeout; never fails startup."""
         if not self._client:
             logger.info("Gemini API key not configured; operating with rule-based fallback.")
             return
 
-        if self._selected_model:
-            logger.info("Using configured Gemini model: %s", self._selected_model)
-            return
-
-        try:
-            pager = await asyncio.wait_for(
-                self._client.aio.models.list(),
-                timeout=self._settings.gemini_timeout_seconds,
-            )
-            discovered: list[Any] = []
-            async for item in pager:
-                discovered.append(item)
-            ranked = select_best_flash_models(discovered)
-            if ranked:
-                self._selected_model = ranked[0]
-                self._model_chain = ranked[:3] + [
-                    m for m in _DEFAULT_FLASH_FALLBACKS if m not in ranked[:3]
-                ]
-                logger.info("Auto-selected Gemini flash model: %s", self._selected_model)
+        async with self._discovery_lock:
+            if self._model_chain:
+                logger.info("Using Gemini model: %s", self._selected_model)
                 return
-        except Exception as exc:
-            logger.warning(
-                "Gemini model list discovery failed (%s); falling back to default chain.",
-                type(exc).__name__,
-            )
 
-        self._model_chain = list(_DEFAULT_FLASH_FALLBACKS)
-        self._selected_model = self._model_chain[0]
+            try:
+                pager = await asyncio.wait_for(
+                    self._client.aio.models.list(),
+                    timeout=self._settings.gemini_discovery_timeout_seconds,
+                )
+                discovered: list[Any] = []
+                async for item in pager:
+                    discovered.append(item)
+                ranked = select_best_flash_models(discovered)
+                if ranked:
+                    self._selected_model = ranked[0]
+                    self._model_chain = ranked[:3] + [
+                        m for m in _DEFAULT_FLASH_FALLBACKS if m not in ranked[:3]
+                    ]
+                    logger.info("Auto-selected Gemini flash model: %s", self._selected_model)
+                    return
+            except Exception as exc:
+                logger.warning(
+                    "Gemini model list discovery failed (%s); falling back to default chain.",
+                    type(exc).__name__,
+                )
+
+            self._model_chain = list(_DEFAULT_FLASH_FALLBACKS)
+            self._selected_model = self._model_chain[0]
 
     async def generate_plan(
         self,
@@ -287,13 +303,24 @@ class GeminiClient:
             facts=facts,
         )
 
+        deadline = time.monotonic() + self._settings.gemini_timeout_seconds
+        slot_order: tuple[RoutineTimeSlot, ...] = ("morning", "midday", "evening", "night")
+
         for model_name in self._model_chain[:3]:
-            draft = await self._call_plan_model_with_retry(model_name, user_prompt)
+            remaining = deadline - time.monotonic()
+            if remaining <= 1.0:
+                break
+            draft, stop_all = await self._call_plan_model_with_retry(
+                model_name,
+                user_prompt,
+                deadline,
+            )
             if draft is None:
+                if stop_all:
+                    break
                 continue
 
             # Ensure exactly 4 unique routine slots in canonical order
-            slot_order = ("morning", "midday", "evening", "night")
             by_slot = {item.time_slot: item for item in draft.routine}
             if not all(slot in by_slot for slot in slot_order):
                 continue
@@ -330,15 +357,20 @@ class GeminiClient:
         self,
         model_name: str,
         user_prompt: str,
-    ) -> _GeminiPlanDraft | None:
+        deadline: float,
+    ) -> tuple[_GeminiPlanDraft | None, bool]:
+        """Returns (draft_or_none, abort_chain_immediately) to avoid retry storms on 429/timeout."""
         client = self._client
         if client is None:
-            return None
+            return None, True
 
         use_simplified_schema = False
         drop_schema = False
 
         for attempt in range(2):
+            remaining = deadline - time.monotonic()
+            if remaining <= 1.0:
+                return None, True
             try:
                 config_kwargs: dict[str, Any] = {
                     "system_instruction": PLAN_SYSTEM_PROMPT,
@@ -357,15 +389,14 @@ class GeminiClient:
                         contents=user_prompt,
                         config=types.GenerateContentConfig(**config_kwargs),
                     ),
-                    timeout=self._settings.gemini_timeout_seconds,
+                    timeout=remaining,
                 )
                 raw_text = getattr(response, "text", None) or ""
                 cleaned_json = _strip_json_fences(raw_text)
                 if not cleaned_json:
                     raise ValueError("Empty Gemini JSON output")
-                # Validate valid JSON and strict Pydantic structure
                 json.loads(cleaned_json)
-                return _GeminiPlanDraft.model_validate_json(cleaned_json)
+                return _GeminiPlanDraft.model_validate_json(cleaned_json), False
             except (ValidationError, ValueError, json.JSONDecodeError) as exc:
                 logger.warning(
                     "Invalid JSON/schema from model=%s attempt=%d (%s)",
@@ -382,9 +413,21 @@ class GeminiClient:
                     if not drop_schema:
                         drop_schema = True
                         continue
-                if isinstance(exc, genai_errors.APIError) and getattr(exc, "code", None) in {400, 401, 403, 404}:
+                if _is_quota_or_rate_limit(exc) or _is_timeout_error(exc):
+                    logger.warning(
+                        "Gemini fast fallback on model=%s (%s)",
+                        model_name,
+                        type(exc).__name__,
+                    )
+                    return None, True
+                if isinstance(exc, genai_errors.APIError) and getattr(exc, "code", None) in {
+                    400,
+                    401,
+                    403,
+                    404,
+                }:
                     logger.warning("Gemini model=%s rejected request (%s)", model_name, type(exc).__name__)
-                    return None
+                    return None, False
                 logger.warning(
                     "Transient Gemini error on model=%s attempt=%d (%s)",
                     model_name,
@@ -393,7 +436,7 @@ class GeminiClient:
                 )
                 continue
 
-        return None
+        return None, False
 
     async def generate_chat_reply(
         self,
@@ -417,9 +460,13 @@ class GeminiClient:
 
         user_prompt = build_chat_user_prompt(safe_q, profile, plan)
         max_chat_tokens = min(512, self._settings.gemini_max_output_tokens)
+        deadline = time.monotonic() + self._settings.gemini_timeout_seconds
 
         for model_name in self._model_chain[:3]:
             for attempt in range(2):
+                remaining = deadline - time.monotonic()
+                if remaining <= 1.0:
+                    return None
                 try:
                     response = await asyncio.wait_for(
                         self._client.aio.models.generate_content(
@@ -431,7 +478,7 @@ class GeminiClient:
                                 max_output_tokens=max_chat_tokens,
                             ),
                         ),
-                        timeout=self._settings.gemini_timeout_seconds,
+                        timeout=remaining,
                     )
                     raw_text = (getattr(response, "text", None) or "").strip()
                     if not raw_text:
@@ -439,7 +486,19 @@ class GeminiClient:
                     safe_answer = sanitize_chat_reply(raw_text, safe_q, profile, plan.aqi.aqi)
                     return ChatReply(answer=safe_answer)
                 except Exception as exc:
-                    if isinstance(exc, genai_errors.APIError) and getattr(exc, "code", None) in {400, 401, 403, 404}:
+                    if _is_quota_or_rate_limit(exc) or _is_timeout_error(exc):
+                        logger.warning(
+                            "Gemini chat fast fallback on model=%s (%s)",
+                            model_name,
+                            type(exc).__name__,
+                        )
+                        return None
+                    if isinstance(exc, genai_errors.APIError) and getattr(exc, "code", None) in {
+                        400,
+                        401,
+                        403,
+                        404,
+                    }:
                         logger.warning("Gemini chat model=%s failed (%s)", model_name, type(exc).__name__)
                         break
                     logger.warning(

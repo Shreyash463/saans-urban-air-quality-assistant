@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -35,6 +36,8 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
+    environment: Literal["development", "production", "test"] = Field(default="production")
+    expose_api_docs: bool | None = Field(default=None)
     gemini_api_key: str | None = Field(default=None)
     gemini_model: str | None = Field(default=None)
     allowed_origins: str = Field(default="http://localhost:5173,http://localhost:4173")
@@ -42,9 +45,23 @@ class Settings(BaseSettings):
     cache_ttl_seconds: int = Field(default=600, ge=1, le=86_400)
     air_quality_timeout_seconds: float = Field(default=8.0, ge=1.0, le=30.0)
     gemini_timeout_seconds: float = Field(default=20.0, ge=1.0, le=60.0)
-    gemini_max_output_tokens: int = Field(default=2048, ge=256, le=8192)
+    gemini_discovery_timeout_seconds: float = Field(default=3.5, ge=0.5, le=15.0)
+    gemini_max_output_tokens: int = Field(default=1536, ge=256, le=8192)
     trust_proxy_headers: bool = Field(default=False)
+    trusted_proxy_hops: int = Field(default=1, ge=1, le=5)
     log_level: str = Field(default="INFO")
+
+    @property
+    def is_production(self) -> bool:
+        """Returns True when running in production mode."""
+        return self.environment == "production"
+
+    @property
+    def should_expose_docs(self) -> bool:
+        """Disables OpenAPI/Swagger UI in production unless explicitly enabled."""
+        if self.expose_api_docs is not None:
+            return self.expose_api_docs
+        return not self.is_production
 
     @property
     def parsed_allowed_origins(self) -> list[str]:

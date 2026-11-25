@@ -113,7 +113,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "Permissions-Policy",
             "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
         )
-        proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+        proto_raw = request.headers.get("x-forwarded-proto", request.url.scheme)
+        proto = proto_raw.split(",")[0].strip().lower()
         if proto == "https":
             response.headers.setdefault(
                 "Strict-Transport-Security",
@@ -174,12 +175,13 @@ def create_app(
             if owns_http:
                 await client.aclose()
 
+    docs_enabled = resolved_settings.should_expose_docs
     app = FastAPI(
         title="Saans — Urban Air Quality Assistant API",
         version="1.0.0",
-        docs_url=None,
-        redoc_url=None,
-        openapi_url=None,
+        docs_url="/docs" if docs_enabled else None,
+        redoc_url="/redoc" if docs_enabled else None,
+        openapi_url="/openapi.json" if docs_enabled else None,
         lifespan=lifespan,
     )
 
@@ -235,6 +237,8 @@ def create_app(
     @app.get("/{full_path:path}", include_in_schema=False)
     async def spa_fallback(full_path: str) -> Response:
         if full_path.startswith("api/") or full_path == "api":
+            return JSONResponse(status_code=404, content={"detail": "Not found."})
+        if not docs_enabled and full_path.rstrip("/") in {"docs", "redoc", "openapi.json"}:
             return JSONResponse(status_code=404, content={"detail": "Not found."})
 
         if not resolved_dist.is_dir():

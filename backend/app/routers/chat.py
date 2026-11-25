@@ -1,11 +1,17 @@
 """Grounded follow-up chat endpoint."""
 
-from fastapi import APIRouter, HTTPException, Request
+from __future__ import annotations
 
-from app.routers.air_quality import get_client_ip
+import logging
+import time
+
+from fastapi import APIRouter, Request
+
+from app.dependencies import enforce_rate_limit, get_chat_limiter, get_gemini_client
 from app.schemas import ChatReply, ChatRequest
 from app.services.fallback_plan import generate_fallback_chat_reply
 
+logger = logging.getLogger("saans")
 router = APIRouter(prefix="/api", tags=["chat"])
 
 
@@ -15,18 +21,18 @@ async def chat_endpoint(
     request: Request,
 ) -> ChatReply:
     """Answers follow-up questions grounded in household profile, active plan, and AQI."""
-    limiter = request.app.state.chat_limiter
-    allowed, retry_after = await limiter.check(get_client_ip(request))
-    if not allowed:
-        raise HTTPException(
-            status_code=429,
-            detail="Too many chat requests. Please try again shortly.",
-            headers={"Retry-After": str(retry_after)},
-        )
+    started = time.monotonic()
+    await enforce_rate_limit(
+        get_chat_limiter(request),
+        request,
+        "Too many chat requests. Please try again shortly.",
+    )
 
-    gemini_client = request.app.state.gemini_client
+    gemini_client = get_gemini_client(request)
     reply = await gemini_client.generate_chat_reply(body.question, body.profile, body.plan)
     if reply is not None:
+        logger.info("route=/api/chat mode=gemini latency_ms=%d", int((time.monotonic() - started) * 1000))
         return reply
 
+    logger.info("route=/api/chat mode=rules latency_ms=%d", int((time.monotonic() - started) * 1000))
     return generate_fallback_chat_reply(body.question, body.profile, body.plan)

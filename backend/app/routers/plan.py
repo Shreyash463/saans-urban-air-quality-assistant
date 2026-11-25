@@ -4,13 +4,23 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
+import time
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 
-from app.routers.air_quality import get_client_ip
+from app.dependencies import (
+    enforce_rate_limit,
+    get_air_quality_service,
+    get_gemini_client,
+    get_http_client,
+    get_plan_cache,
+    get_plan_limiter,
+)
 from app.schemas import PlanResponse, UserProfile
 from app.services.fallback_plan import generate_fallback_plan
 
+logger = logging.getLogger("saans")
 router = APIRouter(prefix="/api", tags=["plan"])
 
 
@@ -30,29 +40,41 @@ async def create_plan_endpoint(
     request: Request,
 ) -> PlanResponse:
     """Generates a personalized clean-air plan using live AQI, Gemini, safety checks, and fallback."""
-    limiter = request.app.state.plan_limiter
-    allowed, retry_after = await limiter.check(get_client_ip(request))
-    if not allowed:
-        raise HTTPException(
-            status_code=429,
-            detail="Too many plan requests. Please try again shortly.",
-            headers={"Retry-After": str(retry_after)},
-        )
+    started = time.monotonic()
+    await enforce_rate_limit(
+        get_plan_limiter(request),
+        request,
+        "Too many plan requests. Please try again shortly.",
+    )
 
-    aq_service = request.app.state.air_quality_service
-    http_client = request.app.state.http_client
+    aq_service = get_air_quality_service(request)
+    http_client = get_http_client(request)
     aqi_reading = await aq_service.get_air_quality(profile.city, http_client)
 
-    plan_cache = request.app.state.plan_cache
+    plan_cache = get_plan_cache(request)
     cache_key = _build_plan_cache_key(profile, aqi_reading.source, aqi_reading.aqi)
     cached_plan = await plan_cache.get(cache_key)
     if cached_plan is not None:
+        elapsed_ms = int((time.monotonic() - started) * 1000)
+        logger.info(
+            "route=/api/plan cache=hit aqi_source=%s generated_by=%s latency_ms=%d",
+            aqi_reading.source,
+            cached_plan.generated_by,
+            elapsed_ms,
+        )
         return cached_plan.model_copy(update={"aqi": aqi_reading})
 
-    gemini_client = request.app.state.gemini_client
+    gemini_client = get_gemini_client(request)
     plan = await gemini_client.generate_plan(profile, aqi_reading)
     if plan is None:
         plan = generate_fallback_plan(profile, aqi_reading)
 
     await plan_cache.set(cache_key, plan)
+    elapsed_ms = int((time.monotonic() - started) * 1000)
+    logger.info(
+        "route=/api/plan cache=miss aqi_source=%s generated_by=%s latency_ms=%d",
+        aqi_reading.source,
+        plan.generated_by,
+        elapsed_ms,
+    )
     return plan
