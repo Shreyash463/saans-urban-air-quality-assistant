@@ -1,0 +1,218 @@
+# Saans — Urban Air Quality Assistant
+
+**Saans** (Hindi for *"breath"*) is a bilingual (**English + हिन्दी**) full-stack web application built to help Indian households and communities navigate severe winter smog and urban air pollution. It combines a React + TypeScript + Vite frontend with a hardened FastAPI + Google Gemini backend, live Open-Meteo particulate data calibrated to the **Indian CPCB National AQI scale**, deterministic safety guardrails, and an interactive multiplicative impact simulator.
+
+---
+
+## Problem Statement Alignment
+
+> *"Create a GenAI-powered assistant that helps families and communities navigate severe winter smog and urban air pollution. It should suggest low-emission daily routines, indoor air quality hacks, and sustainable alternatives tailored to their location and lifestyle, while clearly explaining the direct impact of their choices."*
+
+| Problem Statement Requirement | Saans Implementation |
+| --- | --- |
+| **Navigate severe winter smog & urban pollution** | Live Open-Meteo PM2.5/PM10 readings mapped to the Indian CPCB AQI scale (0–500) with color + icon + text indicators, deterministic health advisories, and tiered N95/FFP2 mask guidance. |
+| **Tailored to location and lifestyle** | Multi-field household profile capturing city, household size, children/older adults/respiratory vulnerability, commute mode & distance, home type, air purifier ownership, cooking fuel, budget, and language (`en` / `hi`). |
+| **Low-emission daily routines** | Coherent 4-slot daily routine (`morning`, `midday`, `evening`, `night`) accounting for winter thermal inversions (6–10 AM, 6–10 PM), the cleaner 1–4 PM cross-ventilation dip, and the user's exact commute and home setup. |
+| **Indoor air quality hacks** | 5–7 practical India-context hacks (wet mopping vs dry sweeping, skipping incense/coils, EPDM weather-stripping, DIY box-fan + True HEPA filter, kitchen exhaust, honest plant myth debunking) ranked by budget and purifier ownership. |
+| **Sustainable alternatives & direct impact** | Lifestyle swaps paired with bounded PM2.5 reduction (%) and monthly CO2 savings (kg) shown **only** for emission-changing actions, plus an interactive **Impact Simulator** showing BEFORE → AFTER exposure and consistent `score = round(100 - residualExposure)`. |
+| **Conversational follow-up** | **Ask Saans** assistant grounded in the active household plan and AQI with prompt-injection defense, medical-emergency escalation, off-topic polite declines, and deterministic fallback. |
+
+---
+
+## Architecture
+
+```mermaid
+flowchart LR
+    U["Browser SPA (React 19 + Vite + Tailwind)"] -->|"GET /api/air-quality\nPOST /api/plan\nPOST /api/chat"| API["FastAPI Backend\n(Security Headers, CORS, 20KB Body Cap, Rate Limiter)"]
+    API -->|"Geocode + 24h Hourly PM2.5 / PM10\n(10m TTL Cache)"| OM["Open-Meteo APIs"]
+    API -->|"Sub-index Interpolation\n(CPCB Breakpoints)"| CPCB["CPCB AQI Engine"]
+    API -->|"Grounded Facts + Shared JSON Contract"| IMP["Impact & Grounding Engine\n(contract/impact-factors.json)"]
+    API -->|"Structured JSON + Prompt Delimiters"| GEM["Google Gemini SDK\n(google-genai, Auto Flash Selection)"]
+    GEM -->|"Post-validation & Banned-phrase Override"| SAF["Deterministic Safety Layer\n(CPCB Tiers + Medical Bounds)"]
+    API -->|"On missing key / timeout / error"| FB["Rule-Based Fallback Generator"]
+    SAF --> API
+    FB --> API
+```
+
+---
+
+## Features
+
+- **Live + Demo Air Quality**: Fetches 24-hour PM2.5/PM10 observations from Open-Meteo (no external AQ API key required), prefers Indian geocoding matches when ambiguous, computes CPCB sub-indices, caches for 10 minutes, and falls back gracefully to curated Indian city demo readings (`Sample reading`).
+- **GenAI Personalization + Grounded Math**: Uses `google-genai` structured JSON output (`temperature: 0.3`, 20s timeout, single retry, automatic newest `flash` model discovery via `models.list()`).
+- **Zero Invented Metrics**: Both frontend and backend load numeric constants from `contract/impact-factors.json`. The backend overwrites/clamps LLM numbers (`pm25ReductionPct` capped at `95%`; `co2SavedKgPerMonth` nonzero strictly on emission-changing swaps).
+- **Deterministic Safety Layer**: Enforces CPCB tier + vulnerability rules (`children`, `elderly`, `respiratory`). Never allows claims that outdoor exercise is safe for sensitive groups at AQI ≥ 101 or anyone at AQI ≥ 201, blocks diagnostic/dosing language, and escalates emergency symptoms (`chest pain`, `severe breathlessness`, `blue lips`, `fainting`).
+- **Habit-Aware Recommendations**: Never recommends purchasing/adopting a habit the household already practices (metro/bus/walk/WFH commute, induction/PNG cooking, existing air purifier); instead acknowledges and optimizes around it.
+- **Export & Print**: Print stylesheet (`@media print` single-column black-on-white), **Download plan (.txt)**, and **Copy plan** with `aria-live="polite"` confirmations.
+- **Bilingual & Theme-Aware**: Instant English / हिन्दी (`<html lang>`) switching, Light & Dark modes, and full `prefers-reduced-motion` + in-app Reduce Motion toggle.
+
+---
+
+## How Gemini Is Used & How Numbers Are Grounded
+
+1. **Startup Model Selection**: If `GEMINI_MODEL` is unset and `GEMINI_API_KEY` is provided in root `.env`, the backend calls `client.aio.models.list()` once during lifespan startup, filters text `flash` models supporting `generateContent` (excluding TTS/image/omni/live/embedding), ranks newest first, and caches a short fallback chain.
+2. **Grounding Before Generation**: `backend/app/services/impact.py` computes household `ProfileFacts` (already-followed habits, vulnerability flags, budget rank, and deterministic swap baselines from `contract/impact-factors.json`).
+3. **Structured Generation**: Gemini writes tailored English or Hindi guidance using structured JSON (`response_mime_type="application/json"`).
+4. **Post-Generation Enforcement**: `ground_alternatives_numbers()` replaces/clamps all numeric savings (`0–95%` PM2.5, `0` CO2 for non-emission actions like masks/windows/purifiers/sealing), and `enforce_plan_safety()` validates `healthAdvisory` and `maskGuidance` against deterministic CPCB rules.
+5. **Resilient Fallback**: When `GEMINI_API_KEY` is missing or Gemini fails/times out/returns invalid JSON, `services/fallback_plan.py` produces a complete personalized plan tagged `generatedBy: "rules"`.
+
+---
+
+## Safety Design & Known Limitations
+
+- **PM-Based CPCB Estimate**: Open-Meteo air quality readings reflect modeled hourly PM2.5 and PM10 concentrations (averaged over the past 24 observed hours with at least 12 valid hours required), not ground-station gaseous pollutants (O3, NO2, SO2, CO) or local street-canyon spikes.
+- **Not Medical Advice**: Saans provides general environmental and low-emission household guidance. Every plan and symptom response reminds users to consult a qualified physician, and severe symptoms prompt immediate emergency care (`108` / nearest ER).
+- **Approximate Household Estimates**: Simulator PM2.5 (%) and monthly CO2 (kg) estimates are planning approximations derived from `contract/impact-factors.json`, not clinical or laboratory measurements.
+
+---
+
+## Setup (3 Commands)
+
+```bash
+# 1. Install frontend dependencies and build production bundle
+npm ci && npm run build
+
+# 2. Set up Python environment and install backend dependencies
+python -m venv .venv && .venv/Scripts/pip install -r backend/requirements-dev.txt  # Linux/macOS: .venv/bin/pip
+
+# 3. Configure environment and launch single-origin server (serves UI + /api)
+cp .env.example .env && .venv/Scripts/python -m uvicorn --app-dir backend app.main:app --host 0.0.0.0 --port 8000
+```
+
+For local Vite HMR frontend development alongside FastAPI (`http://localhost:8000`):
+
+```bash
+npm run dev   # proxies /api -> http://127.0.0.1:8000
+```
+
+---
+
+## Environment Variables
+
+See [`.env.example`](.env.example):
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `GEMINI_API_KEY` | *(unset)* | Server-side Google Gemini API key read from root `.env`. Missing/invalid keys automatically use rule-based fallback. |
+| `GEMINI_MODEL` | *(auto)* | Optional model ID override (e.g. `gemini-3.8-flash`). Auto-discovers newest flash model at startup when blank. |
+| `ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:4173` | Comma-separated CORS origin allowlist (never `*`). |
+| `VITE_API_BASE_URL` | `""` | Frontend API base URL; empty string uses same-origin `/api`. |
+| `VITE_USE_MOCK` | `false` | Set `"true"` to run the frontend strictly on the built-in client mock without calling `/api`. |
+
+---
+
+## API Reference
+
+All payloads use camelCase JSON matching [`src/types/index.ts`](src/types/index.ts) and [`backend/app/schemas.py`](backend/app/schemas.py).
+
+### `GET /api/health`
+Returns service readiness and active model selection (never exposes secrets).
+
+```json
+{
+  "status": "ok",
+  "geminiConfigured": false,
+  "selectedModel": null
+}
+```
+
+### `GET /api/air-quality?city=Pune`
+Returns live Open-Meteo CPCB-calibrated reading (cached 10 minutes) or `"demo"` fallback.
+
+```json
+{
+  "city": "Pune",
+  "aqi": 84,
+  "dominantPollutant": "PM2.5",
+  "updatedAt": "2026-11-25T12:00:00+05:30",
+  "source": "live",
+  "sourceDetail": "Open-Meteo, PM-based CPCB estimate"
+}
+```
+
+### `POST /api/plan`
+Request body (`UserProfile`):
+
+```json
+{
+  "city": "Delhi",
+  "householdSize": 4,
+  "hasChildren": true,
+  "hasElderly": false,
+  "hasRespiratoryCondition": true,
+  "commuteMode": "car",
+  "commuteKm": 18,
+  "homeType": "apartment",
+  "hasAirPurifier": false,
+  "cookingFuel": "lpg",
+  "budget": "low",
+  "language": "en"
+}
+```
+
+Response (`PlanResponse`): returns `aqi`, `summary`, `healthAdvisory`, `routine` (4 slots), `indoorHacks` (5–7 items), `alternatives` (3–5 items), `maskGuidance`, `disclaimer`, and `generatedBy` (`"gemini" | "rules"`).
+
+### `POST /api/chat`
+Request body: `{ "question": "...", "profile": UserProfile, "plan": PlanResponse }`
+
+Response (`ChatReply`):
+
+```json
+{
+  "answer": "At AQI 310 (Very Poor) in Delhi, outdoor play and exertion should be avoided for everyone..."
+}
+```
+
+---
+
+## Tests, Linting, Typechecking, and Build
+
+```bash
+# Frontend checks
+npm run format:check
+npm run lint
+npm run test:run
+npm run build
+npm audit --omit=dev
+
+# Backend checks (inside backend/)
+ruff check app tests
+pyright --project pyproject.toml
+pytest --cov=app --cov-report=term-missing
+pip-audit -r requirements.txt
+```
+
+---
+
+## Docker
+
+Multi-stage build (Node 24 builds frontend → slim Python 3.13 non-root runtime serves static `dist/` + `/api` on port `8000`):
+
+```bash
+docker build -t saans-assistant .
+docker run --rm -p 8000:8000 --env-file .env saans-assistant
+```
+
+---
+
+## Security Notes
+
+- `GEMINI_API_KEY` stays strictly server-side in `.env` (gitignored); never logged or returned in API errors.
+- Strict Pydantic v2 schemas (`extra="forbid"`, city regex/length `<= 60`, `householdSize` `1–20`, `commuteKm` `0–300`, `question` `<= 500`, control-char stripping).
+- Prompt-injection defense: user text is sanitized, angle-brackets escaped, enclosed in `<user_question>...</user_question>` delimiters, and post-checked against secret/prompt leakage and medical rules.
+- Sliding-window per-IP rate limiter (`20 req/min` on `/api/plan` and `/api/chat`, `60 req/min` on `/api/air-quality`, returning `429` + `Retry-After`).
+- `20 KB` max request body middleware, strict CORS origin allowlist, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, and strict CSP (`script-src 'self'`).
+
+---
+
+## Accessibility Notes
+
+- Semantic landmarks (`header`, `nav`, `main`, `footer`), sequential heading hierarchy, skip-to-main link, and `aria-current="true"` scroll-spy.
+- Polite `aria-live` status announcements for loading stages, plan readiness, clipboard copy, `.txt` export, and chat replies.
+- High-contrast focus rings, ≥44px touch targets, color + icon + text CPCB indicators, WCAG AA contrast in Light and Dark modes, clean one-column print layout, full reduced-motion support, and automated `axe-core` verification across all sections.
+
+---
+
+## License
+
+[MIT](LICENSE)
