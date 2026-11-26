@@ -263,4 +263,63 @@ test.describe('Saans end-to-end user workflows and accessibility', () => {
 
     await context.close();
   });
+
+  test('print stylesheet fits plan in <= 5 A4 pages and header never overlaps in EN/HI at 1280, 768, 390', async ({
+    page,
+  }) => {
+    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.getByRole('button', { name: 'Build my clean-air plan' }).click();
+    await expect(page.getByTestId('plan-generator-badge')).toBeVisible();
+
+    // Verify compact A4 print PDF output is <= 5 pages
+    await page.emulateMedia({ media: 'print' });
+    const pdfBuf = await page.pdf({ format: 'A4', printBackground: false });
+    const pageCount = (pdfBuf.toString('latin1').match(/\/Type\s*\/Page\b/g) || [])
+      .length;
+    expect(pageCount).toBeGreaterThanOrEqual(1);
+    expect(pageCount).toBeLessThanOrEqual(5);
+    await page.emulateMedia({ media: 'screen' });
+
+    const assertHeaderClean = async () => {
+      const check = await page.evaluate(() => {
+        const overflow = document.documentElement.scrollWidth > window.innerWidth + 1;
+        const header = document.querySelector('header');
+        if (!header) return { overflow, overlaps: ['missing-header'] };
+        const items = Array.from(
+          header.querySelectorAll<HTMLElement>('a, button')
+        ).filter((el) => {
+          const r = el.getBoundingClientRect();
+          return r.width > 0 && r.height > 0 && getComputedStyle(el).display !== 'none';
+        });
+        const overlaps: string[] = [];
+        for (let i = 0; i < items.length; i++) {
+          for (let j = i + 1; j < items.length; j++) {
+            const a = items[i].getBoundingClientRect();
+            const b = items[j].getBoundingClientRect();
+            const overlapX = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+            const overlapY = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+            if (overlapX > 1 && overlapY > 1) {
+              overlaps.push(
+                `${items[i].textContent?.trim()} <-> ${items[j].textContent?.trim()}`
+              );
+            }
+          }
+        }
+        return { overflow, overlaps };
+      });
+      expect(check.overflow).toBe(false);
+      expect(check.overlaps).toEqual([]);
+    };
+
+    for (const langSwitch of ['en', 'hi'] as const) {
+      if (langSwitch === 'hi') {
+        await page.getByRole('button', { name: /Switch language to Hindi/i }).click();
+        await expect(page.locator('html')).toHaveAttribute('lang', 'hi');
+      }
+      for (const width of [1280, 768, 390]) {
+        await page.setViewportSize({ width, height: 800 });
+        await assertHeaderClean();
+      }
+    }
+  });
 });

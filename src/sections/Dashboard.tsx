@@ -4,6 +4,7 @@ import { AqiCategoryBadge } from '../components/AqiCategoryBadge';
 import { AqiGauge } from '../components/AqiGauge';
 import { CommunityActionsSection } from '../components/CommunityActionsSection';
 import {
+  AiBusyRetryNotice,
   AlternativesCard,
   DashboardExportActions,
   IndoorHacksCard,
@@ -21,6 +22,7 @@ interface DashboardProps {
   language: LanguageCode;
   announcement: string;
   isLoading: boolean;
+  onRetryGemini?: () => void;
 }
 
 const LOADING_STAGE_KEYS: readonly TranslationKey[] = [
@@ -270,7 +272,13 @@ function DashboardTopOverview({
 /**
  * Results Dashboard rendering the complete personalized clean-air plan.
  */
-export function Dashboard({ plan, language, announcement, isLoading }: DashboardProps) {
+export function Dashboard({
+  plan,
+  language,
+  announcement,
+  isLoading,
+  onRetryGemini,
+}: DashboardProps) {
   const activeCategoryKey = plan ? getAqiCategory(plan.aqi.aqi).key : '';
   const showPlan = Boolean(plan && !isLoading);
   const isGemini = plan?.generatedBy === 'gemini';
@@ -312,9 +320,17 @@ export function Dashboard({ plan, language, announcement, isLoading }: Dashboard
               ) : null}
             </div>
             {showPlan && plan ? (
-              <p className="text-base text-slate-700 dark:text-slate-200 max-w-3xl leading-relaxed">
-                {plan.summary}
-              </p>
+              <>
+                <AiBusyRetryNotice
+                  plan={plan}
+                  language={language}
+                  isLoading={isLoading}
+                  onRetryGemini={onRetryGemini}
+                />
+                <p className="text-base text-slate-700 dark:text-slate-200 max-w-3xl leading-relaxed">
+                  {plan.summary}
+                </p>
+              </>
             ) : null}
           </div>
 

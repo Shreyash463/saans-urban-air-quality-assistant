@@ -25,16 +25,19 @@ from app.schemas import (
     Alternative,
     ChatReply,
     CommunityAction,
+    FallbackReason,
     PlanResponse,
     RoutineTimeSlot,
     UserProfile,
 )
 from app.services.fallback_plan import build_community_actions
-from app.services.gemini.circuit_breaker import ModelCircuitBreaker
+from app.services.gemini.circuit_breaker import FailureKind, ModelCircuitBreaker
 from app.services.gemini.model_selection import (
     _DEFAULT_FLASH_FALLBACKS,
     classify_api_failure,
+    extract_retry_after_seconds,
     is_auth_error,
+    is_daily_quota_exhausted,
     is_schema_rejection,
     is_thinking_rejection,
     log_usage_metadata,
@@ -211,8 +214,20 @@ class GeminiClient:
         facts: ProfileFacts | None = None,
     ) -> PlanResponse | None:
         """Calls Gemini for narrative plan fields, then grounds safety, numbers & community actions."""
+        plan, _reason, _retry = await self.generate_plan_with_status(
+            profile, aqi_reading, facts=facts
+        )
+        return plan
+
+    async def generate_plan_with_status(
+        self,
+        profile: UserProfile,
+        aqi_reading: AirQualityReading,
+        facts: ProfileFacts | None = None,
+    ) -> tuple[PlanResponse | None, FallbackReason | None, int | None]:
+        """Generates a plan or returns an explicit (None, fallback_reason, retry_after_seconds)."""
         if not self._client:
-            return None
+            return None, "no_key", None
         if not self._model_chain:
             await self.initialize_models()
 
@@ -227,16 +242,20 @@ class GeminiClient:
         candidates = self._breaker.filter_candidates(self._model_chain[:6])
         if not candidates:
             logger.info("All Gemini models in circuit-breaker cooldown; using rule-based fallback.")
-            return None
+            return None, "ai_busy", self._breaker.min_retry_after_seconds(self._model_chain[:6]) or 60
 
         deadline = self._clock() + self._settings.gemini_timeout_seconds
+        saw_busy = False
         for model_name in candidates:
             if deadline - self._clock() <= 1.0:
+                saw_busy = True
                 break
             draft, outcome = await self._call_plan_model_with_retry(model_name, user_prompt, deadline)
             if draft is None:
+                if outcome in {"rate_limit", "unavailable"}:
+                    saw_busy = True
                 if outcome == "abort":
-                    break
+                    return None, "ai_error", 60
                 self._demote_failing_model(model_name)
                 continue
 
@@ -244,9 +263,29 @@ class GeminiClient:
             if assembled is None:
                 continue
             self._promote_working_model(model_name)
-            return assembled
+            return assembled, None, None
 
-        return None
+        retry_after = self._breaker.min_retry_after_seconds(self._model_chain[:6])
+        reason: FallbackReason = "ai_busy" if saw_busy else "ai_error"
+        return None, reason, retry_after if retry_after is not None else 60
+
+    def _record_api_failure(self, model_name: str, exc: Exception) -> FailureKind | None:
+        """Opens circuit for `model_name`, honoring 429 retry hints and daily quota exhaustion."""
+        failure_kind = classify_api_failure(exc)
+        if failure_kind is None:
+            return None
+        cooldown: float | None = None
+        if failure_kind == "rate_limit":
+            cooldown = 1800.0 if is_daily_quota_exhausted(exc) else extract_retry_after_seconds(exc)
+        self._breaker.record_failure(model_name, failure_kind, cooldown_seconds=cooldown)
+        logger.warning(
+            "Gemini model=%s circuit opened (%s, code=%s, cooldown_s=%s).",
+            model_name,
+            failure_kind,
+            getattr(exc, "code", None),
+            cooldown,
+        )
+        return failure_kind
 
     async def _call_plan_model_with_retry(
         self,
@@ -300,15 +339,8 @@ class GeminiClient:
                 if is_schema_rejection(exc) and not drop_schema:
                     drop_schema = True
                     continue
-                failure_kind = classify_api_failure(exc)
+                failure_kind = self._record_api_failure(model_name, exc)
                 if failure_kind is not None:
-                    self._breaker.record_failure(model_name, failure_kind)
-                    logger.warning(
-                        "Gemini model=%s circuit opened (%s, code=%s).",
-                        model_name,
-                        failure_kind,
-                        getattr(exc, "code", None),
-                    )
                     return None, failure_kind
                 logger.warning("Transient error model=%s attempt=%d (%s)", model_name, attempt + 1, type(exc).__name__)
 
@@ -423,10 +455,8 @@ class GeminiClient:
                 if is_thinking_rejection(exc) and use_thinking:
                     use_thinking = False
                     continue
-                failure_kind = classify_api_failure(exc)
+                failure_kind = self._record_api_failure(model_name, exc)
                 if failure_kind is not None:
-                    self._breaker.record_failure(model_name, failure_kind)
-                    logger.warning("Gemini chat circuit opened model=%s (%s)", model_name, failure_kind)
                     return None, False
                 logger.warning("Gemini chat error model=%s attempt=%d (%s)", model_name, attempt + 1, type(exc).__name__)
 

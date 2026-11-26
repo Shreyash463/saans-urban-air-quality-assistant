@@ -239,6 +239,7 @@ export default function App() {
           language={profile.language}
           announcement={planAnnouncement}
           isLoading={isGenerating}
+          onRetryGemini={() => void handleSubmitProfile(profile)}
         />
 
         <Suspense fallback={<SectionFallback />}>

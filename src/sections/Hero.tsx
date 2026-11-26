@@ -150,7 +150,7 @@ export function Hero({ language, previewReading, reducedMotion, isDark }: HeroPr
                 {previewReading.source === 'demo' ? (
                   <DemoReadingInfo language={language} />
                 ) : (
-                  <span className="text-sm font-medium text-teal-800 dark:text-teal-300 truncate">
+                  <span className="text-sm font-medium text-teal-800 dark:text-teal-300 leading-snug">
                     {formatAqiSourceLabel(previewReading, language)}
                   </span>
                 )}

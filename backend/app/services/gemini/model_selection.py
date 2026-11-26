@@ -143,6 +143,63 @@ def is_timeout_error(exc: Exception) -> bool:
     )
 
 
+_RETRY_IN_RE = re.compile(r"retry\s+(?:in|after)\s+(\d+(?:\.\d+)?)\s*(ms|s|sec|seconds|m|min|minutes)?", re.IGNORECASE)
+_RETRY_DELAY_FIELD_RE = re.compile(r"retryDelay['\"]?\s*[:=]\s*['\"]?(\d+(?:\.\d+)?)\s*(ms|s|m)?", re.IGNORECASE)
+
+
+def _clamp_retry_seconds(raw_seconds: float) -> float:
+    return min(900.0, max(10.0, raw_seconds))
+
+
+def _unit_to_seconds(value: float, unit: str | None) -> float:
+    if not unit:
+        return value
+    u = unit.lower()
+    if u == "ms":
+        return value / 1000.0
+    if u in {"m", "min", "minutes"}:
+        return value * 60.0
+    return value
+
+
+def is_daily_quota_exhausted(exc: Exception) -> bool:
+    """Detects daily RPD/quota exhaustion where short backoff retries are futile."""
+    text = f"{exc} {getattr(exc, 'details', '')}".lower()
+    return any(
+        marker in text
+        for marker in (
+            "generaterequestsperday",
+            "perday",
+            "per_day",
+            "requests per day",
+            "daily quota",
+            "daily limit",
+        )
+    )
+
+
+def extract_retry_after_seconds(exc: Exception) -> float | None:
+    """Extracts and bounds [10s, 15m] retry delay from RetryInfo, headers, or message."""
+    response = getattr(exc, "response", None)
+    headers = getattr(response, "headers", None)
+    if headers is not None and hasattr(headers, "get"):
+        raw_hdr = headers.get("retry-after") or headers.get("Retry-After")
+        if raw_hdr is not None:
+            try:
+                return _clamp_retry_seconds(float(str(raw_hdr).strip()))
+            except ValueError:
+                pass
+
+    details = getattr(exc, "details", None)
+    blob = f"{details!r} {exc}" if details is not None else str(exc)
+    for pattern in (_RETRY_DELAY_FIELD_RE, _RETRY_IN_RE):
+        match = pattern.search(blob)
+        if match:
+            secs = _unit_to_seconds(float(match.group(1)), match.group(2))
+            return _clamp_retry_seconds(secs)
+    return None
+
+
 def classify_api_failure(exc: Exception) -> FailureKind | None:
     """Maps non-retryable upstream exceptions to circuit breaker FailureKind."""
     if is_rate_limit_429(exc):

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -56,14 +57,37 @@ class ModelCircuitBreaker:
         """Closes the circuit for `model_name` after a successful generation."""
         self._entries.pop(model_name, None)
 
-    def record_failure(self, model_name: str, kind: FailureKind) -> None:
-        """Opens the circuit for `model_name` for the cooldown matching `kind`."""
-        cooldown = self._cooldowns[kind]
+    def record_failure(
+        self,
+        model_name: str,
+        kind: FailureKind,
+        cooldown_seconds: float | None = None,
+    ) -> None:
+        """Opens the circuit for `model_name` using an explicit or default cooldown."""
+        cooldown = (
+            max(1.0, cooldown_seconds)
+            if cooldown_seconds is not None
+            else self._cooldowns[kind]
+        )
         self._entries[model_name] = _ModelBreakerEntry(
             status="open",
             opened_until=self._clock() + cooldown,
             kind=kind,
         )
+
+    def min_retry_after_seconds(self, models: list[str]) -> int | None:
+        """Returns remaining open cooldown seconds when every candidate model is open."""
+        now = self._clock()
+        remaining: list[float] = []
+        for model in models:
+            if self.is_available(model):
+                return None
+            entry = self._entries.get(model)
+            if entry is not None and entry.opened_until > now:
+                remaining.append(entry.opened_until - now)
+        if not remaining:
+            return None
+        return max(1, math.ceil(min(remaining)))
 
     def filter_candidates(self, models: list[str]) -> list[str]:
         """Returns models whose circuit is closed or ready for half-open probe."""

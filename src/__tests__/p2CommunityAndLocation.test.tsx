@@ -1,9 +1,18 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import axe from 'axe-core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { AiBusyRetryNotice } from '../components/DashboardPlanCards';
 import { CommunityActionsSection } from '../components/CommunityActionsSection';
+import { Hero } from '../sections/Hero';
 import { getMockAirQuality, QUICK_PICK_CITIES } from '../lib/demoCities';
 import { loadLanguageBundle, t } from '../lib/i18n';
 import { formatPlanAsText } from '../lib/planExport';
@@ -186,5 +195,89 @@ describe('Community actions, community scaling simulator, lazy Hindi, and opt-in
     );
     fireEvent.click(screen.getByRole('button', { name: 'Use my location' }));
     expect(screen.getByText(/Location permission declined/i)).toBeInTheDocument();
+  });
+
+  it('shows AI-busy countdown and retry button only for ai_busy/ai_error, and Hero labels demo vs live cleanly', () => {
+    const basePlan = generateMockPlan(SAMPLE_PROFILE);
+    const noKeyPlan = {
+      ...basePlan,
+      generatedBy: 'rules' as const,
+      fallbackReason: 'no_key' as const,
+    };
+    const { rerender } = render(
+      <AiBusyRetryNotice
+        plan={noKeyPlan}
+        language="en"
+        isLoading={false}
+        onRetryGemini={vi.fn()}
+      />
+    );
+    expect(screen.queryByTestId('ai-busy-notice')).toBeNull();
+
+    vi.useFakeTimers();
+    const onRetry = vi.fn();
+    const busyPlan = {
+      ...basePlan,
+      generatedBy: 'rules' as const,
+      fallbackReason: 'ai_busy' as const,
+      retryAfterSeconds: 2,
+    };
+    rerender(
+      <AiBusyRetryNotice
+        plan={busyPlan}
+        language="en"
+        isLoading={false}
+        onRetryGemini={onRetry}
+      />
+    );
+    expect(screen.getByTestId('ai-busy-notice')).toHaveTextContent(
+      /try again in 2 seconds/i
+    );
+    const btn = screen.getByRole('button', { name: 'Try Gemini again' });
+    expect(btn).toBeDisabled();
+
+    act(() => {
+      vi.advanceTimersByTime(2200);
+    });
+    expect(btn).toBeEnabled();
+    fireEvent.click(btn);
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+    cleanup();
+
+    const { rerender: rerenderHero } = render(
+      <Hero
+        language="en"
+        previewReading={{
+          city: 'Delhi',
+          aqi: 310,
+          dominantPollutant: 'PM2.5',
+          updatedAt: '2026-11-26T10:00:00+05:30',
+          source: 'demo',
+        }}
+        reducedMotion={true}
+        isDark={false}
+      />
+    );
+    expect(screen.getByText('Sample reading for demo')).toBeInTheDocument();
+
+    rerenderHero(
+      <Hero
+        language="en"
+        previewReading={{
+          city: 'Your location (approx.)',
+          aqi: 180,
+          dominantPollutant: 'PM2.5',
+          updatedAt: '2026-11-26T10:00:00+05:30',
+          source: 'live',
+          sourceDetail: 'Open-Meteo',
+        }}
+        reducedMotion={true}
+        isDark={false}
+      />
+    );
+    expect(screen.queryByText('Sample reading for demo')).toBeNull();
+    expect(screen.getByText(/^Live ·/i)).toBeInTheDocument();
+    expect(screen.getByText('Your location (approx.)')).toBeInTheDocument();
   });
 });

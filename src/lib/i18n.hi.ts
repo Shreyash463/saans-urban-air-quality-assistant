@@ -111,6 +111,12 @@ export const HINDI_TRANSLATIONS: TranslationDictionary = {
     'पहले अनुरोध पर सर्वर शुरू होने में 15–30 सेकंड लग सकते हैं — कृपया प्रतीक्षा करें।',
   generatedByGemini: 'Gemini द्वारा तैयार',
   generatedByRules: 'नियम-आधारित फ़ॉलबैक',
+  aiBusyNotice:
+    'जेमिनी अभी व्यस्त है, इसलिए यह नियम-आधारित योजना है। आप {seconds} सेकंड बाद फिर प्रयास कर सकते हैं।',
+  aiBusyReadyNotice:
+    'जेमिनी अभी व्यस्त है, इसलिए यह नियम-आधारित योजना है। अब आप जेमिनी से फिर प्रयास कर सकते हैं।',
+  retryGeminiButton: 'जेमिनी से फिर प्रयास करें',
+  retryGeminiLoading: 'जेमिनी पुनः प्रयास...',
   dashboardHeading: 'आपकी व्यक्तिगत स्वच्छ-वायु योजना',
   dashboardEmptyHeading: 'शुरू करने के लिए तैयार',
   dashboardEmptyBody:

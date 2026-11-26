@@ -219,11 +219,7 @@ function isCommunityAction(value: unknown): value is CommunityAction {
   );
 }
 
-/**
- * Type guard verifying an external API payload matches PlanResponse.
- */
-export function isPlanResponse(value: unknown): value is PlanResponse {
-  if (!isRecord(value)) return false;
+function hasValidPlanMeta(value: Record<string, unknown>): boolean {
   const validCommunity =
     value.communityActions === undefined ||
     (Array.isArray(value.communityActions) &&
@@ -232,6 +228,22 @@ export function isPlanResponse(value: unknown): value is PlanResponse {
     value.generatedBy === undefined ||
     value.generatedBy === 'gemini' ||
     value.generatedBy === 'rules';
+  const validFallbackReason =
+    value.fallbackReason === undefined ||
+    value.fallbackReason === 'no_key' ||
+    value.fallbackReason === 'ai_busy' ||
+    value.fallbackReason === 'ai_error';
+  const validRetryAfter =
+    value.retryAfterSeconds === undefined ||
+    (isFiniteNum(value.retryAfterSeconds) && value.retryAfterSeconds >= 0);
+  return validCommunity && validGen && validFallbackReason && validRetryAfter;
+}
+
+/**
+ * Type guard verifying an external API payload matches PlanResponse.
+ */
+export function isPlanResponse(value: unknown): value is PlanResponse {
+  if (!isRecord(value)) return false;
   return (
     isAirQualityReading(value.aqi) &&
     isString(value.summary) &&
@@ -239,10 +251,9 @@ export function isPlanResponse(value: unknown): value is PlanResponse {
     allItems(value.routine, isRoutineItem) &&
     allItems(value.indoorHacks, isIndoorHack) &&
     allItems(value.alternatives, isAlternative) &&
-    validCommunity &&
     isString(value.maskGuidance) &&
     isString(value.disclaimer) &&
-    validGen
+    hasValidPlanMeta(value)
   );
 }
 

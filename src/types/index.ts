@@ -17,6 +17,7 @@ export type LanguageCode = 'en' | 'hi';
 export type CommunityActor = 'rwa' | 'school' | 'workplace' | 'neighbours';
 
 export type EffortLevel = 'low' | 'medium' | 'high';
+export type FallbackReason = 'no_key' | 'ai_busy' | 'ai_error';
 
 export interface Coordinates {
   lat: number;
@@ -88,6 +89,8 @@ export interface PlanResponse {
   maskGuidance: string;
   disclaimer: string;
   generatedBy?: 'gemini' | 'rules';
+  fallbackReason?: FallbackReason;
+  retryAfterSeconds?: number;
 }
 
 export interface ChatReply {

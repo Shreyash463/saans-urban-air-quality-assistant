@@ -37,11 +37,15 @@ class TTLCache[T]:
             self._store.move_to_end(key)
             return value
 
-    async def set(self, key: str, value: T) -> None:
-        """Stores a value with TTL expiration and LRU eviction."""
-        expires_at = self._clock() + self._ttl_seconds
+    async def set(self, key: str, value: T, ttl_seconds: float | None = None) -> None:
+        """Stores a value with optional per-entry TTL override and LRU eviction."""
+        ttl = self._ttl_seconds if ttl_seconds is None else ttl_seconds
         async with self._lock:
             self._purge_expired_locked(self._clock())
+            if ttl <= 0:
+                self._store.pop(key, None)
+                return
+            expires_at = self._clock() + ttl
             if key in self._store:
                 self._store.move_to_end(key)
             self._store[key] = (expires_at, value)

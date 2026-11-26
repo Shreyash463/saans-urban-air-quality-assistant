@@ -486,6 +486,131 @@ def test_vary_header_deduplicated_and_413_has_security_headers(tmp_path: Path) -
         assert res_413.headers.get("x-frame-options") == "DENY"
 
 
+def test_retry_hint_extraction_clamping_and_daily_quota_detection() -> None:
+    from app.services.gemini.model_selection import (
+        extract_retry_after_seconds,
+        is_daily_quota_exhausted,
+    )
+
+    class _RateErr(Exception):
+        def __init__(self, msg: str, code: int = 429, details: Any = None, headers: Any = None) -> None:
+            super().__init__(msg)
+            self.code = code
+            self.details = details
+            self.response = type("R", (), {"headers": headers})() if headers else None
+
+    assert extract_retry_after_seconds(_RateErr("Retry", details={"retryDelay": "42s"})) == 42.0
+    assert extract_retry_after_seconds(_RateErr("Please retry in 2s")) == 10.0  # clamped min 10s
+    assert extract_retry_after_seconds(_RateErr("Please retry in 3000s")) == 900.0  # clamped max 15m
+    assert extract_retry_after_seconds(_RateErr("Limit", headers={"Retry-After": "75"})) == 75.0
+    assert is_daily_quota_exhausted(_RateErr("Quota exceeded for metric: GenerateRequestsPerDayPerProjectPerModel"))
+    assert not is_daily_quota_exhausted(_RateErr("Too many requests per minute"))
+
+
+@pytest.mark.asyncio
+async def test_fallback_plans_do_not_stick_and_breaker_recovery_calls_gemini(tmp_path: Path) -> None:
+    now = 100.0
+    gemini_calls = 0
+
+    class _Err429(Exception):
+        def __init__(self, msg: str, details: Any = None) -> None:
+            super().__init__(msg)
+            self.code = 429
+            self.details = details
+
+    compact_narrative = {
+        "summary": "Recovered Gemini plan for Delhi.",
+        "routine": [
+            {"timeSlot": slot, "title": "T", "detail": "D", "impactNote": "I"}
+            for slot in ("morning", "midday", "evening", "night")
+        ],
+        "indoorHacks": [
+            {"title": f"H{i}", "howTo": "Step.", "estimatedBenefit": "~20% less dust", "costLevel": "free"}
+            for i in range(5)
+        ],
+        "alternatives": [
+            {"current": "Car", "swap": "Metro", "why": "Cleaner air."} for _ in range(4)
+        ],
+        "communityActions": [
+            {"title": "RWA heaters", "who": "rwa", "howTo": "Electric heaters.", "estimatedImpact": "Zero fires", "effort": "low"}
+        ],
+    }
+
+    class _ToggleModels:
+        async def list(self) -> Any:
+            raise TimeoutError("skip")
+
+        async def generate_content(self, **_kwargs: Any) -> Any:
+            nonlocal gemini_calls
+            gemini_calls += 1
+            if gemini_calls <= 5:
+                raise _Err429("RESOURCE_EXHAUSTED", details={"retryDelay": "42s"})
+            return type("Resp", (), {"text": json.dumps(compact_narrative)})()
+
+    sdk = type("Sdk", (), {"aio": type("Aio", (), {"models": _ToggleModels()})()})()
+    breaker = ModelCircuitBreaker(clock=lambda: now)
+    client = GeminiClient(
+        Settings(gemini_api_key="test-key", gemini_model="gemini-3.8-flash"),
+        sdk_client=sdk,
+        breaker=breaker,
+        clock=lambda: now,
+    )
+    app = create_app(
+        settings=Settings(gemini_api_key="test-key", cache_ttl_seconds=600),
+        gemini_client=client,
+        http_client=build_mock_http_client(),
+        dist_dir=tmp_path,
+    )
+    # Inject clock-backed plan cache so we test exact TTL behavior deterministically
+    clock_cache: TTLCache[Any] = TTLCache(ttl_seconds=600.0, clock=lambda: now)
+
+    prof = _sample_profile().model_dump(by_alias=True)
+    with TestClient(app) as tc:
+        app.state.plan_cache = clock_cache
+        # 1. Upstream 429 across 5 fallback models -> returns rules + ai_busy + retryAfterSeconds=42
+        r1 = tc.post("/api/plan", json=prof)
+        assert r1.status_code == 200
+        d1 = r1.json()
+        assert d1["generatedBy"] == "rules"
+        assert d1["fallbackReason"] == "ai_busy"
+        assert d1["retryAfterSeconds"] == 42
+
+        # 2. Even 25s later (still < 42s), fallback plan was NOT stuck in cache; retries / skips open breaker cleanly
+        now = 125.0
+        r2 = tc.post("/api/plan", json=prof)
+        assert r2.json()["generatedBy"] == "rules"
+        assert r2.json()["retryAfterSeconds"] == 17
+
+        # 3. After 42s cooldown closes breaker, request goes straight to Gemini and succeeds!
+        now = 143.0
+        r3 = tc.post("/api/plan", json=prof)
+        d3 = r3.json()
+        assert d3["generatedBy"] == "gemini"
+        assert d3.get("fallbackReason") is None
+        calls_before_cached = gemini_calls
+
+        # 4. Real Gemini plan IS cached for full TTL (no extra Gemini call at +300s)
+        now = 443.0
+        r4 = tc.post("/api/plan", json=prof)
+        assert r4.json()["generatedBy"] == "gemini"
+        assert gemini_calls == calls_before_cached
+
+
+def test_no_key_rules_plan_sets_no_key_and_caches_normally(tmp_path: Path) -> None:
+    app = create_app(
+        settings=Settings(gemini_api_key=""),
+        http_client=build_mock_http_client(),
+        dist_dir=tmp_path,
+    )
+    with TestClient(app) as tc:
+        res = tc.post("/api/plan", json=_sample_profile().model_dump(by_alias=True))
+        assert res.status_code == 200
+        data = res.json()
+        assert data["generatedBy"] == "rules"
+        assert data["fallbackReason"] == "no_key"
+        assert data.get("retryAfterSeconds") is None
+
+
 @pytest.mark.live
 @pytest.mark.asyncio
 async def test_live_gemini_smoke_optional() -> None:

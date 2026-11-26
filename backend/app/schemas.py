@@ -24,6 +24,7 @@ ReadingSource = Literal["live", "demo"]
 RoutineTimeSlot = Literal["morning", "midday", "evening", "night"]
 CostLevel = Literal["free", "low", "medium", "high"]
 GeneratedBy = Literal["gemini", "rules"]
+FallbackReason = Literal["no_key", "ai_busy", "ai_error"]
 CommunityActor = Literal["rwa", "school", "workplace", "neighbours"]
 EffortLevel = Literal["low", "medium", "high"]
 
@@ -158,6 +159,8 @@ class PlanResponse(CamelBaseModel):
     mask_guidance: str = Field(min_length=1, max_length=1500)
     disclaimer: str = Field(min_length=1, max_length=1000)
     generated_by: GeneratedBy | None = None
+    fallback_reason: FallbackReason | None = None
+    retry_after_seconds: int | None = Field(default=None, ge=0, le=3600)
 
 
 class ChatRequest(CamelBaseModel):

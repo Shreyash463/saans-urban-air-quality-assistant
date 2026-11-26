@@ -84,11 +84,22 @@ async def create_plan_endpoint(
         return cached_plan.model_copy(update={"aqi": aqi_reading})
 
     gemini_client = get_gemini_client(request)
-    plan = await gemini_client.generate_plan(profile, aqi_reading, facts=facts)
-    if plan is None:
-        plan = generate_fallback_plan(profile, aqi_reading)
-
-    await plan_cache.set(cache_key, plan)
+    plan, fallback_reason, retry_after = await gemini_client.generate_plan_with_status(
+        profile, aqi_reading, facts=facts
+    )
+    if plan is not None:
+        await plan_cache.set(cache_key, plan)
+    else:
+        resolved_reason = fallback_reason or ("no_key" if not gemini_client.is_configured else "ai_error")
+        plan = generate_fallback_plan(profile, aqi_reading).model_copy(
+            update={
+                "fallback_reason": resolved_reason,
+                "retry_after_seconds": None if resolved_reason == "no_key" else retry_after,
+            }
+        )
+        # Only cache deliberate no-key rule plans; transient AI failures must never stick in cache.
+        if resolved_reason == "no_key":
+            await plan_cache.set(cache_key, plan)
     elapsed_ms = int((time.monotonic() - started) * 1000)
     logger.info(
         "route=/api/plan cache=miss aqi_source=%s generated_by=%s latency_ms=%d",

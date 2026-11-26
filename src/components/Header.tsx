@@ -45,7 +45,7 @@ export function Header({
         {t(language, 'skipToMain')}
       </a>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3 sm:gap-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2 xl:gap-4">
         {/* Zone 1: Brand wordmark */}
         <a
           href="#hero"
@@ -62,7 +62,7 @@ export function Header({
         {/* Zone 2: Scroll-spy single-line navigation */}
         <nav
           aria-label="Primary"
-          className="hidden lg:flex items-center gap-5 text-sm font-medium"
+          className="hidden lg:flex items-center gap-3.5 xl:gap-4 text-[13px] xl:text-sm font-medium shrink-0"
         >
           <a
             href="#how-it-works"
@@ -135,7 +135,7 @@ export function Header({
             }`}
           >
             <Sparkles className="w-4 h-4 shrink-0" aria-hidden="true" />
-            <span className="hidden xl:inline">
+            <span className="hidden xl:inline leading-none">
               {reducedMotion
                 ? t(language, 'reduceMotionOn')
                 : t(language, 'reduceMotionOff')}

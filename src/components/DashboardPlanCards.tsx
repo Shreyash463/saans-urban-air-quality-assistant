@@ -5,9 +5,10 @@ import {
   Copy,
   Download,
   Printer,
+  RefreshCw,
   Sparkles,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { t, type TranslationKey } from '../lib/i18n';
 import { formatPlanAsText } from '../lib/planExport';
 import type {
@@ -130,7 +131,7 @@ export function IndoorHacksCard({
 
       <div
         data-reveal-group
-        className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+        className="print-two-col mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
       >
         {hacks.map((hack) => (
           <div
@@ -184,7 +185,10 @@ export function AlternativesCard({
         </p>
       </div>
 
-      <div data-reveal-group className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div
+        data-reveal-group
+        className="print-two-col mt-6 grid grid-cols-1 lg:grid-cols-3 gap-5"
+      >
         {alternatives.map((alt) => (
           <div
             key={alt.swap}
@@ -355,6 +359,73 @@ export function DashboardExportActions({
       >
         {actionMessage}
       </p>
+    </div>
+  );
+}
+
+export function AiBusyRetryNotice({
+  plan,
+  language,
+  isLoading,
+  onRetryGemini,
+}: {
+  plan: PlanResponse;
+  language: LanguageCode;
+  isLoading: boolean;
+  onRetryGemini?: () => void;
+}) {
+  const show =
+    plan.generatedBy === 'rules' &&
+    (plan.fallbackReason === 'ai_busy' || plan.fallbackReason === 'ai_error');
+  const initialSeconds = Math.max(0, Math.round(plan.retryAfterSeconds ?? 15));
+  const [remaining, setRemaining] = useState(initialSeconds);
+
+  useEffect(() => {
+    setRemaining(Math.max(0, Math.round(plan.retryAfterSeconds ?? 15)));
+  }, [plan]);
+
+  useEffect(() => {
+    if (!show || remaining <= 0) return;
+    const timer = globalThis.setInterval(() => {
+      setRemaining((prev) => (prev > 1 ? prev - 1 : 0));
+    }, 1000);
+    return () => globalThis.clearInterval(timer);
+  }, [show, remaining]);
+
+  if (!show) return null;
+
+  const message =
+    remaining > 0
+      ? t(language, 'aiBusyNotice').replace('{seconds}', String(remaining))
+      : t(language, 'aiBusyReadyNotice');
+
+  return (
+    <div
+      data-testid="ai-busy-notice"
+      className="no-print mt-2.5 rounded-xl border border-amber-300 dark:border-amber-700/70 bg-amber-50/90 dark:bg-amber-950/40 px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-3"
+    >
+      <p
+        role="status"
+        aria-live="polite"
+        className="text-xs sm:text-sm font-medium text-amber-950 dark:text-amber-100 leading-snug"
+      >
+        {message}
+      </p>
+      {onRetryGemini ? (
+        <button
+          type="button"
+          onClick={onRetryGemini}
+          disabled={remaining > 0 || isLoading}
+          className="min-h-[38px] px-3 py-1.5 rounded-lg border border-amber-400 dark:border-amber-600 bg-white dark:bg-[#0B1220] text-xs sm:text-sm font-semibold text-amber-950 dark:text-amber-100 hover:border-teal-600 dark:hover:border-teal-400 inline-flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed whitespace-nowrap"
+        >
+          <RefreshCw className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+          <span>
+            {isLoading
+              ? t(language, 'retryGeminiLoading')
+              : t(language, 'retryGeminiButton')}
+          </span>
+        </button>
+      ) : null}
     </div>
   );
 }
