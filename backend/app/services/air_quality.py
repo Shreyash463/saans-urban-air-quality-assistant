@@ -4,14 +4,26 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 import httpx
 
 from app.schemas import AirQualityReading, strip_control_chars
+from app.services.air_quality_parse import (
+    DEMO_SOURCE_DETAIL as DEMO_SOURCE_DETAIL,
+)
+from app.services.air_quality_parse import (
+    DEVANAGARI_CITY_MAP,
+    parse_hourly_series,
+    select_geocode_result,
+)
+from app.services.air_quality_parse import (
+    LIVE_SOURCE_DETAIL as LIVE_SOURCE_DETAIL,
+)
+from app.services.air_quality_parse import (
+    get_demo_air_quality as get_demo_air_quality,
+)
 from app.services.cache import TTLCache
-from app.services.cpcb import compute_cpcb_aqi_from_hourly
 
 logger = logging.getLogger(__name__)
 
@@ -19,159 +31,22 @@ GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 AIR_QUALITY_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 APPROX_LOCATION_LABEL = "Your location (approx.)"
 
-DEMO_CITY_TABLE: dict[str, tuple[str, int, str]] = {
-    "delhi": ("Delhi", 380, "PM2.5"),
-    "new delhi": ("New Delhi", 380, "PM2.5"),
-    "lucknow": ("Lucknow", 310, "PM2.5"),
-    "kolkata": ("Kolkata", 240, "PM2.5"),
-    "mumbai": ("Mumbai", 150, "PM10"),
-    "pune": ("Pune", 130, "PM10"),
-    "noida": ("Noida", 365, "PM2.5"),
-    "gurugram": ("Gurugram", 350, "PM2.5"),
-    "patna": ("Patna", 295, "PM2.5"),
-    "bengaluru": ("Bengaluru", 95, "PM10"),
-    "chennai": ("Chennai", 110, "PM10"),
-}
-
-_DEVANAGARI_CITY_MAP: dict[str, str] = {
-    "दिल्ली": "Delhi",
-    "नई दिल्ली": "New Delhi",
-    "लखनऊ": "Lucknow",
-    "कोलकाता": "Kolkata",
-    "मुंबई": "Mumbai",
-    "पुणे": "Pune",
-    "नोएडा": "Noida",
-    "गुरुग्राम": "Gurugram",
-    "पटना": "Patna",
-    "बेंगलुरु": "Bengaluru",
-    "चेन्नई": "Chennai",
-}
-
-UNKNOWN_CITY_AQI = 160
-LIVE_SOURCE_DETAIL = "Open-Meteo, PM-based CPCB estimate"
-DEMO_SOURCE_DETAIL = "Sample reading"
-
-
-def get_demo_air_quality(city: str) -> AirQualityReading:
-    """Returns deterministic demo AQI reading matching frontend mock table."""
-    cleaned = strip_control_chars(city) or "Delhi"
-    entry = DEMO_CITY_TABLE.get(cleaned.lower())
-    if entry is not None:
-        display_name, aqi, dominant = entry
-        return AirQualityReading(
-            city=display_name,
-            aqi=aqi,
-            dominant_pollutant=dominant,
-            updated_at="",
-            source="demo",
-            source_detail=DEMO_SOURCE_DETAIL,
-        )
-    return AirQualityReading(
-        city=cleaned,
-        aqi=UNKNOWN_CITY_AQI,
-        dominant_pollutant="PM2.5",
-        updated_at="",
-        source="demo",
-        source_detail=DEMO_SOURCE_DETAIL,
-    )
-
-
-def _select_geocode_result(results: list[dict[str, Any]]) -> dict[str, Any] | None:
-    """Prefers India results when ambiguous; otherwise returns the first match."""
-    if not results:
-        return None
-    for item in results:
-        code = str(item.get("country_code", "")).upper()
-        country = str(item.get("country", "")).lower()
-        if code == "IN" or country == "india":
-            return item
-    return results[0]
-
-
-def _parse_hourly_series(
-    payload: dict[str, Any],
-    now_utc: datetime | None = None,
-) -> tuple[int, str, str] | None:
-    """Extracts up to 24 observed hourly PM values up to current time and computes CPCB AQI."""
-    hourly = payload.get("hourly")
-    if not isinstance(hourly, dict):
-        return None
-
-    times = hourly.get("time")
-    pm25_raw = hourly.get("pm2_5")
-    pm10_raw = hourly.get("pm10")
-    if not isinstance(times, list) or not isinstance(pm25_raw, list) or not isinstance(pm10_raw, list):
-        return None
-
-    offset_seconds = int(payload.get("utc_offset_seconds", 0) or 0)
-    tz = timezone(timedelta(seconds=offset_seconds))
-    reference_now = (now_utc or datetime.now(UTC)).astimezone(tz)
-
-    filtered: list[tuple[datetime, float | None, float | None]] = []
-    all_parsed: list[tuple[datetime, float | None, float | None]] = []
-
-    for idx, raw_ts in enumerate(times):
-        if not isinstance(raw_ts, str):
-            continue
-        try:
-            dt = datetime.fromisoformat(raw_ts)
-        except ValueError:
-            continue
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=tz)
-
-        pm25_val = pm25_raw[idx] if idx < len(pm25_raw) else None
-        pm10_val = pm10_raw[idx] if idx < len(pm10_raw) else None
-        pm25_num = float(pm25_val) if isinstance(pm25_val, (int, float)) else None
-        pm10_num = float(pm10_val) if isinstance(pm10_val, (int, float)) else None
-
-        all_parsed.append((dt, pm25_num, pm10_num))
-        if dt <= reference_now:
-            filtered.append((dt, pm25_num, pm10_num))
-
-    series = filtered if len(filtered) >= 12 else all_parsed
-    if len(series) < 12:
-        return None
-
-    computed = compute_cpcb_aqi_from_hourly([r[1] for r in series], [r[2] for r in series])
-    if computed is None:
-        return None
-    aqi, dominant = computed
-
-    latest_dt = next(
-        (dt for dt, p25, p10 in reversed(series[-24:]) if (p25 is not None and p25 >= 0) or (p10 is not None and p10 >= 0)),
-        None,
-    )
-    if latest_dt is None:
-        return None
-    return aqi, dominant, latest_dt.isoformat()
-
 
 class AirQualityService:
     """Fetches, computes, coalesces, and caches city/coordinate air quality readings."""
 
-    def __init__(
-        self,
-        cache: TTLCache[AirQualityReading],
-        timeout_seconds: float = 8.0,
-    ) -> None:
+    def __init__(self, cache: TTLCache[AirQualityReading], timeout_seconds: float = 8.0) -> None:
         self._cache = cache
         self._timeout_seconds = timeout_seconds
         self._in_flight: dict[str, asyncio.Task[AirQualityReading]] = {}
 
-    async def get_air_quality(
-        self,
-        city: str,
-        http_client: httpx.AsyncClient,
-    ) -> AirQualityReading:
+    async def get_air_quality(self, city: str, http_client: httpx.AsyncClient) -> AirQualityReading:
         """Fetches live Open-Meteo AQI for city (cached & coalesced) or falls back to demo."""
         cleaned = strip_control_chars(city) or "Delhi"
         cache_key = f"city:{cleaned.lower()}"
-
         cached = await self._cache.get(cache_key)
         if cached is not None:
             return cached
-
         return await self._coalesced_fetch(
             cache_key=cache_key,
             cache_on_live=True,
@@ -190,17 +65,11 @@ class AirQualityService:
         except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
             logger.warning("Coordinate air quality lookup failed (%s); using demo", type(exc).__name__)
             return get_demo_air_quality("Delhi").model_copy(update={"city": APPROX_LOCATION_LABEL})
-
         if reading is None:
             return get_demo_air_quality("Delhi").model_copy(update={"city": APPROX_LOCATION_LABEL})
         return reading
 
-    async def _coalesced_fetch(
-        self,
-        cache_key: str,
-        cache_on_live: bool,
-        fetcher: Any,
-    ) -> AirQualityReading:
+    async def _coalesced_fetch(self, cache_key: str, cache_on_live: bool, fetcher: Any) -> AirQualityReading:
         task = self._in_flight.get(cache_key)
         if task is None:
             task = asyncio.create_task(fetcher())
@@ -210,7 +79,6 @@ class AirQualityService:
         finally:
             if self._in_flight.get(cache_key) is task and task.done():
                 self._in_flight.pop(cache_key, None)
-
         if cache_on_live and reading.source == "live":
             await self._cache.set(cache_key, reading)
         return reading
@@ -225,15 +93,10 @@ class AirQualityService:
         except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
             logger.warning("Air quality lookup failed for city=%r (%s); using demo", cleaned_city, type(exc).__name__)
             return get_demo_air_quality(cleaned_city)
-
         return reading if reading is not None else get_demo_air_quality(cleaned_city)
 
-    async def _fetch_live(
-        self,
-        city: str,
-        http_client: httpx.AsyncClient,
-    ) -> AirQualityReading | None:
-        query_city = _DEVANAGARI_CITY_MAP.get(city, city)
+    async def _fetch_live(self, city: str, http_client: httpx.AsyncClient) -> AirQualityReading | None:
+        query_city = DEVANAGARI_CITY_MAP.get(city, city)
         geo_resp = await http_client.get(
             GEOCODING_URL,
             params={"name": query_city, "count": 10, "language": "en", "format": "json"},
@@ -244,16 +107,12 @@ class AirQualityService:
         results = geo_data.get("results") if isinstance(geo_data, dict) else None
         if not isinstance(results, list) or not results:
             return None
-
-        match = _select_geocode_result(results)
+        match = select_geocode_result(results)
         if match is None:
             return None
-
-        lat = match.get("latitude")
-        lon = match.get("longitude")
+        lat, lon = match.get("latitude"), match.get("longitude")
         if not isinstance(lat, (int, float)) or not isinstance(lon, (int, float)):
             return None
-
         resolved_name = str(match.get("name") or city).strip() or city
         return await self._fetch_aq_at_coords(float(lat), float(lon), resolved_name, http_client)
 
@@ -278,13 +137,9 @@ class AirQualityService:
         )
         aq_resp.raise_for_status()
         aq_data = aq_resp.json()
-        if not isinstance(aq_data, dict):
-            return None
-
-        parsed = _parse_hourly_series(aq_data)
+        parsed = parse_hourly_series(aq_data) if isinstance(aq_data, dict) else None
         if parsed is None:
             return None
-
         aqi, dominant, updated_at = parsed
         return AirQualityReading(
             city=label,

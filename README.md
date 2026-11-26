@@ -120,12 +120,13 @@ See [`.env.example`](.env.example):
 | --- | --- | --- |
 | `ENVIRONMENT` | `production` | `production` disables `/docs`, `/redoc`, and `/openapi.json` (set `development` locally to browse docs). |
 | `GEMINI_API_KEY` | *(unset)* | Server-side Google Gemini API key read from root `.env`. Missing/invalid keys automatically use rule-based fallback. |
-| `GEMINI_MODEL` | *(auto)* | Optional model ID override (e.g. `gemini-3.8-flash` or `gemini-2.5-flash`). Auto-discovers newest flash model at startup when blank. |
+| `GEMINI_MODEL` | *(auto)* | Optional single-model pin (e.g. `gemini-3.5-flash-lite`). Auto-discovers Flash models prioritizing Flash-Lite first when blank. |
+| `GEMINI_MODEL_PRIORITY` | `gemini-3.5-flash-lite,...` | Comma-separated model preference order for Flash discovery. |
+| `GEMINI_DAILY_CALL_BUDGET` | `400` | UTC daily upstream Gemini request cap (`00:00 UTC` reset) to protect free-tier quota. |
 | `ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:4173` | Comma-separated CORS origin allowlist (never `*`). |
 | `TRUST_PROXY_HEADERS` | `false` | Set `true` behind Render/Cloud Run/nginx so rate limiting extracts client IPs safely from the rightmost `trusted_proxy_hops` entry of `X-Forwarded-For`. |
 | `TRUSTED_PROXY_HOPS` | `1` | Number of trusted proxy hops to strip from the right of `X-Forwarded-For`. |
 | `VITE_API_BASE_URL` | `""` | Frontend API base URL; empty string uses same-origin `/api`. |
-| `VITE_USE_MOCK` | `false` | Set `"true"` to run the frontend strictly on the built-in client mock without calling `/api`. |
 
 ---
 
@@ -145,8 +146,8 @@ Returns service readiness, active healthy model selection, and short commit SHA 
 }
 ```
 
-### `GET /api/air-quality?city=Pune` or `?lat=28.6139&lon=77.2090`
-Returns live Open-Meteo CPCB-calibrated reading (cached 10 minutes; `Cache-Control: public, max-age=180` for city lookups, `"Your location (approx.)"` with zero log/disk persistence for coordinates) or `"demo"` fallback.
+### `GET /api/air-quality?city=Pune` & `POST /api/air-quality`
+Returns live Open-Meteo CPCB-calibrated reading (cached 10 minutes; `Cache-Control: public, max-age=180` for city lookups, `"Your location (approx.)"` with zero URL query leakage or log/disk persistence when coordinates are submitted via `POST /api/air-quality` JSON body `{ "lat": 28.6139, "lon": 77.2090 }`) or `"demo"` fallback.
 
 ```json
 {
@@ -159,8 +160,8 @@ Returns live Open-Meteo CPCB-calibrated reading (cached 10 minutes; `Cache-Contr
 }
 ```
 
-### `POST /api/plan` (optional `?lat=...&lon=...`)
-Request body (`UserProfile`):
+### `POST /api/plan`
+Request body (`PlanRequest`, extending `UserProfile` with optional ephemeral `coords: { "lat": ..., "lon": ... }` and `preferCoords`):
 
 ```json
 {

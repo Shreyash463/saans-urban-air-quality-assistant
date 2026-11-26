@@ -1,3 +1,4 @@
+import demoCitiesContract from '../../contract/demo-cities.json';
 import { sanitizeCity } from '../../src/lib/validation';
 import type { AirQualityReading } from '../../src/types';
 
@@ -7,23 +8,11 @@ interface DemoCityEntry {
   dominantPollutant: string;
 }
 
-const DEMO_CITY_TABLE: Readonly<Record<string, DemoCityEntry>> = {
-  delhi: { displayName: 'Delhi', aqi: 380, dominantPollutant: 'PM2.5' },
-  'new delhi': { displayName: 'New Delhi', aqi: 380, dominantPollutant: 'PM2.5' },
-  lucknow: { displayName: 'Lucknow', aqi: 310, dominantPollutant: 'PM2.5' },
-  kolkata: { displayName: 'Kolkata', aqi: 240, dominantPollutant: 'PM2.5' },
-  mumbai: { displayName: 'Mumbai', aqi: 150, dominantPollutant: 'PM10' },
-  pune: { displayName: 'Pune', aqi: 130, dominantPollutant: 'PM10' },
-  noida: { displayName: 'Noida', aqi: 365, dominantPollutant: 'PM2.5' },
-  gurugram: { displayName: 'Gurugram', aqi: 350, dominantPollutant: 'PM2.5' },
-  patna: { displayName: 'Patna', aqi: 295, dominantPollutant: 'PM2.5' },
-  bengaluru: { displayName: 'Bengaluru', aqi: 95, dominantPollutant: 'PM10' },
-  chennai: { displayName: 'Chennai', aqi: 110, dominantPollutant: 'PM10' },
-};
+const DEMO_CITY_TABLE = demoCitiesContract.cities as Readonly<
+  Record<string, DemoCityEntry>
+>;
+const UNKNOWN_CITY_AQI = demoCitiesContract.unknownCityAqi;
 
-const UNKNOWN_CITY_AQI = 160;
-
-/** Quick-pick demo cities displayed in the profile form. */
 export const QUICK_PICK_CITIES: readonly string[] = [
   'Delhi',
   'Mumbai',
@@ -32,10 +21,6 @@ export const QUICK_PICK_CITIES: readonly string[] = [
   'Kolkata',
 ];
 
-/**
- * Lightweight deterministic demo AQI lookup kept separate from heavy template generators
- * so the initial bundle stays small.
- */
 export function getMockAirQuality(city: string): AirQualityReading {
   const cleaned = sanitizeCity(city) || 'Delhi';
   const entry = DEMO_CITY_TABLE[cleaned.toLowerCase()];
@@ -54,7 +39,7 @@ export function getMockAirQuality(city: string): AirQualityReading {
   return {
     city: cleaned,
     aqi: UNKNOWN_CITY_AQI,
-    dominantPollutant: 'PM2.5',
+    dominantPollutant: demoCitiesContract.unknownCityPollutant,
     updatedAt: '',
     source: 'demo',
     sourceDetail: 'Sample reading',

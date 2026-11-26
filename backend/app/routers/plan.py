@@ -18,7 +18,7 @@ from app.dependencies import (
     get_plan_cache,
     get_plan_limiter,
 )
-from app.schemas import PlanRequest, PlanResponse, UserProfile
+from app.schemas import AirQualityReading, PlanRequest, PlanResponse, UserProfile
 from app.services.fallback_plan import generate_fallback_plan
 from app.services.impact import ProfileFacts, build_profile_facts
 
@@ -39,6 +39,34 @@ def _build_plan_cache_key(profile: UserProfile, aqi_source: str, aqi_val: int) -
 async def _prepare_profile_facts(profile: UserProfile) -> ProfileFacts:
     """Computes grounded profile facts asynchronously alongside AQI I/O."""
     return build_profile_facts(profile)
+
+
+async def _generate_or_fallback_plan(
+    profile: UserProfile,
+    aqi_reading: AirQualityReading,
+    facts: ProfileFacts,
+    cache_key: str,
+    request: Request,
+) -> PlanResponse:
+    plan_cache = get_plan_cache(request)
+    gemini_client = get_gemini_client(request)
+    plan, fallback_reason, retry_after = await gemini_client.generate_plan_with_status(
+        profile, aqi_reading, facts=facts
+    )
+    if plan is not None:
+        await plan_cache.set(cache_key, plan)
+        return plan
+
+    resolved_reason = fallback_reason or ("no_key" if not gemini_client.is_configured else "ai_error")
+    fallback = generate_fallback_plan(profile, aqi_reading).model_copy(
+        update={
+            "fallback_reason": resolved_reason,
+            "retry_after_seconds": None if resolved_reason == "no_key" else retry_after,
+        }
+    )
+    if resolved_reason == "no_key":
+        await plan_cache.set(cache_key, fallback)
+    return fallback
 
 
 @router.post(
@@ -67,9 +95,7 @@ async def create_plan_endpoint(
         request,
         "Too many plan requests. Please try again shortly.",
     )
-    profile = UserProfile.model_validate(
-        payload.model_dump(exclude={"coords", "prefer_coords"})
-    )
+    profile = UserProfile.model_validate(payload.model_dump(exclude={"coords", "prefer_coords"}))
     use_coords = payload.coords is not None and payload.prefer_coords is not False
 
     aq_service = get_air_quality_service(request)
@@ -81,41 +107,12 @@ async def create_plan_endpoint(
     )
     aqi_reading, facts = await asyncio.gather(aqi_coro, _prepare_profile_facts(profile))
 
-    plan_cache = get_plan_cache(request)
     cache_key = _build_plan_cache_key(profile, aqi_reading.source, aqi_reading.aqi)
-    cached_plan = await plan_cache.get(cache_key)
+    cached_plan = await get_plan_cache(request).get(cache_key)
     if cached_plan is not None:
-        elapsed_ms = int((time.monotonic() - started) * 1000)
-        logger.info(
-            "route=/api/plan cache=hit aqi_source=%s generated_by=%s latency_ms=%d",
-            aqi_reading.source,
-            cached_plan.generated_by,
-            elapsed_ms,
-        )
+        logger.info("route=/api/plan cache=hit aqi_source=%s generated_by=%s latency_ms=%d", aqi_reading.source, cached_plan.generated_by, int((time.monotonic() - started) * 1000))
         return cached_plan.model_copy(update={"aqi": aqi_reading})
 
-    gemini_client = get_gemini_client(request)
-    plan, fallback_reason, retry_after = await gemini_client.generate_plan_with_status(
-        profile, aqi_reading, facts=facts
-    )
-    if plan is not None:
-        await plan_cache.set(cache_key, plan)
-    else:
-        resolved_reason = fallback_reason or ("no_key" if not gemini_client.is_configured else "ai_error")
-        plan = generate_fallback_plan(profile, aqi_reading).model_copy(
-            update={
-                "fallback_reason": resolved_reason,
-                "retry_after_seconds": None if resolved_reason == "no_key" else retry_after,
-            }
-        )
-        # Only cache deliberate no-key rule plans; transient AI failures must never stick in cache.
-        if resolved_reason == "no_key":
-            await plan_cache.set(cache_key, plan)
-    elapsed_ms = int((time.monotonic() - started) * 1000)
-    logger.info(
-        "route=/api/plan cache=miss aqi_source=%s generated_by=%s latency_ms=%d",
-        aqi_reading.source,
-        plan.generated_by,
-        elapsed_ms,
-    )
+    plan = await _generate_or_fallback_plan(profile, aqi_reading, facts, cache_key, request)
+    logger.info("route=/api/plan cache=miss aqi_source=%s generated_by=%s latency_ms=%d", aqi_reading.source, plan.generated_by, int((time.monotonic() - started) * 1000))
     return plan

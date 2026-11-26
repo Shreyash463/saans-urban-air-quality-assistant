@@ -6,3 +6,6 @@ coverage/
 package-lock.json
 bun.lock
 *.md
+contract/api.schema.json
+docs/openapi.json
+src/types/generated.ts

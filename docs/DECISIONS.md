@@ -20,4 +20,16 @@
 
 ## ADR-005: Ephemeral Opt-In Geolocation
 - **Context**: Users outside preset cities or unsure of neighborhood station names benefit from one-tap local AQI without surveillance.
-- **Decision**: Provide an opt-in **"Use my location"** button gated by user gesture, forward coordinates ephemerally via `?lat=...&lon=...` directly to Open-Meteo, display `"Your location (approx.)"`, allow `Permissions-Policy: geolocation=(self)`, and never log coordinates server-side or store them in `localStorage`.
+- **Decision**: Provide an opt-in **"Use my location"** button gated by user gesture, forward coordinates ephemerally in `POST /api/air-quality` and `POST /api/plan` JSON bodies (never query strings), display `"Your location (approx.)"`, allow `Permissions-Policy: geolocation=(self)`, and never log coordinates server-side or store them in `localStorage`.
+
+## ADR-006: Removal of In-Browser Mock Generator & Honest Error Recovery
+- **Context**: A fallback browser mock risked masking real backend failures as plausible live guidance during network outages or server cold starts, while inflating the initial JS bundle.
+- **Decision**: Move mock fixtures strictly under `tests/fixtures/` for unit tests, remove `VITE_USE_MOCK` and in-browser fallbacks from `src/`, throw typed `ApiRequestError` failures in `src/services/api.ts`, and render explicit error/retry states (`PlanErrorState`, Hero retry) while keeping server-side deterministic rules (`services/fallback_plan.py`) for upstream AI interruptions.
+
+## ADR-007: Flash-Lite Priority Chain & UTC Daily Upstream Budget
+- **Context**: Experimental Flash models exhibit sporadic `503`/`429` limits on free-tier keys, and uncontrolled traffic spikes can exhaust daily quota.
+- **Decision**: Prioritize Flash-Lite models (`GEMINI_MODEL_PRIORITY`) ahead of larger Flash generations during model discovery, honor single-model pinning when `GEMINI_MODEL` is explicitly configured, and enforce an in-memory UTC daily upstream budget (`GEMINI_DAILY_CALL_BUDGET`, default `400`) resetting cleanly at `00:00 UTC`.
+
+## ADR-008: Single-Source Schema Codegen & Golden Cross-Language Vectors
+- **Context**: Manually duplicating CPCB breakpoints, Pydantic/TypeScript interfaces, and demo city tables across Python and TypeScript invited drift between frontend validation and backend serialization.
+- **Decision**: Generate `contract/api.schema.json`, `docs/openapi.json`, and `src/types/generated.ts` directly from Pydantic models (`backend/scripts/export_contract.py`), validate runtime browser payloads against `contract/api.schema.json` (`src/lib/contractValidator.ts`), share CPCB ranges and demo cities via `contract/*.json`, and assert parity in both Vitest and Pytest using `contract/golden-vectors.json` verified in CI (`--check`).

@@ -27,7 +27,7 @@ if str(BACKEND_DIR) not in sys.path:
 from app.config import Settings, get_settings  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.services.cpcb import compute_cpcb_aqi_from_means  # noqa: E402
-from app.services.gemini_client import GeminiClient  # noqa: E402
+from app.services.gemini import GeminiClient  # noqa: E402
 
 SAMPLE_PROFILE: dict[str, Any] = {
     "city": "Delhi",

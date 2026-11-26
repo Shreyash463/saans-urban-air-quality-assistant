@@ -506,6 +506,24 @@ test.describe('Saans end-to-end user workflows and accessibility', () => {
               detail: 'Commute smart.',
               impactNote: 'Lowers PM2.5.',
             },
+            {
+              timeSlot: 'midday',
+              title: 'Midday',
+              detail: 'Ventilate briefly.',
+              impactNote: 'Refreshes air.',
+            },
+            {
+              timeSlot: 'evening',
+              title: 'Evening',
+              detail: 'Cook with exhaust.',
+              impactNote: 'Traps fumes.',
+            },
+            {
+              timeSlot: 'night',
+              title: 'Night',
+              detail: 'Rest indoors.',
+              impactNote: 'Clean sleep.',
+            },
           ],
           indoorHacks: [
             {

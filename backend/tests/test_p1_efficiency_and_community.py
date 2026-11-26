@@ -17,8 +17,7 @@ from app.schemas import AirQualityReading, UserProfile
 from app.services.air_quality import APPROX_LOCATION_LABEL, AirQualityService
 from app.services.cache import TTLCache
 from app.services.fallback_plan import generate_fallback_plan
-from app.services.gemini.circuit_breaker import ModelCircuitBreaker
-from app.services.gemini_client import GeminiClient
+from app.services.gemini import GeminiClient, ModelCircuitBreaker
 from app.services.rate_limit import SlidingWindowRateLimiter
 from fastapi.testclient import TestClient
 from tests.conftest import build_mock_http_client
@@ -636,6 +635,33 @@ def test_contract_sample_json_with_nulls_and_exclude_none(client: TestClient) ->
     assert "selectedModel" not in health or isinstance(health["selectedModel"], str)
 
 
+def test_golden_vectors_match_cpcb_and_impact_math() -> None:
+    import json
+    from pathlib import Path
+
+    from app.schemas import UserProfile
+    from app.services.cpcb import get_aqi_category
+    from app.services.impact import calculate_profile_impact
+
+    vectors_path = Path(__file__).resolve().parents[2] / "contract" / "golden-vectors.json"
+    vectors = json.loads(vectors_path.read_text(encoding="utf-8"))
+
+    for vec in vectors["cpcbCategoryVectors"]:
+        assert get_aqi_category(int(vec["aqi"])).key == vec["expectedKey"]
+
+    for vec in vectors["impactVectors"]:
+        profile = UserProfile.model_validate(vec["profile"])
+        res = calculate_profile_impact(profile, vec["selectedActions"])
+        exp = vec["expected"]
+        assert res["before_exposure_pct"] == exp["beforeExposurePct"]
+        assert res["after_exposure_pct"] == exp["afterExposurePct"]
+        assert res["additional_exposure_cut_pct"] == exp["additionalExposureCutPct"]
+        assert res["total_exposure_cut_pct"] == exp["totalExposureCutPct"]
+        assert res["baseline_score"] == exp["baselineScore"]
+        assert res["co2_saved_kg_per_month"] == exp["co2SavedKgPerMonth"]
+        assert res["air_friendly_score"] == exp["airFriendlyScore"]
+
+
 def test_plan_prefer_coords_false_uses_city_and_offline_sample_chat_omits_sample_aqi(
     client: TestClient,
 ) -> None:
@@ -654,21 +680,20 @@ def test_plan_prefer_coords_false_uses_city_and_offline_sample_chat_omits_sample
     # Mocked geocoder returns city name ("Delhi") rather than APPROX_LOCATION_LABEL
     assert body["aqi"]["city"] != "Your location (approx.)"
 
-    offline_plan = PlanResponse.model_validate(
+    demo_plan = PlanResponse.model_validate(
         {
             **body,
             "aqi": {**body["aqi"], "city": "Pune", "aqi": 130, "source": "demo"},
             "summary": "Pune shows a sample demo AQI of 130 (Moderate).",
-            "isOfflineSample": True,
         }
     )
-    prompt = build_chat_user_prompt("Is it safe to walk?", pune_profile, offline_plan)
+    prompt = build_chat_user_prompt("Is it safe to walk?", pune_profile, demo_plan)
     assert "130" not in prompt
-    assert "offline sample" in prompt.lower()
+    assert "demo" in prompt.lower()
 
-    reply = generate_fallback_chat_reply("Is it safe to walk?", pune_profile, offline_plan)
+    reply = generate_fallback_chat_reply("Is it safe to walk?", pune_profile, demo_plan)
     assert "130" not in reply.answer
-    assert "offline sample" in reply.answer.lower()
+    assert "demo" in reply.answer.lower()
 
 
 @pytest.mark.live

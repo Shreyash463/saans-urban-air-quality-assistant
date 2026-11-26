@@ -26,7 +26,7 @@ import type {
 } from '../types';
 
 export const REQUEST_TIMEOUT_MS = 35_000;
-export const AIR_QUALITY_TIMEOUT_MS = 12_000;
+const AIR_QUALITY_TIMEOUT_MS = 12_000;
 
 export type ApiErrorKind =
   'network' | 'timeout' | 'http' | 'rate_limit' | 'invalid_payload';
@@ -47,7 +47,7 @@ export class ApiRequestError extends Error {
  * Resolves the configured backend base URL (trimmed, without trailing slash).
  * Empty string means same-origin requests (/api/...).
  */
-export function getApiBaseUrl(): string {
+function getApiBaseUrl(): string {
   const raw =
     typeof import.meta !== 'undefined' && import.meta.env
       ? ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '')

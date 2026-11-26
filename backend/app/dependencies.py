@@ -12,7 +12,7 @@ from app.config import Settings
 from app.schemas import PlanResponse
 from app.services.air_quality import AirQualityService
 from app.services.cache import TTLCache
-from app.services.gemini_client import GeminiClient
+from app.services.gemini import GeminiClient
 from app.services.rate_limit import SlidingWindowRateLimiter
 
 

@@ -1,0 +1,21 @@
+{
+  "unknownCityAqi": 160,
+  "unknownCityPollutant": "PM2.5",
+  "cities": {
+    "delhi": { "displayName": "Delhi", "aqi": 380, "dominantPollutant": "PM2.5" },
+    "new delhi": {
+      "displayName": "New Delhi",
+      "aqi": 380,
+      "dominantPollutant": "PM2.5"
+    },
+    "lucknow": { "displayName": "Lucknow", "aqi": 310, "dominantPollutant": "PM2.5" },
+    "kolkata": { "displayName": "Kolkata", "aqi": 240, "dominantPollutant": "PM2.5" },
+    "mumbai": { "displayName": "Mumbai", "aqi": 150, "dominantPollutant": "PM10" },
+    "pune": { "displayName": "Pune", "aqi": 130, "dominantPollutant": "PM10" },
+    "noida": { "displayName": "Noida", "aqi": 365, "dominantPollutant": "PM2.5" },
+    "gurugram": { "displayName": "Gurugram", "aqi": 350, "dominantPollutant": "PM2.5" },
+    "patna": { "displayName": "Patna", "aqi": 295, "dominantPollutant": "PM2.5" },
+    "bengaluru": { "displayName": "Bengaluru", "aqi": 95, "dominantPollutant": "PM10" },
+    "chennai": { "displayName": "Chennai", "aqi": 110, "dominantPollutant": "PM10" }
+  }
+}

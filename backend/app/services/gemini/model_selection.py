@@ -52,27 +52,26 @@ def _model_rank_key(model_name: str) -> tuple[int, tuple[int, ...], int, str]:
     return (is_lite, version_tuple, is_stable, lower)
 
 
+def _is_eligible_flash_model(model: Any) -> str | None:
+    raw_name = getattr(model, "name", None)
+    if not isinstance(raw_name, str) or not raw_name.strip():
+        return None
+    short_name = raw_name.removeprefix("models/").strip()
+    lower = short_name.lower()
+    if "flash" not in lower or any(marker in lower for marker in _EXCLUDED_MODEL_MARKERS):
+        return None
+    actions = [str(action).lower() for action in (getattr(model, "supported_actions", None) or [])]
+    if "generatecontent" not in actions and "generate_content" not in actions:
+        return None
+    return short_name
+
+
 def select_best_flash_models(
     models: list[Any],
     priority: list[str] | None = None,
 ) -> list[str]:
     """Selects and orders flash-class models supporting generateContent, Flash-Lite first."""
-    candidates: list[str] = []
-    for model in models:
-        raw_name = getattr(model, "name", None)
-        if not isinstance(raw_name, str) or not raw_name.strip():
-            continue
-        short_name = raw_name.removeprefix("models/").strip()
-        lower = short_name.lower()
-        if "flash" not in lower:
-            continue
-        if any(marker in lower for marker in _EXCLUDED_MODEL_MARKERS):
-            continue
-        actions = [str(action).lower() for action in (getattr(model, "supported_actions", None) or [])]
-        if "generatecontent" not in actions and "generate_content" not in actions:
-            continue
-        candidates.append(short_name)
-
+    candidates = [name for m in models if (name := _is_eligible_flash_model(m)) is not None]
     unique = list(dict.fromkeys(candidates))
     unique.sort(key=_model_rank_key, reverse=True)
     if not priority:

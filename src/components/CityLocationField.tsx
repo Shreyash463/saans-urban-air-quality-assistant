@@ -1,203 +1,175 @@
-import { Loader2, MapPin } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { AqiCategoryBadge } from './AqiCategoryBadge';
-import { useDebounce } from '../hooks/useDebounce';
+import { LocateFixed, MapPin } from 'lucide-react';
+import { useGeolocationAqi } from '../hooks/useGeolocationAqi';
 import { QUICK_PICK_CITIES } from '../lib/cities';
-import { t, type TranslationKey } from '../lib/i18n';
-import { CITY_MAX_LENGTH, validateCity } from '../lib/validation';
-import { getAirQuality, getAirQualityByCoords } from '../services/api';
+import { t } from '../lib/i18n';
+import { validateCity } from '../lib/validation';
+import { getAirQuality } from '../services/api';
 import type { AirQualityReading, Coordinates, LanguageCode } from '../types';
+
+export type CityErrorKey =
+  'errorCityRequired' | 'errorCityInvalidChars' | 'errorCityTooLong';
 
 interface CityLocationFieldProps {
   city: string;
   language: LanguageCode;
-  cityErrorKey: TranslationKey | null;
-  hasActiveLocation: boolean;
-  onCityValueChange: (nextCity: string, nextErrorKey: TranslationKey | null) => void;
+  cityErrorKey: CityErrorKey | null;
+  hasActiveLocation?: boolean;
+  onCityValueChange: (city: string, errorKey: CityErrorKey | null) => void;
   onPreviewReadingChange?: (reading: AirQualityReading) => void;
   onLocationChange?: (coords: Coordinates | null) => void;
 }
 
-export function CityLocationField({
+function CityQuickPicks({
+  city,
+  hasActiveLocation,
+  language,
+  onPick,
+}: {
+  city: string;
+  hasActiveLocation?: boolean;
+  language: LanguageCode;
+  onPick: (cityName: string) => void;
+}) {
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      <span className="text-sm text-slate-600 dark:text-slate-300">
+        {t(language, 'cityQuickPickLabel')}
+      </span>
+      {QUICK_PICK_CITIES.map((cityName) => {
+        const isActive =
+          !hasActiveLocation && city.trim().toLowerCase() === cityName.toLowerCase();
+        const chipTone = isActive
+          ? 'bg-teal-50 border-teal-600 text-teal-900 dark:bg-teal-950/60 dark:border-teal-400 dark:text-teal-200'
+          : 'bg-slate-50 border-slate-300 text-slate-700 hover:border-teal-600/50 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200';
+        return (
+          <button
+            key={cityName}
+            type="button"
+            onClick={() => onPick(cityName)}
+            className={`min-h-[36px] px-3 py-1 rounded-full text-sm font-medium border transition-colors cursor-pointer ${chipTone}`}
+          >
+            {cityName}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function useCityLocationController(props: CityLocationFieldProps) {
+  const { city, cityErrorKey, onCityValueChange, onPreviewReadingChange } = props;
+  const geo = useGeolocationAqi(props);
+  const previewAqi = (target: string) => {
+    if (onPreviewReadingChange)
+      void getAirQuality(target)
+        .then(onPreviewReadingChange)
+        .catch(() => undefined);
+  };
+  return {
+    locStatus: geo.locStatus,
+    locNoticeKey: geo.locNoticeKey,
+    handleGeolocation: geo.triggerGeo,
+    handleTextChange: (nextCity: string) => {
+      geo.resetLoc();
+      onCityValueChange(
+        nextCity,
+        cityErrorKey
+          ? ((validateCity(nextCity).errorKey as CityErrorKey) ?? null)
+          : null
+      );
+    },
+    handleBlur: () => {
+      const res = validateCity(city);
+      const err = (res.errorKey as CityErrorKey) ?? null;
+      onCityValueChange(city, err);
+      if (!err && res.sanitized.length > 1) previewAqi(res.sanitized);
+    },
+    handleQuickPick: (cityName: string) => {
+      geo.resetLoc();
+      onCityValueChange(cityName, null);
+      previewAqi(cityName);
+    },
+  };
+}
+
+function CityLabelRow({
+  language,
+  loading,
+  onGeo,
+}: {
+  language: LanguageCode;
+  loading: boolean;
+  onGeo: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <label
+        htmlFor="saans-city-input"
+        className="text-base font-semibold text-slate-900 dark:text-slate-100"
+      >
+        {t(language, 'cityLabel')}
+      </label>
+      <button
+        type="button"
+        onClick={onGeo}
+        disabled={loading}
+        className="min-h-[38px] inline-flex items-center gap-1.5 text-sm font-medium text-teal-800 dark:text-teal-300 hover:underline cursor-pointer disabled:opacity-60"
+      >
+        <LocateFixed className="w-4 h-4 shrink-0" aria-hidden="true" />
+        <span>{t(language, loading ? 'useMyLocationLoading' : 'useMyLocation')}</span>
+      </button>
+    </div>
+  );
+}
+
+function CityInputField({
   city,
   language,
   cityErrorKey,
-  hasActiveLocation,
-  onCityValueChange,
-  onPreviewReadingChange,
-  onLocationChange,
-}: CityLocationFieldProps) {
-  const [cityPreview, setCityPreview] = useState<AirQualityReading | null>(null);
-  const [locating, setLocating] = useState(false);
-  const [locationNoticeKey, setLocationNoticeKey] = useState<TranslationKey | null>(
-    null
-  );
-
-  const debouncedCity = useDebounce(city, 300);
-  const initialMountCityRef = useRef<string | null>(city.trim().toLowerCase());
-
-  useEffect(() => {
-    if (hasActiveLocation) return;
-    const check = validateCity(debouncedCity);
-    if (!check.valid) {
-      setCityPreview(null);
-      return;
-    }
-    if (
-      initialMountCityRef.current !== null &&
-      check.sanitized.toLowerCase() === initialMountCityRef.current
-    ) {
-      initialMountCityRef.current = null;
-      return;
-    }
-    initialMountCityRef.current = null;
-
-    let cancelled = false;
-    getAirQuality(check.sanitized)
-      .then((reading) => {
-        if (!cancelled) {
-          setCityPreview(reading);
-          setLocationNoticeKey(null);
-          onPreviewReadingChange?.(reading);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setCityPreview(null);
-          setLocationNoticeKey('cityPreviewErrorNotice');
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [debouncedCity, hasActiveLocation, onPreviewReadingChange]);
-
-  const handleCityChange = (rawValue: string) => {
-    onLocationChange?.(null);
-    setLocationNoticeKey(null);
-    const trimmedMax = rawValue.slice(0, CITY_MAX_LENGTH + 5);
-    const nextErr = cityErrorKey
-      ? (() => {
-          const result = validateCity(trimmedMax);
-          return result.valid ? null : (result.errorKey ?? null);
-        })()
-      : null;
-    onCityValueChange(trimmedMax, nextErr);
-  };
-
-  const handleQuickPick = (pickedCity: string) => {
-    onLocationChange?.(null);
-    setLocationNoticeKey(null);
-    onCityValueChange(pickedCity, null);
-  };
-
-  const handleUseMyLocation = () => {
-    if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      setLocationNoticeKey('locationUnsupportedNotice');
-      return;
-    }
-    setLocating(true);
-    setLocationNoticeKey(null);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const coords: Coordinates = {
-          lat: position.coords.latitude,
-          lon: position.coords.longitude,
-        };
-        onLocationChange?.(coords);
-        onCityValueChange('Your location', null);
-        void getAirQualityByCoords(coords.lat, coords.lon)
-          .then((reading) => {
-            setCityPreview(reading);
-            onPreviewReadingChange?.(reading);
-          })
-          .catch(() => {
-            setCityPreview(null);
-            setLocationNoticeKey('cityPreviewErrorNotice');
-          })
-          .finally(() => {
-            setLocating(false);
-          });
-      },
-      () => {
-        setLocating(false);
-        setLocationNoticeKey('locationDeniedNotice');
-      },
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300_000 }
-    );
-  };
-
+  describedBy,
+  onChange,
+  onBlur,
+}: {
+  city: string;
+  language: LanguageCode;
+  cityErrorKey: CityErrorKey | null;
+  describedBy?: string;
+  onChange: (val: string) => void;
+  onBlur: () => void;
+}) {
   return (
-    <div className="lg:col-span-7">
-      <div className="min-h-[28px] flex flex-wrap items-center justify-between gap-2">
-        <label
-          htmlFor="saans-city-input"
-          className="block text-base font-semibold text-slate-900 dark:text-slate-100"
-        >
-          {t(language, 'cityLabel')}
-        </label>
-        {cityPreview ? (
-          <div className="flex items-center gap-2 text-sm">
-            <span
-              className="font-semibold text-slate-700 dark:text-slate-200 tabular-nums"
-              style={{ fontFamily: 'var(--font-mono)' }}
-            >
-              {hasActiveLocation ? `${t(language, 'locationApproxLabel')} · ` : ''}
-              AQI {cityPreview.aqi}
-            </span>
-            <AqiCategoryBadge aqi={cityPreview.aqi} language={language} size="sm" />
-          </div>
-        ) : null}
-      </div>
+    <div className="mt-2 relative">
+      <MapPin
+        className="w-4 h-4 text-slate-500 dark:text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+        aria-hidden="true"
+      />
+      <input
+        id="saans-city-input"
+        type="text"
+        value={city}
+        maxLength={60}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
+        placeholder={t(language, 'cityPlaceholder')}
+        aria-invalid={cityErrorKey ? 'true' : undefined}
+        aria-describedby={describedBy}
+        className="w-full min-h-[48px] pl-10 pr-4 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50/70 dark:bg-[#0B1220] text-base text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:border-teal-600 dark:focus:border-teal-400 focus:outline-none"
+      />
+    </div>
+  );
+}
 
-      <div className="mt-2 flex flex-col sm:flex-row gap-2">
-        <input
-          id="saans-city-input"
-          name="city"
-          type="text"
-          autoComplete="address-level2"
-          maxLength={CITY_MAX_LENGTH + 5}
-          value={city}
-          onChange={(e) => handleCityChange(e.target.value)}
-          placeholder={t(language, 'cityPlaceholder')}
-          aria-invalid={cityErrorKey !== null}
-          aria-describedby={cityErrorKey ? 'saans-city-error' : 'saans-city-hint'}
-          className={`flex-1 min-h-[48px] px-4 py-2.5 rounded-xl border text-base bg-slate-50 dark:bg-[#0B1220] text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 transition-colors ${
-            cityErrorKey
-              ? 'border-red-600 dark:border-red-400'
-              : 'border-slate-300 dark:border-slate-700 focus:border-teal-600 dark:focus:border-teal-400'
-          }`}
-        />
-
-        <button
-          type="button"
-          onClick={handleUseMyLocation}
-          disabled={locating}
-          className="min-h-[48px] px-4 py-2.5 rounded-xl border border-teal-600/50 dark:border-teal-400/50 bg-teal-50/70 dark:bg-teal-950/40 text-sm font-semibold text-teal-900 dark:text-teal-200 hover:bg-teal-100/80 dark:hover:bg-teal-900/50 inline-flex items-center justify-center gap-2 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-60"
-        >
-          {locating ? (
-            <Loader2 className="w-4 h-4 animate-spin shrink-0" aria-hidden="true" />
-          ) : (
-            <MapPin className="w-4 h-4 shrink-0" aria-hidden="true" />
-          )}
-          <span>
-            {locating
-              ? t(language, 'useMyLocationLoading')
-              : t(language, 'useMyLocation')}
-          </span>
-        </button>
-      </div>
-
-      {locationNoticeKey ? (
-        <p
-          role="status"
-          className="mt-2 text-sm font-medium text-amber-800 dark:text-amber-200"
-        >
-          {t(language, locationNoticeKey)}
-        </p>
-      ) : null}
-
+function CityStatusMessages({
+  language,
+  cityErrorKey,
+  feedback,
+}: {
+  language: LanguageCode;
+  cityErrorKey: CityErrorKey | null;
+  feedback: string;
+}) {
+  return (
+    <>
       {cityErrorKey ? (
         <p
           id="saans-city-error"
@@ -206,38 +178,61 @@ export function CityLocationField({
         >
           {t(language, cityErrorKey)}
         </p>
-      ) : (
+      ) : null}
+      {feedback ? (
         <p
-          id="saans-city-hint"
-          className="mt-2 text-sm text-slate-600 dark:text-slate-300"
+          id="saans-location-feedback"
+          className="mt-2 text-sm text-teal-800 dark:text-teal-300"
+          role="status"
         >
-          {t(language, 'cityQuickPickLabel')}
+          {feedback}
         </p>
-      )}
+      ) : null}
+    </>
+  );
+}
 
-      <div
-        className="mt-2.5 flex flex-wrap gap-2"
-        role="group"
-        aria-label={t(language, 'cityQuickPickLabel')}
-      >
-        {QUICK_PICK_CITIES.map((pickedCity) => {
-          const isActive = city.trim().toLowerCase() === pickedCity.toLowerCase();
-          return (
-            <button
-              key={pickedCity}
-              type="button"
-              onClick={() => handleQuickPick(pickedCity)}
-              className={`min-h-[44px] px-3.5 py-2 rounded-xl border text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${
-                isActive
-                  ? 'bg-teal-700 border-teal-700 text-white dark:bg-teal-400 dark:border-teal-400 dark:text-slate-950'
-                  : 'bg-slate-50 border-slate-300 text-slate-800 hover:border-teal-600/60 dark:bg-[#0B1220] dark:border-slate-700 dark:text-slate-200'
-              }`}
-            >
-              {pickedCity}
-            </button>
-          );
-        })}
-      </div>
+export function CityLocationField(props: CityLocationFieldProps) {
+  const { city, language, cityErrorKey, hasActiveLocation } = props;
+  const ctrl = useCityLocationController(props);
+  const feedback =
+    ctrl.locStatus === 'active'
+      ? `${t(language, 'locationApproxLabel')} ✓`
+      : ctrl.locNoticeKey
+        ? t(language, ctrl.locNoticeKey)
+        : '';
+  const describedBy = cityErrorKey
+    ? 'saans-city-error'
+    : feedback
+      ? 'saans-location-feedback'
+      : undefined;
+
+  return (
+    <div className="lg:col-span-7">
+      <CityLabelRow
+        language={language}
+        loading={ctrl.locStatus === 'loading'}
+        onGeo={ctrl.handleGeolocation}
+      />
+      <CityInputField
+        city={city}
+        language={language}
+        cityErrorKey={cityErrorKey}
+        describedBy={describedBy}
+        onChange={ctrl.handleTextChange}
+        onBlur={ctrl.handleBlur}
+      />
+      <CityStatusMessages
+        language={language}
+        cityErrorKey={cityErrorKey}
+        feedback={feedback}
+      />
+      <CityQuickPicks
+        city={city}
+        hasActiveLocation={hasActiveLocation}
+        language={language}
+        onPick={ctrl.handleQuickPick}
+      />
     </div>
   );
 }

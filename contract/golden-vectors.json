@@ -1,0 +1,72 @@
+{
+  "cpcbCategoryVectors": [
+    { "aqi": 0, "expectedKey": "good" },
+    { "aqi": 50, "expectedKey": "good" },
+    { "aqi": 51, "expectedKey": "satisfactory" },
+    { "aqi": 100, "expectedKey": "satisfactory" },
+    { "aqi": 101, "expectedKey": "moderate" },
+    { "aqi": 200, "expectedKey": "moderate" },
+    { "aqi": 201, "expectedKey": "poor" },
+    { "aqi": 300, "expectedKey": "poor" },
+    { "aqi": 301, "expectedKey": "very_poor" },
+    { "aqi": 400, "expectedKey": "very_poor" },
+    { "aqi": 401, "expectedKey": "severe" },
+    { "aqi": 500, "expectedKey": "severe" }
+  ],
+  "impactVectors": [
+    {
+      "name": "car_lpg_no_purifier_with_mask_and_transit",
+      "profile": {
+        "city": "Delhi",
+        "householdSize": 4,
+        "hasChildren": true,
+        "hasElderly": false,
+        "hasRespiratoryCondition": false,
+        "commuteMode": "car",
+        "commuteKm": 20,
+        "homeType": "apartment",
+        "hasAirPurifier": false,
+        "cookingFuel": "lpg",
+        "budget": "medium",
+        "language": "en"
+      },
+      "selectedActions": ["commute_transit", "n95_mask"],
+      "expected": {
+        "beforeExposurePct": 100,
+        "afterExposurePct": 86,
+        "additionalExposureCutPct": 14,
+        "totalExposureCutPct": 14,
+        "baselineScore": 0,
+        "airFriendlyScore": 14,
+        "co2SavedKgPerMonth": 78
+      }
+    },
+    {
+      "name": "already_public_purifier_induction_with_ventilation",
+      "profile": {
+        "city": "Pune",
+        "householdSize": 3,
+        "hasChildren": false,
+        "hasElderly": true,
+        "hasRespiratoryCondition": false,
+        "commuteMode": "public_transport",
+        "commuteKm": 34,
+        "homeType": "apartment",
+        "hasAirPurifier": true,
+        "cookingFuel": "induction_electric",
+        "budget": "medium",
+        "language": "en"
+      },
+      "selectedActions": ["ventilation_window", "wet_mopping", "stop_waste_burning"],
+      "expected": {
+        "beforeExposurePct": 36,
+        "afterExposurePct": 30,
+        "additionalExposureCutPct": 17,
+        "totalExposureCutPct": 70,
+        "baselineScore": 64,
+        "airFriendlyScore": 70,
+        "co2SavedKgPerMonth": 28
+      }
+    }
+  ]
+}

@@ -9,12 +9,12 @@ flowchart LR
     B["Browser SPA (React 19, Lazy Hindi & Mocks, Self-Hosted WOFF2)"]
     B -->|"GET / (ETag, no-cache, br/gzip)"| GW["FastAPI Static + Security Middleware\n(CSP, HSTS, XFO, 20KB Cap, Rate Limiter)"]
     B -->|"GET /assets/* (1y immutable, .br)"| GW
-    B -->|"GET /api/air-quality?city or ?lat&lon"| AQ["AirQualityService\n(In-Flight Coalescing + 10m TTL Cache)"]
+    B -->|"GET /api/air-quality?city or POST /api/air-quality (coords)"| AQ["AirQualityService\n(In-Flight Coalescing + 10m TTL Cache)"]
     AQ -->|"India-Preferred Geocode + 24h PM2.5/PM10"| OM["Open-Meteo APIs"]
     AQ -->|"Piecewise Interpolation"| CPCB["Indian CPCB AQI Engine"]
     B -->|"POST /api/plan & /api/chat (no-store)"| PLAN["Plan & Chat Routers\n(asyncio.gather + SHA-256 Plan Cache)"]
     PLAN --> IMP["Grounded Impact Engine\n(contract/impact-factors.json)"]
-    PLAN --> GEM["GeminiClient\n(Circuit Breaker + Compact Narrative Schema)"]
+    PLAN --> GEM["GeminiClient\n(Flash-Lite Priority + Daily Budget + Breaker)"]
     GEM -->|"Validated Narrative + Deterministic Numbers"| SAF["Safety & Medical Boundary Layer"]
     PLAN -->|"On missing key / open circuit / error"| FB["Deterministic Rule Fallback"]
     SAF --> B
@@ -57,6 +57,6 @@ sequenceDiagram
 
 ## Module Boundaries
 
-- **Shared Grounding Contract**: `contract/impact-factors.json` is imported statically by frontend (`src/lib/impactFactors.ts`) and backend (`backend/app/services/impact.py`), guaranteeing identical math (`1 - prod(1 - r_i)` capped at `95%`).
-- **Gemini Isolation**: `backend/app/services/gemini/` isolates circuit breaking (`circuit_breaker.py`), model ranking & ThinkingConfig (`model_selection.py`), compact output schema (`schema.py`), and async failover (`client.py`).
-- **Single Network Boundary**: All browser `fetch` calls live strictly in `src/services/api.ts`.
+- **Shared Grounding & Codegen Contract**: [`contract/api.schema.json`](../contract/api.schema.json), [`contract/aqi-categories.json`](../contract/aqi-categories.json), [`contract/impact-factors.json`](../contract/impact-factors.json), [`contract/demo-cities.json`](../contract/demo-cities.json), and [`contract/golden-vectors.json`](../contract/golden-vectors.json) act as the single source of truth across FastAPI (`backend/scripts/export_contract.py`) and React TypeScript (`src/types/generated.ts`, `src/lib/contractValidator.ts`).
+- **Gemini Isolation**: `backend/app/services/gemini/` isolates daily call budgeting (`budget.py`), circuit breaking (`circuit_breaker.py`), model ranking & `ThinkingConfig` (`model_selection.py`), compact output schema (`schema.py`), single-attempt execution (`attempts.py`), and async failover (`client.py`).
+- **Single Network Boundary**: All browser `fetch` calls live strictly in `src/services/api.ts`, with localized copy separated into lazy JSON locales (`src/locales/en.json`, `src/locales/hi.json`).

@@ -1,40 +1,13 @@
-"""Indian CPCB National Air Quality Index (NAQI) calculation helpers."""
+"""Indian CPCB National Air Quality Index (NAQI) calculation helpers backed by contract/aqi-categories.json."""
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
-# Breakpoint tuples: (bp_lo, bp_hi, idx_lo, idx_hi)
-# Includes continuous 1-unit transition bridges between integer CPCB tiers so
-# decimal 24-hour means never fall into a gap while exact integer boundaries
-# match the official CPCB table precisely.
-PM25_BREAKPOINTS: tuple[tuple[float, float, float, float], ...] = (
-    (0.0, 30.0, 0.0, 50.0),
-    (30.0, 31.0, 50.0, 51.0),
-    (31.0, 60.0, 51.0, 100.0),
-    (60.0, 61.0, 100.0, 101.0),
-    (61.0, 90.0, 101.0, 200.0),
-    (90.0, 91.0, 200.0, 201.0),
-    (91.0, 120.0, 201.0, 300.0),
-    (120.0, 121.0, 300.0, 301.0),
-    (121.0, 250.0, 301.0, 400.0),
-    (250.0, 251.0, 400.0, 401.0),
-    (251.0, 380.0, 401.0, 500.0),
-)
-
-PM10_BREAKPOINTS: tuple[tuple[float, float, float, float], ...] = (
-    (0.0, 50.0, 0.0, 50.0),
-    (50.0, 51.0, 50.0, 51.0),
-    (51.0, 100.0, 51.0, 100.0),
-    (100.0, 101.0, 100.0, 101.0),
-    (101.0, 250.0, 101.0, 200.0),
-    (250.0, 251.0, 200.0, 201.0),
-    (251.0, 350.0, 201.0, 300.0),
-    (350.0, 351.0, 300.0, 301.0),
-    (351.0, 430.0, 301.0, 400.0),
-    (430.0, 431.0, 400.0, 401.0),
-    (431.0, 510.0, 401.0, 500.0),
-)
+from app.config import PROJECT_ROOT
 
 MIN_VALID_HOURS = 12
 
@@ -50,13 +23,32 @@ class AqiCategoryMeta:
     max_aqi: int
 
 
-CPCB_CATEGORIES: tuple[AqiCategoryMeta, ...] = (
-    AqiCategoryMeta("good", "Good", "अच्छा", 0, 50),
-    AqiCategoryMeta("satisfactory", "Satisfactory", "संतोषजनक", 51, 100),
-    AqiCategoryMeta("moderate", "Moderate", "मध्यम", 101, 200),
-    AqiCategoryMeta("poor", "Poor", "खराब", 201, 300),
-    AqiCategoryMeta("very_poor", "Very Poor", "बहुत खराब", 301, 400),
-    AqiCategoryMeta("severe", "Severe", "गंभीर", 401, 500),
+def _load_aqi_contract() -> dict[str, Any]:
+    path = Path(PROJECT_ROOT) / "contract" / "aqi-categories.json"
+    return dict(json.loads(path.read_text(encoding="utf-8")))
+
+
+def _parse_breakpoints(raw: list[list[float]]) -> tuple[tuple[float, float, float, float], ...]:
+    return tuple((float(row[0]), float(row[1]), float(row[2]), float(row[3])) for row in raw)
+
+
+_CONTRACT = _load_aqi_contract()
+
+PM25_BREAKPOINTS: tuple[tuple[float, float, float, float], ...] = _parse_breakpoints(
+    _CONTRACT["pm25Breakpoints"]
+)
+PM10_BREAKPOINTS: tuple[tuple[float, float, float, float], ...] = _parse_breakpoints(
+    _CONTRACT["pm10Breakpoints"]
+)
+CPCB_CATEGORIES: tuple[AqiCategoryMeta, ...] = tuple(
+    AqiCategoryMeta(
+        key=str(item["key"]),
+        label_en=str(item["label"]["en"]),
+        label_hi=str(item["label"]["hi"]),
+        min_aqi=int(item["min"]),
+        max_aqi=int(item["max"]),
+    )
+    for item in _CONTRACT["categories"]
 )
 
 

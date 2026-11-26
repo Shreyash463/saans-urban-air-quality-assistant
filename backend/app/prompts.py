@@ -59,12 +59,12 @@ def build_chat_user_prompt(
     """Builds the compact grounded chat prompt with delimited untrusted user input."""
     lang = "Hindi (Devanagari)" if profile.language == "hi" else "English"
     safe_city = sanitize_untrusted_question(plan.aqi.city)
-    if plan.is_offline_sample:
+    if plan.aqi.source == "demo":
         aqi_line = (
             f"City={safe_city} | Live AQI unavailable "
-            "(active plan is an offline sample; do NOT cite any sample AQI number as current live AQI)"
+            "(active plan uses fallback demo reading; do NOT cite any sample AQI number as current live AQI)"
         )
-        summary_line = "Offline sample plan (live AQI unavailable)"
+        summary_line = "Fallback demo plan (live AQI unavailable)"
     else:
         cat = get_aqi_category(plan.aqi.aqi)
         aqi_line = (

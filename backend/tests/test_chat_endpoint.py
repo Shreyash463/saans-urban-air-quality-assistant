@@ -7,7 +7,7 @@ from typing import Any
 
 from app.config import Settings
 from app.main import create_app
-from app.services.gemini_client import GeminiClient
+from app.services.gemini import GeminiClient
 from fastapi.testclient import TestClient
 from tests.conftest import build_mock_http_client
 from tests.test_plan_endpoint import _FakeSdkClient

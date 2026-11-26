@@ -12,7 +12,7 @@ import axe from 'axe-core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Footer } from '../sections/Footer';
 import { Hero } from '../sections/Hero';
-import { Dashboard, PlanLoadingStatus } from '../sections/Dashboard';
+import Dashboard, { PlanLoadingStatus } from '../sections/Dashboard';
 import { ProfileForm } from '../sections/ProfileForm';
 import Simulator from '../sections/Simulator';
 import Chat from '../sections/Chat';

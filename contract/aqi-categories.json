@@ -1,0 +1,115 @@
+{
+  "aqiRange": { "min": 0, "max": 500 },
+  "pm25Breakpoints": [
+    [0, 30, 0, 50],
+    [30, 31, 50, 51],
+    [31, 60, 51, 100],
+    [60, 61, 100, 101],
+    [61, 90, 101, 200],
+    [90, 91, 200, 201],
+    [91, 120, 201, 300],
+    [120, 121, 300, 301],
+    [121, 250, 301, 400],
+    [250, 251, 400, 401],
+    [251, 380, 401, 500]
+  ],
+  "pm10Breakpoints": [
+    [0, 50, 0, 50],
+    [50, 51, 50, 51],
+    [51, 100, 51, 100],
+    [100, 101, 100, 101],
+    [101, 250, 101, 200],
+    [250, 251, 200, 201],
+    [251, 350, 201, 300],
+    [350, 351, 300, 301],
+    [351, 430, 301, 400],
+    [430, 431, 400, 401],
+    [431, 510, 401, 500]
+  ],
+  "categories": [
+    {
+      "key": "good",
+      "min": 0,
+      "max": 50,
+      "label": { "en": "Good", "hi": "अच्छा" },
+      "shortAdvice": {
+        "en": "Minimal health impact. Great time to cross-ventilate your home.",
+        "hi": "स्वास्थ्य पर न्यूनतम प्रभाव। घर में ताज़ी हवा आने देने का बढ़िया समय।"
+      },
+      "icon": "check-circle",
+      "strokeColor": "#16A34A",
+      "badgeClasses": "bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-800",
+      "textClasses": "text-emerald-700 dark:text-emerald-300"
+    },
+    {
+      "key": "satisfactory",
+      "min": 51,
+      "max": 100,
+      "label": { "en": "Satisfactory", "hi": "संतोषजनक" },
+      "shortAdvice": {
+        "en": "Minor breathing discomfort possible for very sensitive individuals.",
+        "hi": "अत्यधिक संवेदनशील लोगों को हल्की सांस की तकलीफ हो सकती है।"
+      },
+      "icon": "wind",
+      "strokeColor": "#65A30D",
+      "badgeClasses": "bg-lime-50 text-lime-900 border-lime-300 dark:bg-lime-950/60 dark:text-lime-200 dark:border-lime-800",
+      "textClasses": "text-lime-800 dark:text-lime-300"
+    },
+    {
+      "key": "moderate",
+      "min": 101,
+      "max": 200,
+      "label": { "en": "Moderate", "hi": "मध्यम" },
+      "shortAdvice": {
+        "en": "Discomfort for people with asthma, children, and older adults.",
+        "hi": "दमा रोगियों, बच्चों और बुजुर्गों को सांस लेने में तकलीफ हो सकती है।"
+      },
+      "icon": "cloud-sun",
+      "strokeColor": "#D97706",
+      "badgeClasses": "bg-amber-50 text-amber-900 border-amber-300 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-800",
+      "textClasses": "text-amber-800 dark:text-amber-300"
+    },
+    {
+      "key": "poor",
+      "min": 201,
+      "max": 300,
+      "label": { "en": "Poor", "hi": "खराब" },
+      "shortAdvice": {
+        "en": "Breathing discomfort on prolonged exposure. Wear an N95 outdoors.",
+        "hi": "लंबे समय तक बाहर रहने पर सांस की तकलीफ। बाहर N95 मास्क पहनें।"
+      },
+      "icon": "cloud-fog",
+      "strokeColor": "#EA580C",
+      "badgeClasses": "bg-orange-50 text-orange-900 border-orange-300 dark:bg-orange-950/60 dark:text-orange-200 dark:border-orange-800",
+      "textClasses": "text-orange-800 dark:text-orange-300"
+    },
+    {
+      "key": "very_poor",
+      "min": 301,
+      "max": 400,
+      "label": { "en": "Very Poor", "hi": "बहुत खराब" },
+      "shortAdvice": {
+        "en": "Respiratory illness risk on prolonged exposure. Avoid morning outdoor exercise.",
+        "hi": "लंबे समय तक संपर्क में रहने से श्वसन रोग का जोखिम। सुबह बाहर व्यायाम न करें।"
+      },
+      "icon": "alert-triangle",
+      "strokeColor": "#DC2626",
+      "badgeClasses": "bg-red-50 text-red-900 border-red-300 dark:bg-red-950/60 dark:text-red-200 dark:border-red-800",
+      "textClasses": "text-red-800 dark:text-red-300"
+    },
+    {
+      "key": "severe",
+      "min": 401,
+      "max": 500,
+      "label": { "en": "Severe", "hi": "गंभीर" },
+      "shortAdvice": {
+        "en": "Affects healthy people and severely impacts sensitive groups. Stay indoors.",
+        "hi": "स्वस्थ लोगों को भी प्रभावित करता है; संवेदनशील वर्ग घर के अंदर रहें।"
+      },
+      "icon": "shield-alert",
+      "strokeColor": "#991B1B",
+      "badgeClasses": "bg-rose-100 text-rose-950 border-rose-400 dark:bg-rose-950/80 dark:text-rose-200 dark:border-rose-700",
+      "textClasses": "text-rose-900 dark:text-rose-300"
+    }
+  ]
+}

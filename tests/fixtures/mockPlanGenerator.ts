@@ -1,5 +1,5 @@
 import { getAqiCategory } from '../../src/lib/aqi';
-import { getMockAirQuality, QUICK_PICK_CITIES } from './demoCities';
+import { getMockAirQuality } from './demoCities';
 import { getAlternativeMetrics } from '../../src/lib/impactFactors';
 import type {
   Alternative,
@@ -13,7 +13,7 @@ import type {
 } from '../../src/types';
 import { generateSmartMockChatReply } from './mockChat';
 
-export { getMockAirQuality, QUICK_PICK_CITIES };
+export { getMockAirQuality };
 
 function sortHacksByBudget(hacks: IndoorHack[], budget: BudgetLevel): IndoorHack[] {
   const rankMap: Record<BudgetLevel, Record<IndoorHack['costLevel'], number>> = {

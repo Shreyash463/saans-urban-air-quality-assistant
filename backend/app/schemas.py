@@ -87,7 +87,7 @@ class UserProfile(CamelBaseModel):
 
     @field_validator("city", mode="before")
     @classmethod
-    def validate_city(cls, raw: object) -> str:
+    def validate_city(_cls, raw: object) -> str:
         if not isinstance(raw, str):
             raise ValueError("City must be a string.")
         cleaned = strip_control_chars(raw)
@@ -155,7 +155,7 @@ class CoordinatesBody(CamelBaseModel):
 
     @field_validator("lat", "lon")
     @classmethod
-    def validate_finite(cls, val: float) -> float:
+    def validate_finite(_cls, val: float) -> float:
         if not math.isfinite(val):
             raise ValueError("Coordinate must be finite.")
         return val
@@ -183,7 +183,6 @@ class PlanResponse(CamelBaseModel):
     generated_by: GeneratedBy | None = None
     fallback_reason: FallbackReason | None = None
     retry_after_seconds: int | None = Field(default=None, ge=0, le=3600)
-    is_offline_sample: bool | None = None
 
 
 class ChatRequest(CamelBaseModel):
@@ -195,7 +194,7 @@ class ChatRequest(CamelBaseModel):
 
     @field_validator("question", mode="before")
     @classmethod
-    def validate_question(cls, raw: object) -> str:
+    def validate_question(_cls, raw: object) -> str:
         if not isinstance(raw, str):
             raise ValueError("Question must be a string.")
         cleaned = strip_control_chars(raw)

@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 from app.config import Settings
 from app.schemas import AirQualityReading, UserProfile
-from app.services.gemini_client import GeminiClient, select_best_flash_models
+from app.services.gemini import GeminiClient, select_best_flash_models
 
 
 def test_select_best_flash_models_ranks_flash_lite_first_and_respects_priority() -> None:

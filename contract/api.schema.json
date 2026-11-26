@@ -1,0 +1,736 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "models": {
+    "AirQualityReading": {
+      "additionalProperties": false,
+      "description": "Air quality reading returned by /api/air-quality and embedded in PlanResponse.",
+      "properties": {
+        "aqi": {
+          "maximum": 500,
+          "minimum": 0,
+          "title": "Aqi",
+          "type": "integer"
+        },
+        "city": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "City",
+          "type": "string"
+        },
+        "dominantPollutant": {
+          "maxLength": 32,
+          "minLength": 1,
+          "title": "Dominantpollutant",
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "live",
+            "demo"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "sourceDetail": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sourcedetail"
+        },
+        "updatedAt": {
+          "maxLength": 64,
+          "title": "Updatedat",
+          "type": "string"
+        }
+      },
+      "required": [
+        "city",
+        "aqi",
+        "dominantPollutant",
+        "updatedAt",
+        "source"
+      ],
+      "title": "AirQualityReading",
+      "type": "object"
+    },
+    "Alternative": {
+      "additionalProperties": false,
+      "description": "Low-emission lifestyle swap with bounded PM2.5 and CO2 estimates.",
+      "properties": {
+        "co2SavedKgPerMonth": {
+          "maximum": 1000,
+          "minimum": 0,
+          "title": "Co2Savedkgpermonth",
+          "type": "integer"
+        },
+        "current": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Current",
+          "type": "string"
+        },
+        "pm25ReductionPct": {
+          "maximum": 95,
+          "minimum": 0,
+          "title": "Pm25Reductionpct",
+          "type": "integer"
+        },
+        "swap": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Swap",
+          "type": "string"
+        },
+        "why": {
+          "maxLength": 700,
+          "minLength": 1,
+          "title": "Why",
+          "type": "string"
+        }
+      },
+      "required": [
+        "current",
+        "swap",
+        "why",
+        "pm25ReductionPct",
+        "co2SavedKgPerMonth"
+      ],
+      "title": "Alternative",
+      "type": "object"
+    },
+    "ChatReply": {
+      "additionalProperties": false,
+      "description": "Assistant reply payload.",
+      "properties": {
+        "answer": {
+          "maxLength": 2500,
+          "minLength": 1,
+          "title": "Answer",
+          "type": "string"
+        }
+      },
+      "required": [
+        "answer"
+      ],
+      "title": "ChatReply",
+      "type": "object"
+    },
+    "ChatRequest": {
+      "additionalProperties": false,
+      "description": "Follow-up assistant request payload.",
+      "properties": {
+        "plan": {
+          "$ref": "#/$defs/PlanResponse"
+        },
+        "profile": {
+          "$ref": "#/$defs/UserProfile"
+        },
+        "question": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Question",
+          "type": "string"
+        }
+      },
+      "required": [
+        "question",
+        "profile",
+        "plan"
+      ],
+      "title": "ChatRequest",
+      "type": "object"
+    },
+    "CommunityAction": {
+      "additionalProperties": false,
+      "description": "Neighborhood, RWA, school, or workplace collective clean-air action.",
+      "properties": {
+        "effort": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "title": "Effort",
+          "type": "string"
+        },
+        "estimatedImpact": {
+          "maxLength": 400,
+          "minLength": 1,
+          "title": "Estimatedimpact",
+          "type": "string"
+        },
+        "howTo": {
+          "maxLength": 700,
+          "minLength": 1,
+          "title": "Howto",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 220,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "who": {
+          "enum": [
+            "rwa",
+            "school",
+            "workplace",
+            "neighbours"
+          ],
+          "title": "Who",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "who",
+        "howTo",
+        "estimatedImpact",
+        "effort"
+      ],
+      "title": "CommunityAction",
+      "type": "object"
+    },
+    "CoordinatesBody": {
+      "additionalProperties": false,
+      "description": "Ephemeral geolocation coordinates submitted inside a POST JSON body.",
+      "properties": {
+        "lat": {
+          "maximum": 90.0,
+          "minimum": -90.0,
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "maximum": 180.0,
+          "minimum": -180.0,
+          "title": "Lon",
+          "type": "number"
+        }
+      },
+      "required": [
+        "lat",
+        "lon"
+      ],
+      "title": "CoordinatesBody",
+      "type": "object"
+    },
+    "HealthResponse": {
+      "additionalProperties": false,
+      "description": "Service readiness payload for /api/health.",
+      "properties": {
+        "commitSha": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Commitsha"
+        },
+        "dailyBudgetLimit": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dailybudgetlimit"
+        },
+        "geminiConfigured": {
+          "title": "Geminiconfigured",
+          "type": "boolean"
+        },
+        "remainingDailyBudget": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Remainingdailybudget"
+        },
+        "selectedModel": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Selectedmodel"
+        },
+        "status": {
+          "const": "ok",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "geminiConfigured"
+      ],
+      "title": "HealthResponse",
+      "type": "object"
+    },
+    "IndoorHack": {
+      "additionalProperties": false,
+      "description": "Practical indoor air-quality improvement action ranked by budget.",
+      "properties": {
+        "costLevel": {
+          "enum": [
+            "free",
+            "low",
+            "medium",
+            "high"
+          ],
+          "title": "Costlevel",
+          "type": "string"
+        },
+        "estimatedBenefit": {
+          "maxLength": 400,
+          "minLength": 1,
+          "title": "Estimatedbenefit",
+          "type": "string"
+        },
+        "howTo": {
+          "maxLength": 900,
+          "minLength": 1,
+          "title": "Howto",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 220,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "howTo",
+        "estimatedBenefit",
+        "costLevel"
+      ],
+      "title": "IndoorHack",
+      "type": "object"
+    },
+    "PlanRequest": {
+      "additionalProperties": false,
+      "description": "Plan request body supporting optional ephemeral coordinates without query strings.",
+      "properties": {
+        "budget": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "title": "Budget",
+          "type": "string"
+        },
+        "city": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "City",
+          "type": "string"
+        },
+        "commuteKm": {
+          "maximum": 300,
+          "minimum": 0,
+          "title": "Commutekm",
+          "type": "integer"
+        },
+        "commuteMode": {
+          "enum": [
+            "car",
+            "two_wheeler",
+            "public_transport",
+            "walk_cycle",
+            "work_from_home"
+          ],
+          "title": "Commutemode",
+          "type": "string"
+        },
+        "cookingFuel": {
+          "enum": [
+            "lpg",
+            "induction_electric",
+            "piped_gas",
+            "biomass_wood"
+          ],
+          "title": "Cookingfuel",
+          "type": "string"
+        },
+        "coords": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CoordinatesBody"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "hasAirPurifier": {
+          "title": "Hasairpurifier",
+          "type": "boolean"
+        },
+        "hasChildren": {
+          "title": "Haschildren",
+          "type": "boolean"
+        },
+        "hasElderly": {
+          "title": "Haselderly",
+          "type": "boolean"
+        },
+        "hasRespiratoryCondition": {
+          "title": "Hasrespiratorycondition",
+          "type": "boolean"
+        },
+        "homeType": {
+          "enum": [
+            "apartment",
+            "independent_house"
+          ],
+          "title": "Hometype",
+          "type": "string"
+        },
+        "householdSize": {
+          "maximum": 20,
+          "minimum": 1,
+          "title": "Householdsize",
+          "type": "integer"
+        },
+        "language": {
+          "enum": [
+            "en",
+            "hi"
+          ],
+          "title": "Language",
+          "type": "string"
+        },
+        "preferCoords": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prefercoords"
+        }
+      },
+      "required": [
+        "city",
+        "householdSize",
+        "hasChildren",
+        "hasElderly",
+        "hasRespiratoryCondition",
+        "commuteMode",
+        "commuteKm",
+        "homeType",
+        "hasAirPurifier",
+        "cookingFuel",
+        "budget",
+        "language"
+      ],
+      "title": "PlanRequest",
+      "type": "object"
+    },
+    "PlanResponse": {
+      "additionalProperties": false,
+      "description": "Complete personalized clean-air plan matching src/types/index.ts.",
+      "properties": {
+        "alternatives": {
+          "items": {
+            "$ref": "#/$defs/Alternative"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Alternatives",
+          "type": "array"
+        },
+        "aqi": {
+          "$ref": "#/$defs/AirQualityReading"
+        },
+        "communityActions": {
+          "items": {
+            "$ref": "#/$defs/CommunityAction"
+          },
+          "maxItems": 6,
+          "title": "Communityactions",
+          "type": "array"
+        },
+        "disclaimer": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Disclaimer",
+          "type": "string"
+        },
+        "fallbackReason": {
+          "anyOf": [
+            {
+              "enum": [
+                "no_key",
+                "ai_busy",
+                "ai_error"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fallbackreason"
+        },
+        "generatedBy": {
+          "anyOf": [
+            {
+              "enum": [
+                "gemini",
+                "rules"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Generatedby"
+        },
+        "healthAdvisory": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Healthadvisory",
+          "type": "string"
+        },
+        "indoorHacks": {
+          "items": {
+            "$ref": "#/$defs/IndoorHack"
+          },
+          "maxItems": 10,
+          "minItems": 1,
+          "title": "Indoorhacks",
+          "type": "array"
+        },
+        "maskGuidance": {
+          "maxLength": 1500,
+          "minLength": 1,
+          "title": "Maskguidance",
+          "type": "string"
+        },
+        "retryAfterSeconds": {
+          "anyOf": [
+            {
+              "maximum": 3600,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retryafterseconds"
+        },
+        "routine": {
+          "items": {
+            "$ref": "#/$defs/RoutineItem"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "title": "Routine",
+          "type": "array"
+        },
+        "summary": {
+          "maxLength": 1500,
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "aqi",
+        "summary",
+        "healthAdvisory",
+        "routine",
+        "indoorHacks",
+        "alternatives",
+        "maskGuidance",
+        "disclaimer"
+      ],
+      "title": "PlanResponse",
+      "type": "object"
+    },
+    "RoutineItem": {
+      "additionalProperties": false,
+      "description": "Single time-slot item in the daily clean-air routine.",
+      "properties": {
+        "detail": {
+          "maxLength": 900,
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        },
+        "impactNote": {
+          "maxLength": 400,
+          "minLength": 1,
+          "title": "Impactnote",
+          "type": "string"
+        },
+        "timeSlot": {
+          "enum": [
+            "morning",
+            "midday",
+            "evening",
+            "night"
+          ],
+          "title": "Timeslot",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 220,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "timeSlot",
+        "title",
+        "detail",
+        "impactNote"
+      ],
+      "title": "RoutineItem",
+      "type": "object"
+    },
+    "UserProfile": {
+      "additionalProperties": false,
+      "description": "Household lifestyle profile submitted by the frontend.",
+      "properties": {
+        "budget": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "title": "Budget",
+          "type": "string"
+        },
+        "city": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "City",
+          "type": "string"
+        },
+        "commuteKm": {
+          "maximum": 300,
+          "minimum": 0,
+          "title": "Commutekm",
+          "type": "integer"
+        },
+        "commuteMode": {
+          "enum": [
+            "car",
+            "two_wheeler",
+            "public_transport",
+            "walk_cycle",
+            "work_from_home"
+          ],
+          "title": "Commutemode",
+          "type": "string"
+        },
+        "cookingFuel": {
+          "enum": [
+            "lpg",
+            "induction_electric",
+            "piped_gas",
+            "biomass_wood"
+          ],
+          "title": "Cookingfuel",
+          "type": "string"
+        },
+        "hasAirPurifier": {
+          "title": "Hasairpurifier",
+          "type": "boolean"
+        },
+        "hasChildren": {
+          "title": "Haschildren",
+          "type": "boolean"
+        },
+        "hasElderly": {
+          "title": "Haselderly",
+          "type": "boolean"
+        },
+        "hasRespiratoryCondition": {
+          "title": "Hasrespiratorycondition",
+          "type": "boolean"
+        },
+        "homeType": {
+          "enum": [
+            "apartment",
+            "independent_house"
+          ],
+          "title": "Hometype",
+          "type": "string"
+        },
+        "householdSize": {
+          "maximum": 20,
+          "minimum": 1,
+          "title": "Householdsize",
+          "type": "integer"
+        },
+        "language": {
+          "enum": [
+            "en",
+            "hi"
+          ],
+          "title": "Language",
+          "type": "string"
+        }
+      },
+      "required": [
+        "city",
+        "householdSize",
+        "hasChildren",
+        "hasElderly",
+        "hasRespiratoryCondition",
+        "commuteMode",
+        "commuteKm",
+        "homeType",
+        "hasAirPurifier",
+        "cookingFuel",
+        "budget",
+        "language"
+      ],
+      "title": "UserProfile",
+      "type": "object"
+    }
+  },
+  "title": "SaansApiContract"
+}

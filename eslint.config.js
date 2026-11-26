@@ -28,20 +28,16 @@ export default tseslint.config(
       'react-hooks/set-state-in-effect': 'off',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      complexity: ['error', { max: 16 }],
+      complexity: ['error', { max: 10 }],
       'max-lines-per-function': [
-        'warn',
-        { max: 240, skipBlankLines: true, skipComments: true },
+        'error',
+        { max: 50, skipBlankLines: true, skipComments: true },
       ],
+      'max-lines': ['error', { max: 300, skipBlankLines: true, skipComments: true }],
     },
   },
   {
-    files: [
-      'src/__tests__/**/*.{ts,tsx}',
-      'src/services/mockPlanGenerator.ts',
-      'src/services/mockChat.ts',
-      'src/components/SmogCanvas.tsx',
-    ],
+    files: ['src/__tests__/**/*.{ts,tsx}'],
     rules: {
       complexity: 'off',
       'max-lines-per-function': 'off',
