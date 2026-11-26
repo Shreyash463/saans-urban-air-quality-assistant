@@ -1,4 +1,4 @@
-import demoCitiesContract from '../../contract/demo-cities.json';
+import demoCitiesContract from '../../../contract/demo-cities.json';
 import { sanitizeCity } from '../../src/lib/validation';
 import type { AirQualityReading } from '../../src/types';
 

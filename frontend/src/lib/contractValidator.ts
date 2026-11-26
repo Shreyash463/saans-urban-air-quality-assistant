@@ -1,4 +1,4 @@
-import apiContract from '../../contract/api.schema.json';
+import apiContract from '../../../contract/api.schema.json';
 
 type JsonRecord = Record<string, unknown>;
 type SchemaMap = Record<string, JsonRecord>;

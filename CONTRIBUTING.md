@@ -12,11 +12,11 @@ Thank you for helping improve **Saans — Urban Air Quality Assistant**!
 ### First-Time Install
 
 ```bash
-npm ci
+cd frontend && npm ci --ignore-scripts && cd ..
 python -m venv .venv
 # Linux/macOS: source .venv/bin/activate
 # Windows PowerShell: .\.venv\Scripts\Activate.ps1
-python -m pip install -r backend/requirements-dev.txt
+python -m pip install --require-hashes -r backend/requirements-dev.txt
 cp .env.example .env
 ```
 
@@ -25,13 +25,13 @@ Leave `GEMINI_API_KEY` empty in `.env` to test the deterministic rule-based back
 ### Running Locally
 
 - Terminal 1 (API): `python -m uvicorn --app-dir backend app.main:app --reload --port 8000`
-- Terminal 2 (Vite SPA): `npm run dev` (proxies `/api/*` -> `http://127.0.0.1:8000`)
+- Terminal 2 (Vite SPA): `cd frontend && npm run dev` (proxies `/api/*` -> `http://127.0.0.1:8000`)
 
 ## Quality & Verification Gates
 
 Before opening a pull request, all of the following checks must pass:
 
-### Frontend
+### Frontend (inside `frontend/`)
 
 ```bash
 npm run format:check
@@ -53,7 +53,7 @@ pip-audit -r requirements.txt
 
 ## Engineering Guidelines
 
-- Keep `src/types/index.ts`, `backend/app/schemas.py`, and `contract/impact-factors.json` synchronized (additive changes only).
+- Keep `frontend/src/types/index.ts`, `backend/app/schemas.py`, and `contract/impact-factors.json` synchronized (additive changes only).
 - Never invent emission or CO2 savings outside `contract/impact-factors.json`; non-emission actions (masks, purifiers, sealing, ventilation) must report `co2SavedKgPerMonth = 0` or `null`.
-- All new UI copy must support both English (`src/lib/i18n.ts`) and Hindi (`src/lib/i18n.hi.ts`) and pass `axe-core` WCAG AA checks in Light and Dark themes.
+- All new UI copy must support both English (`frontend/src/locales/en.json`) and Hindi (`frontend/src/locales/hi.json`) and pass `axe-core` WCAG 2.2 AA checks in Light and Dark themes.
 - Never log or persist API keys or opt-in geolocation coordinates (`lat`/`lon`).

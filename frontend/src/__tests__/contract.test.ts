@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import contractFactors from '../../contract/impact-factors.json';
-import goldenVectors from '../../contract/golden-vectors.json';
-import samplePlan from '../../contract/plan.sample.json';
+import contractFactors from '../../../contract/impact-factors.json';
+import goldenVectors from '../../../contract/golden-vectors.json';
+import samplePlan from '../../../contract/plan.sample.json';
 import { getAqiCategory } from '../lib/aqi';
 import { calculateProfileImpact } from '../lib/impact';
 import { MAX_PM25_REDUCTION_PCT } from '../lib/impactFactors';

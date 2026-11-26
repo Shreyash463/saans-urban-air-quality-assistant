@@ -173,7 +173,7 @@ def main() -> int:
 
     targets = {
         REPO_ROOT / "contract" / "api.schema.json": schema_text,
-        REPO_ROOT / "src" / "types" / "generated.ts": ts_text,
+        REPO_ROOT / "frontend" / "src" / "types" / "generated.ts": ts_text,
         REPO_ROOT / "docs" / "openapi.json": openapi_text,
     }
 

@@ -2,8 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const venvWin = path.resolve(import.meta.dirname, '.venv/Scripts/python.exe');
-const venvPosix = path.resolve(import.meta.dirname, '.venv/bin/python');
+const venvWin = path.resolve(import.meta.dirname, '..', '.venv/Scripts/python.exe');
+const venvPosix = path.resolve(import.meta.dirname, '..', '.venv/bin/python');
 const pythonExe = fs.existsSync(venvWin)
   ? venvWin
   : fs.existsSync(venvPosix)
@@ -31,7 +31,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `"${pythonExe}" -m uvicorn --app-dir backend app.main:app --host 127.0.0.1 --port 8124`,
+    command: `"${pythonExe}" -m uvicorn --app-dir ../backend app.main:app --host 127.0.0.1 --port 8124`,
     url: 'http://127.0.0.1:8124/api/health',
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,

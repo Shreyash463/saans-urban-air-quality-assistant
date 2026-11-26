@@ -153,7 +153,10 @@ def create_app(
 ) -> FastAPI:
     """Creates and configures the FastAPI application instance."""
     resolved_settings = settings or get_settings()
-    resolved_dist = dist_dir or (PROJECT_ROOT / "dist")
+    default_dist = PROJECT_ROOT / "frontend" / "dist"
+    if not default_dist.is_dir():
+        default_dist = PROJECT_ROOT / "dist"
+    resolved_dist = dist_dir or default_dist
     _configure_logging(resolved_settings)
     docs_enabled = resolved_settings.should_expose_docs
     app = FastAPI(

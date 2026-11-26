@@ -5,7 +5,7 @@
 
 **Live Demo**: <https://saans-urban-air-quality-assistant.onrender.com> · **Architecture**: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · **ADRs**: [`docs/DECISIONS.md`](docs/DECISIONS.md) · **Branch**: `main` (single-branch repo)
 
-**Saans** (Hindi for *"breath"*) is a bilingual (**English + हिन्दी**) full-stack web application built to help Indian households and communities navigate severe winter smog and urban air pollution. It combines a React + TypeScript + Vite frontend with a hardened FastAPI + Google Gemini backend, live Open-Meteo particulate data calibrated to the **Indian CPCB National AQI scale**, deterministic safety guardrails, and an interactive multiplicative impact simulator.
+**Saans** (Hindi for _"breath"_) is a bilingual (**English + हिन्दी**) full-stack web application built to help Indian households and communities navigate severe winter smog and urban air pollution. It combines a React + TypeScript + Vite frontend with a hardened FastAPI + Google Gemini backend, live Open-Meteo particulate data calibrated to the **Indian CPCB National AQI scale**, deterministic safety guardrails, and an interactive multiplicative impact simulator.
 
 - **One-Click Cloud Deploy (Render Free Tier)**: [Deploy to Render](https://render.com/deploy?repo=https://github.com/Shreyash463/saans-urban-air-quality-assistant) (uses [`render.yaml`](render.yaml) + [`Dockerfile`](Dockerfile))
 
@@ -13,17 +13,17 @@
 
 ## Challenge Mapping (Problem Statement -> Code)
 
-> *"Create a GenAI-powered assistant that helps families and communities navigate severe winter smog and urban air pollution. It should suggest low-emission daily routines, indoor air quality hacks, and sustainable alternatives tailored to their location and lifestyle, while clearly explaining the direct impact of their choices."*
+> _"Create a GenAI-powered assistant that helps families and communities navigate severe winter smog and urban air pollution. It should suggest low-emission daily routines, indoor air quality hacks, and sustainable alternatives tailored to their location and lifestyle, while clearly explaining the direct impact of their choices."_
 
-| Problem Statement Requirement | Saans Implementation | Code Location |
-| --- | --- | --- |
-| **Navigate severe winter smog & urban pollution** | Live Open-Meteo 24h PM2.5/PM10 mapped to the Indian CPCB AQI scale (0–500) with deterministic health advisories and tiered N95/FFP2 mask guidance. | [`backend/app/services/cpcb.py`](backend/app/services/cpcb.py), [`backend/app/services/safety.py`](backend/app/services/safety.py), [`src/components/AqiGauge.tsx`](src/components/AqiGauge.tsx) |
-| **Helps families AND communities** | Household vulnerability awareness (`children`, `elderly`, `respiratory`) plus **"Make it a community effort"** RWA/school/workplace/neighbour cards and a **Scale it to your community** simulator slider (`10–500` homes). | [`src/components/CommunityActionsSection.tsx`](src/components/CommunityActionsSection.tsx), [`src/sections/Simulator.tsx`](src/sections/Simulator.tsx), [`backend/app/services/fallback_plan.py`](backend/app/services/fallback_plan.py) |
-| **Tailored to location and lifestyle** | Multi-field profile (`city`, size, commute, home, purifier, cooking, budget, EN/HI) plus opt-in **"Use my location"** Geolocation (`POST /api/air-quality` & `POST /api/plan` JSON body coordinates, `"Your location (approx.)"`, zero URL query leakage or storage). | [`src/sections/ProfileForm.tsx`](src/sections/ProfileForm.tsx), [`backend/app/routers/air_quality.py`](backend/app/routers/air_quality.py) |
-| **Low-emission daily routines** | Coherent 4-slot routine (`morning`, `midday`, `evening`, `night`) accounting for winter thermal inversions (6–10 AM/PM) and the 1–4 PM cross-ventilation dip. | [`backend/app/prompts.py`](backend/app/prompts.py), [`src/components/DashboardPlanCards.tsx`](src/components/DashboardPlanCards.tsx) |
-| **Indoor air quality hacks** | Budget-ranked Indian hacks (wet mopping, skipping incense/coils, EPDM sealing, DIY box-fan + HEPA, debunking plant myths). | [`backend/app/services/gemini/client.py`](backend/app/services/gemini/client.py), [`src/components/DashboardPlanCards.tsx`](src/components/DashboardPlanCards.tsx) |
-| **Sustainable alternatives & direct impact** | Lifestyle swaps paired with bounded PM2.5 (%) and monthly CO2 (kg, nonzero only on emission actions) plus an interactive multiplicative **Impact Simulator** (`1 - Π(1 - rᵢ)`). | [`contract/impact-factors.json`](contract/impact-factors.json), [`src/lib/impact.ts`](src/lib/impact.ts), [`backend/app/services/impact.py`](backend/app/services/impact.py) |
-| **Conversational GenAI follow-up** | **Ask Saans** grounded in active plan/AQI with `<user_question>` prompt-injection defense, emergency care escalation, and rule fallback. | [`backend/app/routers/chat.py`](backend/app/routers/chat.py), [`src/sections/Chat.tsx`](src/sections/Chat.tsx) |
+| Problem Statement Requirement                     | Saans Implementation                                                                                                                                                                                                                                                  | Code Location                                                                                                                                                                                                                                                                |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Navigate severe winter smog & urban pollution** | Live Open-Meteo 24h PM2.5/PM10 mapped to the Indian CPCB AQI scale (0–500) with deterministic health advisories and tiered N95/FFP2 mask guidance.                                                                                                                    | [`backend/app/services/cpcb.py`](backend/app/services/cpcb.py), [`backend/app/services/safety.py`](backend/app/services/safety.py), [`frontend/src/components/AqiGauge.tsx`](frontend/src/components/AqiGauge.tsx)                                                           |
+| **Helps families AND communities**                | Household vulnerability awareness (`children`, `elderly`, `respiratory`) plus **"Make it a community effort"** RWA/school/workplace/neighbour cards and a **Scale it to your community** simulator slider (`10–500` homes).                                           | [`frontend/src/components/CommunityActionsSection.tsx`](frontend/src/components/CommunityActionsSection.tsx), [`frontend/src/sections/Simulator.tsx`](frontend/src/sections/Simulator.tsx), [`backend/app/services/fallback_plan.py`](backend/app/services/fallback_plan.py) |
+| **Tailored to location and lifestyle**            | Multi-field profile (`city`, size, commute, home, purifier, cooking, budget, EN/HI) plus opt-in **"Use my location"** Geolocation (`POST /api/air-quality` & `POST /api/plan` JSON body coordinates, `"Your location (approx.)"`, zero URL query leakage or storage). | [`frontend/src/sections/ProfileForm.tsx`](frontend/src/sections/ProfileForm.tsx), [`backend/app/routers/air_quality.py`](backend/app/routers/air_quality.py)                                                                                                                 |
+| **Low-emission daily routines**                   | Coherent 4-slot routine (`morning`, `midday`, `evening`, `night`) accounting for winter thermal inversions (6–10 AM/PM) and the 1–4 PM cross-ventilation dip.                                                                                                         | [`backend/app/prompts.py`](backend/app/prompts.py), [`frontend/src/components/DashboardPlanCards.tsx`](frontend/src/components/DashboardPlanCards.tsx)                                                                                                                       |
+| **Indoor air quality hacks**                      | Budget-ranked Indian hacks (wet mopping, skipping incense/coils, EPDM sealing, DIY box-fan + HEPA, debunking plant myths).                                                                                                                                            | [`backend/app/services/gemini/client.py`](backend/app/services/gemini/client.py), [`frontend/src/components/DashboardPlanCards.tsx`](frontend/src/components/DashboardPlanCards.tsx)                                                                                         |
+| **Sustainable alternatives & direct impact**      | Lifestyle swaps paired with bounded PM2.5 (%) and monthly CO2 (kg, nonzero only on emission actions) plus an interactive multiplicative **Impact Simulator** (`1 - Π(1 - rᵢ)`).                                                                                       | [`contract/impact-factors.json`](contract/impact-factors.json), [`frontend/src/lib/impact.ts`](frontend/src/lib/impact.ts), [`backend/app/services/impact.py`](backend/app/services/impact.py)                                                                               |
+| **Conversational GenAI follow-up**                | **Ask Saans** grounded in active plan/AQI with `<user_question>` prompt-injection defense, emergency care escalation, and rule fallback.                                                                                                                              | [`backend/app/routers/chat.py`](backend/app/routers/chat.py), [`frontend/src/sections/Chat.tsx`](frontend/src/sections/Chat.tsx)                                                                                                                                             |
 
 ---
 
@@ -31,14 +31,14 @@
 
 Reproducible backend benchmarks live in [`backend/scripts/bench.py`](backend/scripts/bench.py).
 
-| Metric | Before Baseline (`4b3a4db`) | After Optimization (`ed4c20a`) | Improvement / Mechanism |
-| --- | --- | --- | --- |
-| **Initial JS (`index-*.js`)** | `394.12 kB` (`115.61 kB` gzip) | `315.36 kB` (`93.57 kB` gzip) | Lazy-loaded `i18n.hi.ts` & mock generators |
-| **External Font Requests** | `4` Google Fonts CDN fonts (`205 kB` incl. `120 kB` Devanagari) | `0` external CDNs on English sessions | Self-hosted subsetted Latin `@fontsource` + preloads |
-| **Live Mobile Lighthouse (Perf / A11y / BP / SEO)** | `91 / 100 / 100 / 100` (`CLS 0.107`, `LCP 2.2 s`) | `100 / 100 / 100 / 100` (`CLS 0`, `LCP 1.1 s`) | Self-hosted fonts, preloads, layout reservation |
-| **Live Desktop Lighthouse (Perf / A11y / BP / SEO)** | `95 / 100 / 100 / 100` (`LCP 0.9 s`, `CLS 0.005`) | `100 / 100 / 100 / 100` (`LCP 0.6 s`, `CLS 0.004`) | Brotli precompression + `immutable` `/assets/*` |
-| **Gemini Failover & Prompt Bloat** | Walks failing models on every request; `2,477`-char system + `1,171`-char user prompt | `ModelCircuitBreaker` (`60s` 429 / `300s` 503 / `900s` 404); `1,384 + 472`-char prompt (`-49.1%`) | Skips tripped models (`0 ms` overhead) & trims output schema |
-| **Stubbed Backend Median Latency** | — | `5.12 ms` plan miss / `4.24 ms` plan hit / `4.06 ms` chat | In-flight AQI coalescing + concurrent fact prep |
+| Metric                                               | Before Baseline (`4b3a4db`)                                                           | After Optimization (`ed4c20a`)                                                                    | Improvement / Mechanism                                      |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| **Initial JS (`index-*.js`)**                        | `394.12 kB` (`115.61 kB` gzip)                                                        | `315.36 kB` (`93.57 kB` gzip)                                                                     | Lazy-loaded `i18n.hi.ts` & mock generators                   |
+| **External Font Requests**                           | `4` Google Fonts CDN fonts (`205 kB` incl. `120 kB` Devanagari)                       | `0` external CDNs on English sessions                                                             | Self-hosted subsetted Latin `@fontsource` + preloads         |
+| **Live Mobile Lighthouse (Perf / A11y / BP / SEO)**  | `91 / 100 / 100 / 100` (`CLS 0.107`, `LCP 2.2 s`)                                     | `100 / 100 / 100 / 100` (`CLS 0`, `LCP 1.1 s`)                                                    | Self-hosted fonts, preloads, layout reservation              |
+| **Live Desktop Lighthouse (Perf / A11y / BP / SEO)** | `95 / 100 / 100 / 100` (`LCP 0.9 s`, `CLS 0.005`)                                     | `100 / 100 / 100 / 100` (`LCP 0.6 s`, `CLS 0.004`)                                                | Brotli precompression + `immutable` `/assets/*`              |
+| **Gemini Failover & Prompt Bloat**                   | Walks failing models on every request; `2,477`-char system + `1,171`-char user prompt | `ModelCircuitBreaker` (`60s` 429 / `300s` 503 / `900s` 404); `1,384 + 472`-char prompt (`-49.1%`) | Skips tripped models (`0 ms` overhead) & trims output schema |
+| **Stubbed Backend Median Latency**                   | —                                                                                     | `5.12 ms` plan miss / `4.24 ms` plan hit / `4.06 ms` chat                                         | In-flight AQI coalescing + concurrent fact prep              |
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/DECISIONS.md`](docs/DECISIONS.md) for system diagrams and Architecture Decision Records.
 
@@ -95,10 +95,10 @@ flowchart LR
 
 ```bash
 # 1. Install frontend dependencies and build production bundle
-npm ci && npm run build
+cd frontend && npm ci --ignore-scripts && npm run build && cd ..
 
 # 2. Set up Python environment and install backend dependencies
-python -m venv .venv && .venv/Scripts/pip install -r backend/requirements-dev.txt  # Linux/macOS: .venv/bin/pip
+python -m venv .venv && .venv/Scripts/pip install --require-hashes -r backend/requirements-dev.txt  # Linux/macOS: .venv/bin/pip
 
 # 3. Configure environment and launch single-origin server (serves UI + /api)
 cp .env.example .env && .venv/Scripts/python -m uvicorn --app-dir backend app.main:app --host 0.0.0.0 --port 8000
@@ -107,7 +107,7 @@ cp .env.example .env && .venv/Scripts/python -m uvicorn --app-dir backend app.ma
 For local Vite HMR frontend development alongside FastAPI (`http://localhost:8000`):
 
 ```bash
-npm run dev   # proxies /api -> http://127.0.0.1:8000
+cd frontend && npm run dev   # proxies /api -> http://127.0.0.1:8000
 ```
 
 ---
@@ -116,25 +116,26 @@ npm run dev   # proxies /api -> http://127.0.0.1:8000
 
 See [`.env.example`](.env.example):
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `ENVIRONMENT` | `production` | `production` disables `/docs`, `/redoc`, and `/openapi.json` (set `development` locally to browse docs). |
-| `GEMINI_API_KEY` | *(unset)* | Server-side Google Gemini API key read from root `.env`. Missing/invalid keys automatically use rule-based fallback. |
-| `GEMINI_MODEL` | *(auto)* | Optional single-model pin (e.g. `gemini-3.5-flash-lite`). Auto-discovers Flash models prioritizing Flash-Lite first when blank. |
-| `GEMINI_MODEL_PRIORITY` | `gemini-3.5-flash-lite,...` | Comma-separated model preference order for Flash discovery. |
-| `GEMINI_DAILY_CALL_BUDGET` | `400` | UTC daily upstream Gemini request cap (`00:00 UTC` reset) to protect free-tier quota. |
-| `ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:4173` | Comma-separated CORS origin allowlist (never `*`). |
-| `TRUST_PROXY_HEADERS` | `false` | Set `true` behind Render/Cloud Run/nginx so rate limiting extracts client IPs safely from the rightmost `trusted_proxy_hops` entry of `X-Forwarded-For`. |
-| `TRUSTED_PROXY_HOPS` | `1` | Number of trusted proxy hops to strip from the right of `X-Forwarded-For`. |
-| `VITE_API_BASE_URL` | `""` | Frontend API base URL; empty string uses same-origin `/api`. |
+| Variable                   | Default                                       | Purpose                                                                                                                                                  |
+| -------------------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ENVIRONMENT`              | `production`                                  | `production` disables `/docs`, `/redoc`, and `/openapi.json` (set `development` locally to browse docs).                                                 |
+| `GEMINI_API_KEY`           | _(unset)_                                     | Server-side Google Gemini API key read from root `.env`. Missing/invalid keys automatically use rule-based fallback.                                     |
+| `GEMINI_MODEL`             | _(auto)_                                      | Optional single-model pin (e.g. `gemini-3.5-flash-lite`). Auto-discovers Flash models prioritizing Flash-Lite first when blank.                          |
+| `GEMINI_MODEL_PRIORITY`    | `gemini-3.5-flash-lite,...`                   | Comma-separated model preference order for Flash discovery.                                                                                              |
+| `GEMINI_DAILY_CALL_BUDGET` | `400`                                         | UTC daily upstream Gemini request cap (`00:00 UTC` reset) to protect free-tier quota.                                                                    |
+| `ALLOWED_ORIGINS`          | `http://localhost:5173,http://localhost:4173` | Comma-separated CORS origin allowlist (never `*`).                                                                                                       |
+| `TRUST_PROXY_HEADERS`      | `false`                                       | Set `true` behind Render/Cloud Run/nginx so rate limiting extracts client IPs safely from the rightmost `trusted_proxy_hops` entry of `X-Forwarded-For`. |
+| `TRUSTED_PROXY_HOPS`       | `1`                                           | Number of trusted proxy hops to strip from the right of `X-Forwarded-For`.                                                                               |
+| `VITE_API_BASE_URL`        | `""`                                          | Frontend API base URL; empty string uses same-origin `/api`.                                                                                             |
 
 ---
 
 ## API Reference
 
-All payloads use camelCase JSON matching [`src/types/index.ts`](src/types/index.ts) and [`backend/app/schemas.py`](backend/app/schemas.py).
+All payloads use camelCase JSON matching [`frontend/src/types/index.ts`](frontend/src/types/index.ts) and [`backend/app/schemas.py`](backend/app/schemas.py).
 
 ### `GET /api/health`
+
 Returns service readiness, active healthy model selection, and short commit SHA (`commitSha`, reading `RENDER_GIT_COMMIT[:7]` or `"dev"`).
 
 ```json
@@ -147,6 +148,7 @@ Returns service readiness, active healthy model selection, and short commit SHA 
 ```
 
 ### `GET /api/air-quality?city=Pune` & `POST /api/air-quality`
+
 Returns live Open-Meteo CPCB-calibrated reading (cached 10 minutes; `Cache-Control: public, max-age=180` for city lookups, `"Your location (approx.)"` with zero URL query leakage or log/disk persistence when coordinates are submitted via `POST /api/air-quality` JSON body `{ "lat": 28.6139, "lon": 77.2090 }`) or `"demo"` fallback.
 
 ```json
@@ -161,6 +163,7 @@ Returns live Open-Meteo CPCB-calibrated reading (cached 10 minutes; `Cache-Contr
 ```
 
 ### `POST /api/plan`
+
 Request body (`PlanRequest`, extending `UserProfile` with optional ephemeral `coords: { "lat": ..., "lon": ... }` and `preferCoords`):
 
 ```json
@@ -273,6 +276,7 @@ Response (`PlanResponse`): returns `aqi`, `summary`, `healthAdvisory`, `routine`
 </details>
 
 ### `POST /api/chat`
+
 Request body: `{ "question": "...", "profile": UserProfile, "plan": PlanResponse }`
 
 Response (`ChatReply`):
@@ -290,7 +294,8 @@ Response (`ChatReply`):
 See [`docs/TESTING.md`](docs/TESTING.md) for full test layers, coverage reports (**95.98%** frontend lines, **95.43%** backend line+branch), flake-free seed runs, and mutation testing summary.
 
 ```bash
-# Frontend checks
+# Frontend checks (inside frontend/)
+cd frontend
 npm run format:check
 npm run lint
 npm run test:coverage

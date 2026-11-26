@@ -1,4 +1,4 @@
-import aqiContract from '../../contract/aqi-categories.json';
+import aqiContract from '../../../contract/aqi-categories.json';
 import type { LanguageCode } from '../types';
 
 type AqiCategoryKey =

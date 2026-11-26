@@ -1,4 +1,4 @@
-import contractData from '../../contract/impact-factors.json';
+import contractData from '../../../contract/impact-factors.json';
 
 /**
  * Numeric constants and action catalog for the Saans Impact Simulator,
