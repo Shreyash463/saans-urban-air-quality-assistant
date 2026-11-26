@@ -1,0 +1,9 @@
+title = "Saans Gitleaks Configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "False positive i18n translation key name in Footer.tsx (triggered generic-api-key on headingKey)"
+commits = ["aaa69964434c2867680f6f724b350252c305303e"]
+stopwords = ["footerA11yHeading"]
