@@ -57,7 +57,7 @@ function HeaderNav({
             key={item.id}
             href={`#${item.id}`}
             aria-current={active ? 'true' : undefined}
-            className={`transition-colors whitespace-nowrap shrink-0 py-2 border-b-2 ${
+            className={`transition-colors whitespace-nowrap shrink-0 min-h-[44px] inline-flex items-center border-b-2 ${
               active
                 ? 'border-teal-600 dark:border-teal-400 text-teal-800 dark:text-teal-300 font-semibold'
                 : 'border-transparent text-slate-700 dark:text-slate-200 hover:text-teal-700 dark:hover:text-teal-300'

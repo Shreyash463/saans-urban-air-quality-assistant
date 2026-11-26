@@ -17,6 +17,7 @@
     font-family: var(--font-sans);
     font-size: 16px;
     scroll-behavior: smooth;
+    scroll-padding-top: calc(var(--header-h) + 16px);
   }
 
   body {
@@ -491,5 +492,37 @@ html.reduce-motion [data-reveal] {
 
   .print-card * {
     color: #000000 !important;
+  }
+}
+
+/* ==========================================================================
+   Windows High Contrast (forced-colors) & Increased Contrast support
+   ========================================================================== */
+@media (forced-colors: active) {
+  button,
+  input,
+  select,
+  [role='switch'],
+  [role='radiogroup'] label,
+  .print-card,
+  .saans-theme-surface {
+    forced-color-adjust: auto;
+    border-color: ButtonText !important;
+  }
+
+  :focus-visible {
+    outline: 3px solid Highlight !important;
+    outline-offset: 2px !important;
+  }
+
+  input[type='range'].saans-slider {
+    border: 1px solid ButtonText;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :focus-visible {
+    outline-width: 3px !important;
+    outline-offset: 3px !important;
   }
 }

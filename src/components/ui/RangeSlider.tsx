@@ -48,8 +48,9 @@ export function RangeSlider({
         disabled={disabled}
         value={value}
         aria-label={ariaLabel}
+        aria-valuetext={valueLabel}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="saans-slider w-full h-3 rounded-lg bg-slate-200 dark:bg-slate-800 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+        className="saans-slider w-full min-h-[28px] py-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
       />
     </div>
   );

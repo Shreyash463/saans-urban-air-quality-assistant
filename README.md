@@ -360,7 +360,7 @@ docker run --rm -p 8000:8000 -e ENVIRONMENT=production --env-file .env saans-ass
 
 - Semantic landmarks (`header`, `nav`, `main`, `footer`), sequential heading hierarchy, skip-to-main link, and `aria-current="true"` scroll-spy.
 - Polite `aria-live` status announcements for loading stages, plan readiness, clipboard copy, `.txt` export, and chat replies.
-- High-contrast focus rings, ≥44px touch targets, color + icon + text CPCB indicators, WCAG AA contrast in Light and Dark modes, clean one-column print layout, full reduced-motion support, and automated `axe-core` verification across all sections.
+- High-contrast focus rings, ≥44px touch targets, color + icon + text CPCB indicators, WCAG 2.2 AA contrast in Light and Dark modes, `320px` reflow & text-spacing resilience, `forced-colors` support, dynamic EN/HI document titles, clean one-column print layout, full reduced-motion support, and automated `axe-core` verification across all states and viewports. See [`docs/ACCESSIBILITY.md`](docs/ACCESSIBILITY.md).
 
 ---
 

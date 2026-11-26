@@ -153,7 +153,7 @@ function CityInputField({
         placeholder={t(language, 'cityPlaceholder')}
         aria-invalid={cityErrorKey ? 'true' : undefined}
         aria-describedby={describedBy}
-        className="w-full min-h-[48px] pl-10 pr-4 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50/70 dark:bg-[#0B1220] text-base text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:border-teal-600 dark:focus:border-teal-400 focus:outline-none"
+        className="w-full min-h-[48px] pl-10 pr-4 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50/70 dark:bg-[#0B1220] text-base text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:border-teal-600 dark:focus:border-teal-400"
       />
     </div>
   );

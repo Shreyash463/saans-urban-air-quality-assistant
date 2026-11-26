@@ -24,8 +24,9 @@ async function runAxeAudit(page: Page) {
       };
     };
     return w.axe.run(document, {
-      rules: {
-        region: { enabled: false },
+      runOnly: {
+        type: 'tag',
+        values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa', 'best-practice'],
       },
     });
   });
@@ -208,6 +209,7 @@ test.describe('Saans end-to-end user workflows and accessibility', () => {
     // 8. Switch EN -> HI & audit Hindi UI with axe
     await page.getByRole('button', { name: /Switch language to Hindi/i }).click();
     await expect(page.locator('html')).toHaveAttribute('lang', 'hi');
+    await expect(page).toHaveTitle(/सांस/);
     await expect(page.getByText('इसे सामुदायिक पहल बनाएं')).toBeVisible();
     await runAxeAudit(page);
 
@@ -725,5 +727,162 @@ test.describe('Saans end-to-end user workflows and accessibility', () => {
     await expect(page.locator('#profile')).toContainText(
       /Location permission declined/i
     );
+  });
+
+  test('WCAG 2.2 AA reflow (320/390/768/1280), text-spacing override, target sizes >=24px, and axe across form-error/loading/error states', async ({
+    page,
+  }) => {
+    let planDelayMs = 0;
+    let shouldFail = false;
+    await page.route('**/api/air-quality**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          city: 'Delhi',
+          aqi: 310,
+          dominantPollutant: 'PM2.5',
+          updatedAt: '2026-11-26T15:00:00+05:30',
+          source: 'live',
+        }),
+      });
+    });
+    await page.route('**/api/plan**', async (route) => {
+      if (planDelayMs > 0) await new Promise((r) => setTimeout(r, planDelayMs));
+      if (shouldFail) {
+        await route.fulfill({ status: 503, body: 'Service Unavailable' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          aqi: {
+            city: 'Delhi',
+            aqi: 310,
+            dominantPollutant: 'PM2.5',
+            updatedAt: '2026-11-26T15:00:00+05:30',
+            source: 'live',
+          },
+          summary: 'Clean-air plan ready.',
+          healthAdvisory: 'Very Poor air quality. Not medical advice.',
+          routine: [
+            {
+              timeSlot: 'morning',
+              title: 'M',
+              detail: 'Shut windows.',
+              impactNote: 'Blocks PM2.5.',
+            },
+            {
+              timeSlot: 'midday',
+              title: 'D',
+              detail: 'Ventilate 15m.',
+              impactNote: 'Refreshes air.',
+            },
+            {
+              timeSlot: 'evening',
+              title: 'E',
+              detail: 'Cook w/ exhaust.',
+              impactNote: 'Vents fumes.',
+            },
+            {
+              timeSlot: 'night',
+              title: 'N',
+              detail: 'Wet mop.',
+              impactNote: 'Lowers dust.',
+            },
+          ],
+          indoorHacks: [
+            {
+              title: 'Mop',
+              howTo: 'Damp mop.',
+              estimatedBenefit: 'Less dust',
+              costLevel: 'free',
+            },
+          ],
+          alternatives: [
+            {
+              current: 'Car',
+              swap: 'Metro',
+              why: 'Less tailpipe',
+              pm25ReductionPct: 20,
+              co2SavedKgPerMonth: 45,
+            },
+          ],
+          maskGuidance: 'Wear N95 outdoors.',
+          disclaimer: 'Not medical advice.',
+          generatedBy: 'gemini',
+        }),
+      });
+    });
+
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+
+    // Check form error state + axe
+    await page.locator('#saans-city-input').fill('');
+    await page.getByRole('button', { name: 'Build my clean-air plan' }).click();
+    await expect(page.locator('#saans-city-error')).toBeVisible();
+    await runAxeAudit(page);
+
+    // Check loading + error state + axe
+    await page.locator('#saans-city-input').fill('Delhi');
+    planDelayMs = 450;
+    shouldFail = true;
+    await page.getByRole('button', { name: 'Build my clean-air plan' }).click();
+    await expect(page.getByTestId('plan-loading-status')).toBeVisible();
+    await expect(page.getByTestId('plan-error-state')).toBeVisible();
+    await runAxeAudit(page);
+
+    // Recover plan cleanly
+    planDelayMs = 0;
+    shouldFail = false;
+    await page
+      .getByTestId('plan-error-state')
+      .getByRole('button', { name: 'Try again' })
+      .click();
+    await expect(page.getByTestId('plan-generator-badge')).toBeVisible();
+
+    // Check zero horizontal overflow + target sizes >= 24px across viewports + WCAG 1.4.12 text spacing
+    for (const width of [320, 390, 768, 1280]) {
+      await page.setViewportSize({ width, height: 800 });
+      await runAxeAudit(page);
+      const overflowPx = await page.evaluate(
+        () => document.documentElement.scrollWidth - window.innerWidth
+      );
+      expect(overflowPx).toBeLessThanOrEqual(1);
+    }
+
+    await page.setViewportSize({ width: 320, height: 800 });
+    await page.evaluate(() => {
+      for (const el of document.querySelectorAll<HTMLElement>(
+        'p, h1, h2, h3, h4, span, label, button, a, li'
+      )) {
+        el.style.setProperty('line-height', '1.5', 'important');
+        el.style.setProperty('letter-spacing', '0.12em', 'important');
+        el.style.setProperty('word-spacing', '0.16em', 'important');
+      }
+    });
+    const textSpacingOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth
+    );
+    expect(textSpacingOverflow).toBeLessThanOrEqual(1);
+
+    const smallControls = await page.evaluate(() => {
+      const els = Array.from(
+        document.querySelectorAll('button, input:not(.sr-only), a[href]:not(.sr-only)')
+      );
+      return els
+        .filter((el) => {
+          const r = el.getBoundingClientRect();
+          const st = window.getComputedStyle(el);
+          return r.width > 0 && r.height > 0 && st.display !== 'inline';
+        })
+        .filter((el) => {
+          const r = el.getBoundingClientRect();
+          return r.width < 24 || r.height < 24;
+        })
+        .map((el) => el.outerHTML.slice(0, 80));
+    });
+    expect(smallControls).toEqual([]);
   });
 });

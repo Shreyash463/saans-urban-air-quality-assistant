@@ -7,7 +7,7 @@ import { useSaansAppState } from './hooks/useSaansAppState';
 import { useScrollProgress } from './hooks/useScrollProgress';
 import { useScrollSpy } from './hooks/useScrollSpy';
 import { useSmoothScroll } from './hooks/useSmoothScroll';
-import { loadLanguageBundle } from './lib/i18n';
+import { loadLanguageBundle, t } from './lib/i18n';
 import { Footer } from './sections/Footer';
 import { Hero } from './sections/Hero';
 import { HowItWorks } from './sections/HowItWorks';
@@ -80,10 +80,14 @@ function useLanguageBundleEffect(language: 'en' | 'hi') {
   const [, setReadyTick] = useState(0);
   useEffect(() => {
     document.documentElement.lang = language;
+    document.title = t(language, 'documentTitle');
     if (language !== 'hi') return;
     let active = true;
     void loadLanguageBundle('hi').then(() => {
-      if (active) setReadyTick((n) => n + 1);
+      if (active) {
+        document.title = t('hi', 'documentTitle');
+        setReadyTick((n) => n + 1);
+      }
     });
     return () => {
       active = false;

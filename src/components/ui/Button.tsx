@@ -23,7 +23,7 @@ export function Button({
   return (
     <button
       {...rest}
-      className={`min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl text-sm whitespace-nowrap cursor-pointer disabled:cursor-not-allowed ${VARIANT_CLASSES[variant]} ${className}`}
+      className={`min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl text-sm text-center sm:whitespace-nowrap cursor-pointer disabled:cursor-not-allowed ${VARIANT_CLASSES[variant]} ${className}`}
     >
       {children}
     </button>
