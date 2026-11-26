@@ -17,10 +17,11 @@ _CSP_HEADER = (
     "img-src 'self' data:; "
     "connect-src 'self'; "
     "object-src 'none'; "
-    "base-uri 'self'; "
+    "base-uri 'none'; "
     "form-action 'self'; "
     "frame-ancestors 'none';"
 )
+_CSP_HTTPS_HEADER = f"{_CSP_HEADER} upgrade-insecure-requests;"
 
 
 class _PayloadTooLargeError(Exception):
@@ -104,14 +105,20 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "Permissions-Policy",
             "camera=(), microphone=(), geolocation=(self), payment=(), usb=()",
         )
+        response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+        response.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
         raw_proto = request.headers.get("x-forwarded-proto", "")
         forwarded_proto = raw_proto.split(",")[0].strip().lower()
-        if request.url.scheme == "https" or forwarded_proto == "https":
+        is_https = request.url.scheme == "https" or forwarded_proto == "https"
+        if is_https:
             response.headers.setdefault(
                 "Strict-Transport-Security",
                 "max-age=31536000; includeSubDomains",
             )
         if not request.url.path.startswith("/api/"):
-            response.headers.setdefault("Content-Security-Policy", _CSP_HEADER)
+            response.headers.setdefault(
+                "Content-Security-Policy",
+                _CSP_HTTPS_HEADER if is_https else _CSP_HEADER,
+            )
         response.headers["Vary"] = _merge_vary_origin(response.headers.get("Vary"))
         return response

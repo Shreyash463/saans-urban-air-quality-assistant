@@ -175,7 +175,7 @@ def create_app(
     )
     app.add_middleware(SecurityHeadersMiddleware)
     _register_exception_handlers(app)
-    for router in (health.router, air_quality.router, plan.router, chat.router):
+    for router in (health.router, health.public_router, air_quality.router, plan.router, chat.router):
         app.include_router(router)
     _mount_spa_route(app, build_static_index(resolved_dist), docs_enabled)
     return app

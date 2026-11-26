@@ -1,9 +1,9 @@
 # Stage 1: Build Vite/React/Tailwind production assets
-FROM node:24-alpine AS frontend-builder
+FROM node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS frontend-builder
 WORKDIR /build
 
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 COPY index.html tsconfig.json vite.config.ts ./
 COPY contract ./contract
@@ -12,7 +12,7 @@ COPY src ./src
 RUN npm run build
 
 # Stage 2: Slim Python FastAPI runtime serving both /api and static SPA dist/
-FROM python:3.13-slim AS runtime
+FROM python:3.13-slim@sha256:7249d5587b78209a006dc4a3b5340678f84ea729239193aa559962cd8c1fce50 AS runtime
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -21,8 +21,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PORT=8000
 
 COPY backend/requirements.txt ./backend/requirements.txt
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r ./backend/requirements.txt
+RUN pip install --no-cache-dir --require-hashes -r ./backend/requirements.txt
 
 COPY contract ./contract
 COPY backend/app ./backend/app

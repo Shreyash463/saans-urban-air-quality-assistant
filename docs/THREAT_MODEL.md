@@ -1,0 +1,59 @@
+# Threat Model — Saans (Urban Air Quality Assistant)
+
+This document captures the security architecture, trust boundaries, STRIDE threat analysis mapped to code controls and automated tests, and honest residual risks for Saans.
+
+---
+
+## 1. System Assets
+
+| Asset | Location / Lifetime | Sensitivity | Protection |
+| --- | --- | --- | --- |
+| `GEMINI_API_KEY` | Process env only (`.env` / Render env vars, git-ignored) | Critical credential | Loaded via `Settings`; redacted/omitted from `/api/health`, logs, errors, and frontend bundle (`VITE_*` never used for secrets); scanned on every push via Gitleaks |
+| User geolocation coordinates (`lat`, `lon`) | Transient JSON POST body (`POST /api/air-quality`) | Personal location PII | Query-string coordinates explicitly rejected (`422`); coordinates excluded from `uvicorn.access` logs via `_CoordsLogFilter`, excluded from cache keys cleanly rounded to 2 decimal places (`~1.1 km`) in cache |
+| Household profile & chat input | Request payload + optional browser `localStorage` | Low/medium personal health context | Strict Pydantic validation & schema size caps (`24 KiB` body limit); prompt-injection filter & medical guardrail post-processor |
+| Daily Gemini token/call budget | In-memory atomic quota counter (`GeminiClient`) | Cost / quota exhaustion | Enforced per-day limit + circuit breaker with upstream `Retry-After` respect |
+| Build & runtime dependencies | `package-lock.json`, `backend/requirements*.txt`, `Dockerfile` | Supply-chain integrity | Exact version pins + SHA256 `--require-hashes`, Docker base image `@sha256` digest pins, GitHub Actions 40-char commit SHA pins, `npm audit signatures`, `pip-audit`, CodeQL |
+
+---
+
+## 2. Trust Boundaries
+
+```text
+[ Browser (Untrusted Client) ]
+       │  HTTPS (Render TLS edge)
+       │  CORS allowlist, 24 KiB body cap, sliding-window IP rate limits, COOP/CORP, CSP
+       ▼
+[ FastAPI Backend (App Process) ] ───(TLS/HTTPS)──▶ [ Open-Meteo Air Quality & Geocoding APIs ]
+       │                                                    (untrusted JSON validated + bounded)
+       │  Strict system prompt + XML/delimiter fencing + schema output + deterministic safety pass
+       ▼
+[ Google Gemini API (Untrusted LLM Output) ]
+```
+
+1. **Browser <-> FastAPI**: Untrusted input (HTTP headers, `X-Forwarded-For`, query strings, JSON payloads, chat prompts). Enforced via Pydantic models (`extra="forbid"` / length caps), `MaxBodySizeMiddleware`, `CORSMiddleware`, `get_client_ip` rightmost trusted-proxy extraction, and `SlidingWindowRateLimiter`.
+2. **FastAPI <-> Open-Meteo**: External HTTP JSON parsed into typed schemas (`air_quality_parse.py`) with timeouts (`6s`) and safe fallback on upstream failure.
+3. **FastAPI <-> Gemini**: Prompt injection inside user text (`question`, `city`) is sanitized and flagged (`detect_prompt_injection`); model output is validated against strict Pydantic schemas and rewritten if medical-safety or secret-leak checks (`has_unsafe_phrases`, `has_secret_leak`) trigger.
+
+---
+
+## 3. STRIDE Threat Analysis & Verification Mapping
+
+| Threat (STRIDE) | Attack Vector | Concrete Control in Code | Automated Test Verification |
+| --- | --- | --- | --- |
+| **S**poofing | Attacker spoofs `X-Forwarded-For` leftmost IPs to bypass per-IP rate limits | `get_client_ip()` reads rightmost valid IP before `trusted_proxy_hops`; ignored when `trust_proxy_headers=False` (`backend/app/dependencies.py`) | `test_trusted_proxy_ip_extraction_prevents_xff_spoofing` (`backend/tests/test_security.py`) |
+| **S**poofing / **I**nformation Disclosure | Browser sends precise GPS `lat`/`lon` in URL query string, leaking coordinates to server access logs & browser history | `GET /api/air-quality` rejects `lat`/`lon` query params with `422`; `uvicorn.access` filter strips `lat=`/`lon=` (`backend/app/routers/air_quality.py`, `backend/app/main.py`) | `test_get_air_quality_rejects_query_coordinates`, `test_coords_log_filter` (`backend/tests/test_air_quality.py`, `backend/tests/test_security.py`) |
+| **T**ampering | Prompt injection attempts to override system instructions, exfiltrate `GEMINI_API_KEY`, or make assistant diagnose/prescribe medication | `detect_prompt_injection()`, `sanitize_untrusted_question()`, `has_secret_leak()`, `has_unsafe_phrases()`, `enforce_plan_safety()` (`backend/app/services/safety*.py`) | `test_prompt_injection_and_emergency_detection`, `test_unsafe_llm_phrases_replaced_by_deterministic_safety`, `test_chat_prompt_injection_cannot_leak_secret_or_override_rules` (`backend/tests/test_safety.py`, `backend/tests/test_security.py`) |
+| **T**ampering | Compromised upstream PyPI wheel, npm lifecycle script, base image tag, or GitHub Action tag mutation | `pip install --require-hashes`, `npm ci --ignore-scripts`, Docker `@sha256` digest pins, GitHub Actions 40-char SHA pins, `npm audit signatures`, `pip-audit`, CycloneDX SBOM (`.github/workflows/ci.yml`, `Dockerfile`) | Verified every CI run in `frontend`, `backend`, `docker`, `secret-scan`, and `CodeQL` jobs |
+| **R**epudiation / Debugging Hygiene | Unhandled errors expose stack traces, internal file paths, or secrets | Global exception handlers sanitize `500`/`422`/`HTTPException` payloads (`backend/app/main.py`) | `test_error_responses_never_leak_stack_traces_or_secrets` (`backend/tests/test_security.py`) |
+| **I**nformation Disclosure | Cross-site framing, MIME sniffing, referrer leakage, cross-origin resource read, mixed-content downgrade, Swagger UI exposure in production | `SecurityHeadersMiddleware` emits strict `CSP` (`default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'`, HTTPS `upgrade-insecure-requests`), `COOP: same-origin`, `CORP: same-origin`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, `HSTS`; `/docs` disabled when `ENVIRONMENT=production` (`backend/app/middleware.py`, `backend/app/config.py`) | `test_security_headers_present_on_api_and_spa`, `test_docs_exposed_in_development_and_hidden_in_production` (`backend/tests/test_security.py`) |
+| **D**enial of Service | Oversized JSON payloads, burst API scraping, daily Gemini quota exhaustion | `MaxBodySizeMiddleware` (`24 KiB` / `413`), per-route sliding-window rate limiters (`429` + `Retry-After`), Gemini daily call budget & per-model circuit breaker (`backend/app/middleware.py`, `backend/app/services/rate_limit.py`, `backend/app/services/gemini/client.py`) | `test_oversize_body_rejected_with_413`, `test_rate_limiter_returns_429_with_retry_after`, `test_daily_budget_exhaustion_prevents_bypass` (`backend/tests/test_security.py`) |
+| **E**levation of Privilege | Container breakout or compromised frontend dependency execution | Non-root container user `appuser`, read-only minimal CI `GITHUB_TOKEN` permissions (`contents: read`), CodeQL static analysis (`Dockerfile`, `.github/workflows/*.yml`) | `CodeQL` zero-finding check + `Docker Build & Smoke Test` CI job |
+
+---
+
+## 4. Residual Risks & Operational Mitigations
+
+1. **In-memory rate limiting & daily quota across multiple workers**: `SlidingWindowRateLimiter` and `GeminiClient` counters live in single-process memory. On single-instance hosting (current Render deployment), limits are exact; scaling horizontally behind multiple replicas would multiply quotas unless backed by Redis.
+2. **Client-side profile persistence**: User profile and generated plan are stored in browser `localStorage` on the user's device; a shared kiosk browser would retain the last entered household profile unless cleared by the user. No authentication tokens or coordinates are stored.
+3. **Upstream data availability**: Open-Meteo and Gemini APIs can rate-limit or degrade under external load. Deterministic CPCB/fallback rules preserve core functionality cleanly when upstream APIs are unavailable.
+4. **Dependability of indirect transitive npm devDependencies**: Production runtime serves compiled static assets only (`npm audit --omit=dev` verifies runtime deps = 0 vulnerabilities); `npm ci --ignore-scripts` blocks install-time arbitrary script execution, while lockfile + `npm audit signatures` verify registry integrity.

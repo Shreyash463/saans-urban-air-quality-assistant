@@ -16,14 +16,14 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: '24'
           cache: npm
 
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - run: npm run format:check
       - run: npm run lint
       - run: npx jscpd src --min-lines 5 --min-tokens 50 --threshold 3 --reporters console
@@ -31,6 +31,14 @@ jobs:
       - run: npm run test:coverage
       - run: npm run build
       - run: npm audit --omit=dev
+      - run: npm audit signatures
+      - name: Generate frontend CycloneDX SBOM
+        run: npm sbom --sbom-format=cyclonedx --omit=dev > frontend-sbom.cdx.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: frontend-sbom
+          path: frontend-sbom.cdx.json
+          retention-days: 30
 
   backend:
     name: Backend Lint, Typecheck, Test (>=90%) & Audit
@@ -38,15 +46,15 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.13'
           cache: pip
           cache-dependency-path: backend/requirements-dev.txt
 
-      - run: python -m pip install --upgrade pip && pip install -r backend/requirements-dev.txt
+      - run: pip install --require-hashes -r backend/requirements-dev.txt
       - working-directory: backend
         run: |
           ruff check app tests scripts
@@ -57,6 +65,12 @@ jobs:
           python -c "import ast; from pathlib import Path; bad = [str(p) for p in Path('app').rglob('*.py') if len(p.read_text().splitlines()) > 300 or any((n.end_lineno - n.lineno + 1) > 50 for n in ast.walk(ast.parse(p.read_text())) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)))]; assert not bad, bad"
           pytest --cov=app --cov-branch --cov-report=term-missing
           pip-audit -r requirements.txt
+          pip-audit -r requirements.txt --format cyclonedx-json -o ../backend-sbom.cdx.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: backend-sbom
+          path: backend-sbom.cdx.json
+          retention-days: 30
 
   e2e:
     name: Playwright E2E (Chromium + FastAPI SPA)
@@ -64,27 +78,27 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: '24'
           cache: npm
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.13'
           cache: pip
           cache-dependency-path: backend/requirements.txt
 
-      - run: npm ci && npm run build
-      - run: python -m pip install --upgrade pip && pip install -r backend/requirements.txt
+      - run: npm ci --ignore-scripts && npm run build
+      - run: pip install --require-hashes -r backend/requirements.txt
 
       - name: Get Playwright version
         id: pw
         run: echo "version=$(node -e "console.log(require('./package-lock.json').packages['node_modules/@playwright/test'].version)")" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         id: pw-cache
         with:
           path: ~/.cache/ms-playwright
@@ -102,11 +116,11 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: ./Dockerfile
@@ -128,6 +142,7 @@ jobs:
           done
           curl -fsS http://127.0.0.1:8000/api/health | grep -q '"status":"ok"'
           curl -fsS http://127.0.0.1:8000/api/health | grep -q '"commitSha"'
+          curl -fsS http://127.0.0.1:8000/.well-known/security.txt | grep -q "Contact:"
           curl -fsS http://127.0.0.1:8000/ | grep -qi "Saans"
           docs_status=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/docs)
           test "$docs_status" = "404"
@@ -138,7 +153,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
 
