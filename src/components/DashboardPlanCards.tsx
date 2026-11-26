@@ -429,3 +429,47 @@ export function AiBusyRetryNotice({
     </div>
   );
 }
+
+export function OfflineSampleNotice({
+  plan,
+  language,
+  isLoading,
+  onRetryGemini,
+}: {
+  plan: PlanResponse;
+  language: LanguageCode;
+  isLoading: boolean;
+  onRetryGemini?: () => void;
+}) {
+  if (!plan.isOfflineSample) return null;
+
+  return (
+    <div
+      data-testid="offline-sample-notice"
+      className="no-print mt-2.5 rounded-xl border border-amber-300 dark:border-amber-700/70 bg-amber-50/90 dark:bg-amber-950/40 px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-3"
+    >
+      <p
+        role="status"
+        aria-live="polite"
+        className="text-xs sm:text-sm font-medium text-amber-950 dark:text-amber-100 leading-snug"
+      >
+        {t(language, 'offlineSampleNotice')}
+      </p>
+      {onRetryGemini ? (
+        <button
+          type="button"
+          onClick={onRetryGemini}
+          disabled={isLoading}
+          className="min-h-[38px] px-3 py-1.5 rounded-lg border border-amber-400 dark:border-amber-600 bg-white dark:bg-[#0B1220] text-xs sm:text-sm font-semibold text-amber-950 dark:text-amber-100 hover:border-teal-600 dark:hover:border-teal-400 inline-flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed whitespace-nowrap"
+        >
+          <RefreshCw className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+          <span>
+            {isLoading
+              ? t(language, 'retryGeminiLoading')
+              : t(language, 'offlineSampleRetryButton')}
+          </span>
+        </button>
+      ) : null}
+    </div>
+  );
+}

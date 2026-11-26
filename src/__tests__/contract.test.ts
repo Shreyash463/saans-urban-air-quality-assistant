@@ -2,13 +2,30 @@ import { describe, expect, it } from 'vitest';
 import contractFactors from '../../contract/impact-factors.json';
 import samplePlan from '../../contract/plan.sample.json';
 import { MAX_PM25_REDUCTION_PCT } from '../lib/impactFactors';
-import { isPlanResponse } from '../lib/validation';
+import { isAirQualityReading, isPlanResponse } from '../lib/validation';
 
 describe('Shared cross-language contract fixtures', () => {
   it('validates contract/plan.sample.json against the frontend TypeScript type guard', () => {
     expect(isPlanResponse(samplePlan)).toBe(true);
     expect(samplePlan.generatedBy).toBe('gemini');
     expect(samplePlan.aqi.sourceDetail).toBe('Open-Meteo, PM-based CPCB estimate');
+  });
+
+  it('accepts both omitted and explicit null optional fields in PlanResponse and AirQualityReading', () => {
+    const withNulls = {
+      ...samplePlan,
+      aqi: { ...samplePlan.aqi, sourceDetail: null },
+      communityActions: null,
+      generatedBy: null,
+      fallbackReason: null,
+      retryAfterSeconds: null,
+      isOfflineSample: null,
+    };
+    expect(isPlanResponse(withNulls)).toBe(true);
+    expect(isAirQualityReading({ ...samplePlan.aqi, sourceDetail: null })).toBe(true);
+    expect(isAirQualityReading({ ...samplePlan.aqi, sourceDetail: undefined })).toBe(
+      true
+    );
   });
 
   it('keeps impact-factors.json synchronized with frontend constants', () => {

@@ -42,13 +42,19 @@ async def _prepare_profile_facts(profile: UserProfile) -> ProfileFacts:
     return build_profile_facts(profile)
 
 
-@router.post("/plan", response_model=PlanResponse, response_model_by_alias=True)
+@router.post(
+    "/plan",
+    response_model=PlanResponse,
+    response_model_by_alias=True,
+    response_model_exclude_none=True,
+)
 async def create_plan_endpoint(
     profile: UserProfile,
     request: Request,
     response: Response,
     lat: float | None = Query(default=None, ge=-90.0, le=90.0),
     lon: float | None = Query(default=None, ge=-180.0, le=180.0),
+    prefer_coords: bool | None = Query(default=None, alias="preferCoords"),
 ) -> PlanResponse:
     """Generates a personalized clean-air plan using live AQI, Gemini, safety checks, and fallback."""
     started = time.monotonic()
@@ -60,12 +66,13 @@ async def create_plan_endpoint(
         "Too many plan requests. Please try again shortly.",
     )
     coords = validate_optional_coords(lat, lon)
+    use_coords = coords is not None and prefer_coords is not False
 
     aq_service = get_air_quality_service(request)
     http_client = get_http_client(request)
     aqi_coro = (
         aq_service.get_air_quality_by_coords(coords[0], coords[1], http_client)
-        if coords is not None
+        if use_coords and coords is not None
         else aq_service.get_air_quality(profile.city, http_client)
     )
     aqi_reading, facts = await asyncio.gather(aqi_coro, _prepare_profile_facts(profile))

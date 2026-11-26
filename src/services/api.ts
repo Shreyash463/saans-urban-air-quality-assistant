@@ -125,7 +125,7 @@ export async function generatePlan(
   if (isMockForced()) {
     notifyFallback(false);
     const { generateMockPlan } = await import('./mockPlanGenerator');
-    const mock = generateMockPlan(cleanProfile);
+    const mock = { ...generateMockPlan(cleanProfile), isOfflineSample: true };
     return coords
       ? { ...mock, aqi: { ...mock.aqi, city: APPROX_LOCATION_LABEL } }
       : mock;
@@ -154,7 +154,7 @@ export async function generatePlan(
   } catch {
     notifyFallback(true);
     const { generateMockPlan } = await import('./mockPlanGenerator');
-    const mock = generateMockPlan(cleanProfile);
+    const mock = { ...generateMockPlan(cleanProfile), isOfflineSample: true };
     return coords
       ? { ...mock, aqi: { ...mock.aqi, city: APPROX_LOCATION_LABEL } }
       : mock;

@@ -122,5 +122,7 @@
   ],
   "maskGuidance": "At AQI 380, avoid outdoor exertion and prolonged outdoor exercise entirely for everyone. Keep children, older adults, and anyone with respiratory sensitivity indoors in clean air. For essential trips only, prefer the 1–4 PM window and wear a snugly fitted N95/FFP2 respirator. Not medical advice; consult a doctor if you have a respiratory or cardiac condition.",
   "disclaimer": "Not medical advice. This plan offers general environmental and low-emission lifestyle guidance. Always consult a qualified physician for asthma, COPD, cardiovascular conditions, or acute respiratory symptoms.",
-  "generatedBy": "gemini"
+  "generatedBy": "gemini",
+  "fallbackReason": null,
+  "retryAfterSeconds": null
 }

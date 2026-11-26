@@ -45,7 +45,7 @@ export interface AirQualityReading {
   dominantPollutant: string;
   updatedAt: string;
   source: 'live' | 'demo';
-  sourceDetail?: string;
+  sourceDetail?: string | null;
 }
 
 export interface RoutineItem {
@@ -85,12 +85,13 @@ export interface PlanResponse {
   routine: RoutineItem[];
   indoorHacks: IndoorHack[];
   alternatives: Alternative[];
-  communityActions?: CommunityAction[];
+  communityActions?: CommunityAction[] | null;
   maskGuidance: string;
   disclaimer: string;
-  generatedBy?: 'gemini' | 'rules';
-  fallbackReason?: FallbackReason;
-  retryAfterSeconds?: number;
+  generatedBy?: 'gemini' | 'rules' | null;
+  fallbackReason?: FallbackReason | null;
+  retryAfterSeconds?: number | null;
+  isOfflineSample?: boolean | null;
 }
 
 export interface ChatReply {

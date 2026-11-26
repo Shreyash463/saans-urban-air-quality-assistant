@@ -608,7 +608,57 @@ def test_no_key_rules_plan_sets_no_key_and_caches_normally(tmp_path: Path) -> No
         data = res.json()
         assert data["generatedBy"] == "rules"
         assert data["fallbackReason"] == "no_key"
-        assert data.get("retryAfterSeconds") is None
+        assert "retryAfterSeconds" not in data
+
+
+def test_contract_sample_json_with_nulls_and_exclude_none(client: TestClient) -> None:
+    import json
+    from pathlib import Path
+
+    from app.schemas import PlanResponse
+
+    sample_path = Path(__file__).resolve().parents[2] / "contract" / "plan.sample.json"
+    raw = json.loads(sample_path.read_text(encoding="utf-8"))
+    validated = PlanResponse.model_validate(raw)
+    assert validated.generated_by == "gemini"
+    assert validated.fallback_reason is None
+    assert validated.retry_after_seconds is None
+
+    # /api/health omits selectedModel when None
+    health = client.get("/api/health").json()
+    assert "selectedModel" not in health or isinstance(health["selectedModel"], str)
+
+
+def test_plan_prefer_coords_false_uses_city_and_offline_sample_chat_omits_sample_aqi(
+    client: TestClient,
+) -> None:
+    from app.prompts import build_chat_user_prompt
+    from app.schemas import PlanResponse
+    from app.services.fallback_chat import generate_fallback_chat_reply
+
+    pune_profile = _sample_profile().model_copy(update={"city": "Pune"})
+    prof = pune_profile.model_dump(by_alias=True)
+    res = client.post("/api/plan?lat=28.6139&lon=77.2090&preferCoords=false", json=prof)
+    assert res.status_code == 200
+    body = res.json()
+    # Mocked geocoder returns city name ("Delhi") rather than APPROX_LOCATION_LABEL
+    assert body["aqi"]["city"] != "Your location (approx.)"
+
+    offline_plan = PlanResponse.model_validate(
+        {
+            **body,
+            "aqi": {**body["aqi"], "city": "Pune", "aqi": 130, "source": "demo"},
+            "summary": "Pune shows a sample demo AQI of 130 (Moderate).",
+            "isOfflineSample": True,
+        }
+    )
+    prompt = build_chat_user_prompt("Is it safe to walk?", pune_profile, offline_plan)
+    assert "130" not in prompt
+    assert "offline sample" in prompt.lower()
+
+    reply = generate_fallback_chat_reply("Is it safe to walk?", pune_profile, offline_plan)
+    assert "130" not in reply.answer
+    assert "offline sample" in reply.answer.lower()
 
 
 @pytest.mark.live

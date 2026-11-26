@@ -58,11 +58,20 @@ def build_chat_user_prompt(
     """Builds the compact grounded chat prompt with delimited untrusted user input."""
     lang = "Hindi (Devanagari)" if profile.language == "hi" else "English"
     safe_city = sanitize_untrusted_question(plan.aqi.city)
+    if plan.is_offline_sample:
+        aqi_line = (
+            f"City={safe_city} | Live AQI unavailable "
+            "(active plan is an offline sample; do NOT cite any sample AQI number as current live AQI)"
+        )
+        summary_line = "Offline sample plan (live AQI unavailable)"
+    else:
+        aqi_line = f"City={safe_city}, AQI={plan.aqi.aqi} ({plan.aqi.dominant_pollutant}, {plan.aqi.source})"
+        summary_line = plan.summary
     return (
-        f"Lang={lang} | City={safe_city}, AQI={plan.aqi.aqi} ({plan.aqi.dominant_pollutant}, {plan.aqi.source})\n"
+        f"Lang={lang} | {aqi_line}\n"
         f"Profile: size={profile.household_size}, child={profile.has_children}, elderly={profile.has_elderly}, "
         f"resp={profile.has_respiratory_condition}, commute={profile.commute_mode} ({profile.commute_km}km), "
         f"purifier={profile.has_air_purifier}, cook={profile.cooking_fuel}, budget={profile.budget}\n"
-        f"Summary: {plan.summary}\n"
+        f"Summary: {summary_line}\n"
         f"<user_question>{safe_question}</user_question>"
     )

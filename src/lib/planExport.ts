@@ -49,8 +49,9 @@ export function formatAqiSourceLabel(
 export function formatPlanAsText(plan: PlanResponse, language: LanguageCode): string {
   const category = getAqiCategory(plan.aqi.aqi);
   const sourceLabel = formatAqiSourceLabel(plan.aqi, language);
-  const generatorLabel =
-    plan.generatedBy === 'gemini'
+  const generatorLabel = plan.isOfflineSample
+    ? t(language, 'generatedByOfflineSample')
+    : plan.generatedBy === 'gemini'
       ? t(language, 'generatedByGemini')
       : t(language, 'generatedByRules');
 

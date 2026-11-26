@@ -35,7 +35,12 @@ def validate_optional_coords(lat: float | None, lon: float | None) -> tuple[floa
     return lat, lon
 
 
-@router.get("/air-quality", response_model=AirQualityReading, response_model_by_alias=True)
+@router.get(
+    "/air-quality",
+    response_model=AirQualityReading,
+    response_model_by_alias=True,
+    response_model_exclude_none=True,
+)
 async def get_air_quality_endpoint(
     request: Request,
     response: Response,

@@ -161,6 +161,7 @@ class PlanResponse(CamelBaseModel):
     generated_by: GeneratedBy | None = None
     fallback_reason: FallbackReason | None = None
     retry_after_seconds: int | None = Field(default=None, ge=0, le=3600)
+    is_offline_sample: bool | None = None
 
 
 class ChatRequest(CamelBaseModel):

@@ -8,6 +8,7 @@ import {
   AlternativesCard,
   DashboardExportActions,
   IndoorHacksCard,
+  OfflineSampleNotice,
   RoutineTimelineCard,
 } from '../components/DashboardPlanCards';
 import { DemoReadingInfo } from '../components/DemoReadingInfo';
@@ -269,6 +270,25 @@ function DashboardTopOverview({
   );
 }
 
+function getGeneratorBadgeLabel(
+  plan: PlanResponse | null,
+  language: LanguageCode
+): string {
+  if (plan?.isOfflineSample) {
+    return t(language, 'generatedByOfflineSample');
+  }
+  return plan?.generatedBy === 'gemini'
+    ? t(language, 'generatedByGemini')
+    : t(language, 'generatedByRules');
+}
+
+function getGeneratorBadgeClass(plan: PlanResponse | null): string {
+  const isGemini = plan?.generatedBy === 'gemini' && !plan?.isOfflineSample;
+  return isGemini
+    ? 'border-teal-300 bg-teal-50 text-teal-900 dark:border-teal-700 dark:bg-teal-950/60 dark:text-teal-200'
+    : 'border-slate-300 bg-slate-100 text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200';
+}
+
 /**
  * Results Dashboard rendering the complete personalized clean-air plan.
  */
@@ -281,7 +301,6 @@ export function Dashboard({
 }: DashboardProps) {
   const activeCategoryKey = plan ? getAqiCategory(plan.aqi.aqi).key : '';
   const showPlan = Boolean(plan && !isLoading);
-  const isGemini = plan?.generatedBy === 'gemini';
   const liveTimeIst = plan ? formatAqiTimestampIst(plan.aqi.updatedAt) : '';
 
   return (
@@ -307,21 +326,21 @@ export function Dashboard({
               {showPlan ? (
                 <span
                   data-testid="plan-generator-badge"
-                  className={`inline-flex items-center px-2.5 py-1 rounded-lg border text-xs font-semibold ${
-                    isGemini
-                      ? 'border-teal-300 bg-teal-50 text-teal-900 dark:border-teal-700 dark:bg-teal-950/60 dark:text-teal-200'
-                      : 'border-slate-300 bg-slate-100 text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
-                  }`}
+                  className={`inline-flex items-center px-2.5 py-1 rounded-lg border text-xs font-semibold ${getGeneratorBadgeClass(plan)}`}
                 >
-                  {isGemini
-                    ? t(language, 'generatedByGemini')
-                    : t(language, 'generatedByRules')}
+                  {getGeneratorBadgeLabel(plan, language)}
                 </span>
               ) : null}
             </div>
             {showPlan && plan ? (
               <>
                 <AiBusyRetryNotice
+                  plan={plan}
+                  language={language}
+                  isLoading={isLoading}
+                  onRetryGemini={onRetryGemini}
+                />
+                <OfflineSampleNotice
                   plan={plan}
                   language={language}
                   isLoading={isLoading}

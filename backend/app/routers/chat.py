@@ -15,7 +15,12 @@ logger = logging.getLogger("saans")
 router = APIRouter(prefix="/api", tags=["chat"])
 
 
-@router.post("/chat", response_model=ChatReply, response_model_by_alias=True)
+@router.post(
+    "/chat",
+    response_model=ChatReply,
+    response_model_by_alias=True,
+    response_model_exclude_none=True,
+)
 async def chat_endpoint(
     body: ChatRequest,
     request: Request,

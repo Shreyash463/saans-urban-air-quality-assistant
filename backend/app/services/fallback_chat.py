@@ -275,4 +275,13 @@ def generate_fallback_chat_reply(
     if intent == "off_topic":
         return ChatReply(answer=build_injection_refusal(profile.language))
 
+    if plan.is_offline_sample:
+        is_hi = profile.language == "hi"
+        answer = (
+            f"{city} के लिए लाइव AQI अभी उपलब्ध नहीं है (आपकी सक्रिय योजना एक ऑफ़लाइन नमूना है)। सामान्य सुरक्षा के लिए पीक स्मॉग घंटों (सुबह/शाम 6–10 बजे) में खिड़कियां बंद रखें, बाहर निकलने पर फिटेड N95 पहनें और लाइव रीडिंग के लिए योजना फिर से बनाएं।"
+            if is_hi
+            else f"Live AQI for {city} is currently unavailable (your active plan is an offline sample). As general protection, keep windows shut during 6–10 AM/PM peak smog, wear a fitted N95 outdoors if needed, and tap Try again to fetch live data."
+        )
+        return ChatReply(answer=answer)
+
     return ChatReply(answer=_reply_for_intent(intent, safe_q, profile, city, aqi))

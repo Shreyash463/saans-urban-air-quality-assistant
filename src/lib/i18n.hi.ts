@@ -111,6 +111,10 @@ export const HINDI_TRANSLATIONS: TranslationDictionary = {
     'पहले अनुरोध पर सर्वर शुरू होने में 15–30 सेकंड लग सकते हैं — कृपया प्रतीक्षा करें।',
   generatedByGemini: 'Gemini द्वारा तैयार',
   generatedByRules: 'नियम-आधारित फ़ॉलबैक',
+  generatedByOfflineSample: 'ऑफ़लाइन नमूना योजना',
+  offlineSampleNotice:
+    'हम सर्वर से जुड़ नहीं सके, इसलिए यह लाइव डेटा नहीं बल्कि एक ऑफ़लाइन नमूना है।',
+  offlineSampleRetryButton: 'फिर से कोशिश करें',
   aiBusyNotice:
     'जेमिनी अभी व्यस्त है, इसलिए यह नियम-आधारित योजना है। आप {seconds} सेकंड बाद फिर प्रयास कर सकते हैं।',
   aiBusyReadyNotice:

@@ -9,7 +9,12 @@ from app.schemas import HealthResponse
 router = APIRouter(prefix="/api", tags=["health"])
 
 
-@router.get("/health", response_model=HealthResponse, response_model_by_alias=True)
+@router.get(
+    "/health",
+    response_model=HealthResponse,
+    response_model_by_alias=True,
+    response_model_exclude_none=True,
+)
 async def health_check(request: Request, response: Response) -> HealthResponse:
     """Returns service health status, current healthy model, and short commit SHA."""
     response.headers["Cache-Control"] = "no-cache"

@@ -159,7 +159,10 @@ function allItems<T>(
 export function isAirQualityReading(value: unknown): value is AirQualityReading {
   if (!isRecord(value)) return false;
   const validSource = value.source === 'live' || value.source === 'demo';
-  const validDetail = value.sourceDetail === undefined || isString(value.sourceDetail);
+  const validDetail =
+    value.sourceDetail === undefined ||
+    value.sourceDetail === null ||
+    isString(value.sourceDetail);
   return (
     isString(value.city) &&
     value.city.trim().length > 0 &&
@@ -219,24 +222,36 @@ function isCommunityAction(value: unknown): value is CommunityAction {
   );
 }
 
+function isUnset(value: unknown): boolean {
+  return value === undefined || value === null;
+}
+
 function hasValidPlanMeta(value: Record<string, unknown>): boolean {
   const validCommunity =
-    value.communityActions === undefined ||
+    isUnset(value.communityActions) ||
     (Array.isArray(value.communityActions) &&
       value.communityActions.every(isCommunityAction));
   const validGen =
-    value.generatedBy === undefined ||
+    isUnset(value.generatedBy) ||
     value.generatedBy === 'gemini' ||
     value.generatedBy === 'rules';
   const validFallbackReason =
-    value.fallbackReason === undefined ||
+    isUnset(value.fallbackReason) ||
     value.fallbackReason === 'no_key' ||
     value.fallbackReason === 'ai_busy' ||
     value.fallbackReason === 'ai_error';
   const validRetryAfter =
-    value.retryAfterSeconds === undefined ||
+    isUnset(value.retryAfterSeconds) ||
     (isFiniteNum(value.retryAfterSeconds) && value.retryAfterSeconds >= 0);
-  return validCommunity && validGen && validFallbackReason && validRetryAfter;
+  const validOfflineSample =
+    isUnset(value.isOfflineSample) || typeof value.isOfflineSample === 'boolean';
+  return (
+    validCommunity &&
+    validGen &&
+    validFallbackReason &&
+    validRetryAfter &&
+    validOfflineSample
+  );
 }
 
 /**

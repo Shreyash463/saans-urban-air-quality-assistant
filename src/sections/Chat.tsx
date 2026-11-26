@@ -86,9 +86,10 @@ export default function Chat({ profile, plan }: ChatProps) {
       setIsLoading(true);
 
       try {
-        const activePlan =
-          plan ??
-          (await import('../services/mockPlanGenerator')).generateMockPlan(profile);
+        const activePlan = plan ?? {
+          ...(await import('../services/mockPlanGenerator')).generateMockPlan(profile),
+          isOfflineSample: true,
+        };
         // Deterministic realistic delay (550-830ms) skipped completely under reduced motion
         const delayMs = reducedMotion
           ? 0
