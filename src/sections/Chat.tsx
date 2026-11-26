@@ -69,6 +69,11 @@ export default function Chat({ profile, plan }: ChatProps) {
         return;
       }
 
+      if (!plan) {
+        setErrorKey('chatNeedPlanFirst');
+        return;
+      }
+
       setErrorKey(null);
       const nowLabel = new Date().toLocaleTimeString([], {
         hour: '2-digit',
@@ -86,17 +91,13 @@ export default function Chat({ profile, plan }: ChatProps) {
       setIsLoading(true);
 
       try {
-        const activePlan = plan ?? {
-          ...(await import('../services/mockPlanGenerator')).generateMockPlan(profile),
-          isOfflineSample: true,
-        };
         // Deterministic realistic delay (550-830ms) skipped completely under reduced motion
         const delayMs = reducedMotion
           ? 0
           : CHAT_TYPING_MIN_MS + ((check.sanitized.length * 17) % CHAT_TYPING_RANGE_MS);
 
         const [reply] = await Promise.all([
-          askFollowUp(check.sanitized, profile, activePlan),
+          askFollowUp(check.sanitized, profile, plan),
           delayMs > 0
             ? new Promise<void>((resolve) => {
                 globalThis.setTimeout(resolve, delayMs);

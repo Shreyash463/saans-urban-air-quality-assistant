@@ -21,11 +21,15 @@ async def health_check(request: Request, response: Response) -> HealthResponse:
     gemini = getattr(request.app.state, "gemini_client", None)
     configured = gemini is not None and bool(gemini.is_configured)
     healthy = gemini.healthy_model if gemini is not None and configured else None
+    remaining_budget = gemini.remaining_daily_budget if gemini is not None and configured else None
+    budget_limit = gemini.daily_budget_limit if gemini is not None and configured else None
     raw_sha = os.environ.get("RENDER_GIT_COMMIT", "").strip()
     commit_sha = raw_sha[:7] if raw_sha else "dev"
     return HealthResponse(
         status="ok",
         gemini_configured=configured,
         selected_model=healthy,
+        remaining_daily_budget=remaining_budget,
+        daily_budget_limit=budget_limit,
         commit_sha=commit_sha,
     )

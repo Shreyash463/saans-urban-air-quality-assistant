@@ -1,12 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  ApiRequestError,
   askFollowUp,
   generatePlan,
   getAirQuality,
+  getAirQualityByCoords,
   REQUEST_TIMEOUT_MS,
-  subscribeApiFallback,
 } from '../services/api';
-import { generateMockPlan } from '../services/mockPlanGenerator';
+import { generateMockPlan } from '../../tests/fixtures/mockPlanGenerator';
 import type { UserProfile } from '../types';
 
 const SAMPLE_PROFILE: UserProfile = {
@@ -24,7 +25,7 @@ const SAMPLE_PROFILE: UserProfile = {
   language: 'en',
 };
 
-describe('API layer backend-first default and resilient fallback behavior', () => {
+describe('API layer: strict server-backed responses and coordinate POST privacy', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
@@ -34,9 +35,8 @@ describe('API layer backend-first default and resilient fallback behavior', () =
     expect(REQUEST_TIMEOUT_MS).toBe(35_000);
   });
 
-  it('calls same-origin /api/plan by default when VITE_USE_MOCK is not true', async () => {
+  it('calls POST /api/plan with JSON body and passes coords only inside body', async () => {
     vi.stubEnv('VITE_API_BASE_URL', '');
-    vi.stubEnv('VITE_USE_MOCK', 'false');
     const mockPlan = {
       ...generateMockPlan(SAMPLE_PROFILE),
       generatedBy: 'gemini' as const,
@@ -47,60 +47,76 @@ describe('API layer backend-first default and resilient fallback behavior', () =
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const plan = await generatePlan(SAMPLE_PROFILE);
+    const plan = await generatePlan(SAMPLE_PROFILE, {
+      lat: 28.61394,
+      lon: 77.20904,
+    });
+    expect(plan.generatedBy).toBe('gemini');
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/plan',
       expect.objectContaining({ method: 'POST' })
     );
-    expect(plan.generatedBy).toBe('gemini');
+    const callInit = fetchMock.mock.calls[0]?.[1] as { body?: string };
+    const sent = JSON.parse(callInit.body ?? '{}') as Record<string, unknown>;
+    expect(sent.coords).toEqual({ lat: 28.6139, lon: 77.209 });
+    expect(sent.preferCoords).toBe(true);
   });
 
-  it('skips network calls when VITE_USE_MOCK=true', async () => {
-    vi.stubEnv('VITE_USE_MOCK', 'true');
-    const fetchMock = vi.fn();
+  it('uses POST /api/air-quality body for coordinates and GET for city only', async () => {
+    const sampleAqi = generateMockPlan(SAMPLE_PROFILE).aqi;
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ...sampleAqi, source: 'live' }),
+    });
     vi.stubGlobal('fetch', fetchMock);
 
-    const plan = await generatePlan(SAMPLE_PROFILE);
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(plan.generatedBy).toBe('rules');
-  });
+    await getAirQuality('Pune');
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      '/api/air-quality?city=Pune',
+      expect.objectContaining({ method: 'GET' })
+    );
 
-  it('falls back to deterministic mock and emits fallback notice when network request fails', async () => {
-    vi.stubEnv('VITE_API_BASE_URL', 'https://api.saans.example');
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network down')));
-
-    const fallbackEvents: boolean[] = [];
-    const unsubscribe = subscribeApiFallback((flag) => fallbackEvents.push(flag));
-
-    const plan = await generatePlan(SAMPLE_PROFILE);
-    unsubscribe();
-
-    expect(plan.aqi.city).toBe('Delhi');
-    expect(plan.aqi.source).toBe('demo');
-    expect(plan.routine.length).toBe(4);
-    expect(fallbackEvents).toContain(true);
-  });
-
-  it('falls back to mock when backend returns invalid JSON shape or aborts on timeout', async () => {
-    vi.stubEnv('VITE_API_BASE_URL', 'https://api.saans.example');
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ unexpected: 'shape' }),
+    await getAirQualityByCoords(18.52041, 73.85671);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      '/api/air-quality',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ lat: 18.5204, lon: 73.8567 }),
       })
     );
+  });
 
-    const aqi = await getAirQuality('Lucknow');
-    expect(aqi.city).toBe('Lucknow');
-    expect(aqi.aqi).toBe(310);
-    expect(aqi.source).toBe('demo');
+  it('throws typed ApiRequestError on network failure, HTTP 429, timeout, and invalid JSON', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network down')));
+    await expect(generatePlan(SAMPLE_PROFILE)).rejects.toMatchObject({
+      name: 'ApiRequestError',
+      kind: 'network',
+    });
 
-    const chat = await askFollowUp(
-      'Do air plants really work?',
-      SAMPLE_PROFILE,
-      generateMockPlan(SAMPLE_PROFILE)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockRejectedValue(new DOMException('Aborted', 'AbortError'))
     );
-    expect(chat.answer.length).toBeGreaterThan(20);
+    await expect(generatePlan(SAMPLE_PROFILE)).rejects.toMatchObject({
+      kind: 'timeout',
+    });
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 429 }));
+    await expect(generatePlan(SAMPLE_PROFILE)).rejects.toMatchObject({
+      kind: 'rate_limit',
+      status: 429,
+    });
+
+    const samplePlan = generateMockPlan(SAMPLE_PROFILE);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ bad: true }) })
+    );
+    await expect(getAirQuality('Lucknow')).rejects.toBeInstanceOf(ApiRequestError);
+    await expect(
+      askFollowUp('Do air plants work?', SAMPLE_PROFILE, samplePlan)
+    ).rejects.toMatchObject({ kind: 'invalid_payload' });
   });
 });

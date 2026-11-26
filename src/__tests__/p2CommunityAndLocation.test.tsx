@@ -13,14 +13,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AiBusyRetryNotice } from '../components/DashboardPlanCards';
 import { CommunityActionsSection } from '../components/CommunityActionsSection';
 import { Hero } from '../sections/Hero';
-import { getMockAirQuality, QUICK_PICK_CITIES } from '../lib/demoCities';
+import { QUICK_PICK_CITIES } from '../lib/cities';
+import { getMockAirQuality } from '../../tests/fixtures/demoCities';
 import { loadLanguageBundle, t } from '../lib/i18n';
 import { formatPlanAsText } from '../lib/planExport';
 import { isPlanResponse } from '../lib/validation';
 import { ProfileForm } from '../sections/ProfileForm';
 import Simulator from '../sections/Simulator';
 import { generatePlan, getAirQualityByCoords } from '../services/api';
-import { generateMockPlan } from '../services/mockPlanGenerator';
+import { generateMockPlan } from '../../tests/fixtures/mockPlanGenerator';
 import type { UserProfile } from '../types';
 
 const SAMPLE_PROFILE: UserProfile = {
@@ -67,8 +68,7 @@ describe('Community actions, community scaling simulator, lazy Hindi, and opt-in
     expect(exported).toContain('[Make it a community effort]');
   });
 
-  it('fetches AQI and plan by ephemeral coordinates via api.ts cleanly', async () => {
-    vi.stubEnv('VITE_USE_MOCK', 'false');
+  it('fetches AQI and plan by ephemeral coordinates via POST bodies cleanly', async () => {
     const mockPlan = {
       ...generateMockPlan(SAMPLE_PROFILE),
       aqi: {
@@ -92,15 +92,18 @@ describe('Community actions, community scaling simulator, lazy Hindi, and opt-in
     expect(aq.city).toBe('Your location (approx.)');
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      '/api/air-quality?lat=28.6139&lon=77.2090',
-      expect.anything()
+      '/api/air-quality',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ lat: 28.6139, lon: 77.209 }),
+      })
     );
 
     const plan = await generatePlan(SAMPLE_PROFILE, { lat: 28.6139, lon: 77.209 });
     expect(plan.aqi.city).toBe('Your location (approx.)');
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      '/api/plan?lat=28.6139&lon=77.2090',
+      '/api/plan',
       expect.objectContaining({ method: 'POST' })
     );
   });
@@ -127,7 +130,19 @@ describe('Community actions, community scaling simulator, lazy Hindi, and opt-in
   });
 
   it('handles opt-in Use my location button (success & permission denied) cleanly', async () => {
-    vi.stubEnv('VITE_USE_MOCK', 'true');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          city: 'Your location (approx.)',
+          aqi: 185,
+          dominantPollutant: 'PM2.5',
+          updatedAt: '2026-11-26T12:00:00+05:30',
+          source: 'live',
+        }),
+      })
+    );
     const getCurrentPosition = vi.fn((success: PositionCallback) =>
       success({
         coords: {

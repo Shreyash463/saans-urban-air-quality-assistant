@@ -8,7 +8,7 @@ import {
   AlternativesCard,
   DashboardExportActions,
   IndoorHacksCard,
-  OfflineSampleNotice,
+  PlanErrorState,
   RoutineTimelineCard,
 } from '../components/DashboardPlanCards';
 import { DemoReadingInfo } from '../components/DemoReadingInfo';
@@ -23,6 +23,7 @@ interface DashboardProps {
   language: LanguageCode;
   announcement: string;
   isLoading: boolean;
+  planError?: 'network' | 'rate_limit' | null;
   onRetryGemini?: () => void;
 }
 
@@ -274,16 +275,13 @@ function getGeneratorBadgeLabel(
   plan: PlanResponse | null,
   language: LanguageCode
 ): string {
-  if (plan?.isOfflineSample) {
-    return t(language, 'generatedByOfflineSample');
-  }
   return plan?.generatedBy === 'gemini'
     ? t(language, 'generatedByGemini')
     : t(language, 'generatedByRules');
 }
 
 function getGeneratorBadgeClass(plan: PlanResponse | null): string {
-  const isGemini = plan?.generatedBy === 'gemini' && !plan?.isOfflineSample;
+  const isGemini = plan?.generatedBy === 'gemini';
   return isGemini
     ? 'border-teal-300 bg-teal-50 text-teal-900 dark:border-teal-700 dark:bg-teal-950/60 dark:text-teal-200'
     : 'border-slate-300 bg-slate-100 text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200';
@@ -297,6 +295,7 @@ export function Dashboard({
   language,
   announcement,
   isLoading,
+  planError = null,
   onRetryGemini,
 }: DashboardProps) {
   const activeCategoryKey = plan ? getAqiCategory(plan.aqi.aqi).key : '';
@@ -340,12 +339,6 @@ export function Dashboard({
                   isLoading={isLoading}
                   onRetryGemini={onRetryGemini}
                 />
-                <OfflineSampleNotice
-                  plan={plan}
-                  language={language}
-                  isLoading={isLoading}
-                  onRetryGemini={onRetryGemini}
-                />
                 <p className="text-base text-slate-700 dark:text-slate-200 max-w-3xl leading-relaxed">
                   {plan.summary}
                 </p>
@@ -360,6 +353,13 @@ export function Dashboard({
 
         {isLoading ? (
           <PlanLoadingStatus language={language} />
+        ) : planError ? (
+          <PlanErrorState
+            language={language}
+            errorKind={planError}
+            isLoading={isLoading}
+            onRetry={onRetryGemini}
+          />
         ) : !plan ? (
           <div className="saans-theme-surface mt-8 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white/80 dark:bg-[#131C2E]/70 p-8 sm:p-10 text-center">
             <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
@@ -392,3 +392,5 @@ export function Dashboard({
     </section>
   );
 }
+
+export default Dashboard;

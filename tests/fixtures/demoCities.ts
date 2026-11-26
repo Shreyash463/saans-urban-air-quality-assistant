@@ -1,5 +1,5 @@
-import { sanitizeCity } from './validation';
-import type { AirQualityReading } from '../types';
+import { sanitizeCity } from '../../src/lib/validation';
+import type { AirQualityReading } from '../../src/types';
 
 interface DemoCityEntry {
   displayName: string;

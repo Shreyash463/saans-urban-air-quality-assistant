@@ -430,44 +430,43 @@ export function AiBusyRetryNotice({
   );
 }
 
-export function OfflineSampleNotice({
-  plan,
+export function PlanErrorState({
   language,
+  errorKind,
   isLoading,
-  onRetryGemini,
+  onRetry,
 }: {
-  plan: PlanResponse;
   language: LanguageCode;
+  errorKind: 'network' | 'rate_limit';
   isLoading: boolean;
-  onRetryGemini?: () => void;
+  onRetry?: () => void;
 }) {
-  if (!plan.isOfflineSample) return null;
-
   return (
     <div
-      data-testid="offline-sample-notice"
-      className="no-print mt-2.5 rounded-xl border border-amber-300 dark:border-amber-700/70 bg-amber-50/90 dark:bg-amber-950/40 px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-3"
+      role="alert"
+      data-testid="plan-error-state"
+      className="saans-theme-surface mt-8 rounded-2xl border border-red-300 dark:border-red-800/70 bg-red-50/80 dark:bg-red-950/30 p-6 sm:p-8 space-y-3"
     >
-      <p
-        role="status"
-        aria-live="polite"
-        className="text-xs sm:text-sm font-medium text-amber-950 dark:text-amber-100 leading-snug"
-      >
-        {t(language, 'offlineSampleNotice')}
+      <h3 className="text-lg font-semibold text-red-950 dark:text-red-100">
+        {t(language, 'planErrorHeading')}
+      </h3>
+      <p className="text-base text-red-900 dark:text-red-200 max-w-2xl leading-relaxed">
+        {errorKind === 'rate_limit'
+          ? t(language, 'planRateLimitBody')
+          : t(language, 'planErrorBody')}
       </p>
-      {onRetryGemini ? (
+      <p className="text-sm text-slate-700 dark:text-slate-300">
+        {t(language, 'loadingWakingServer')}
+      </p>
+      {onRetry ? (
         <button
           type="button"
-          onClick={onRetryGemini}
+          onClick={onRetry}
           disabled={isLoading}
-          className="min-h-[38px] px-3 py-1.5 rounded-lg border border-amber-400 dark:border-amber-600 bg-white dark:bg-[#0B1220] text-xs sm:text-sm font-semibold text-amber-950 dark:text-amber-100 hover:border-teal-600 dark:hover:border-teal-400 inline-flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed whitespace-nowrap"
+          className="min-h-[44px] px-4 py-2 rounded-xl border border-red-400 dark:border-red-600 bg-white dark:bg-[#0B1220] text-sm font-semibold text-red-950 dark:text-red-100 hover:border-teal-600 dark:hover:border-teal-400 inline-flex items-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
         >
-          <RefreshCw className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-          <span>
-            {isLoading
-              ? t(language, 'retryGeminiLoading')
-              : t(language, 'offlineSampleRetryButton')}
-          </span>
+          <RefreshCw className="w-4 h-4 shrink-0" aria-hidden="true" />
+          <span>{t(language, 'tryAgainButton')}</span>
         </button>
       ) : null}
     </div>

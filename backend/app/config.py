@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     expose_api_docs: bool | None = Field(default=None)
     gemini_api_key: str | None = Field(default=None)
     gemini_model: str | None = Field(default=None)
+    gemini_model_priority: str = Field(
+        default="gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3.6-flash,gemini-3.8-flash,gemini-3.7-flash,gemini-3.5-flash"
+    )
+    gemini_daily_call_budget: int = Field(default=400, ge=1, le=100_000)
     allowed_origins: str = Field(default="http://localhost:5173,http://localhost:4173")
     max_body_bytes: int = Field(default=20_480, ge=1024, le=1_048_576)
     cache_ttl_seconds: int = Field(default=600, ge=1, le=86_400)
@@ -90,6 +94,15 @@ class Settings(BaseSettings):
             return None
         cleaned = self.gemini_model.strip()
         return cleaned or None
+
+    @property
+    def parsed_model_priority(self) -> list[str]:
+        """Returns configured Flash-Lite-first model priority order."""
+        return [
+            item.strip().removeprefix("models/")
+            for item in self.gemini_model_priority.split(",")
+            if item.strip()
+        ]
 
 
 @lru_cache(maxsize=1)

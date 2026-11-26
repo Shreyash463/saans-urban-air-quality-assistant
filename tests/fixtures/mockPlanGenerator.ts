@@ -1,6 +1,6 @@
-import { getAqiCategory } from '../lib/aqi';
-import { getMockAirQuality, QUICK_PICK_CITIES } from '../lib/demoCities';
-import { getAlternativeMetrics } from '../lib/impactFactors';
+import { getAqiCategory } from '../../src/lib/aqi';
+import { getMockAirQuality, QUICK_PICK_CITIES } from './demoCities';
+import { getAlternativeMetrics } from '../../src/lib/impactFactors';
 import type {
   Alternative,
   BudgetLevel,
@@ -10,7 +10,7 @@ import type {
   PlanResponse,
   RoutineItem,
   UserProfile,
-} from '../types';
+} from '../../src/types';
 import { generateSmartMockChatReply } from './mockChat';
 
 export { getMockAirQuality, QUICK_PICK_CITIES };

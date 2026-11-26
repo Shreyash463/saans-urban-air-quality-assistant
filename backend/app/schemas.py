@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 import unicodedata
 from typing import Literal
@@ -146,6 +147,27 @@ class CommunityAction(CamelBaseModel):
     effort: EffortLevel
 
 
+class CoordinatesBody(CamelBaseModel):
+    """Ephemeral geolocation coordinates submitted inside a POST JSON body."""
+
+    lat: float = Field(ge=-90.0, le=90.0)
+    lon: float = Field(ge=-180.0, le=180.0)
+
+    @field_validator("lat", "lon")
+    @classmethod
+    def validate_finite(cls, val: float) -> float:
+        if not math.isfinite(val):
+            raise ValueError("Coordinate must be finite.")
+        return val
+
+
+class PlanRequest(UserProfile):
+    """Plan request body supporting optional ephemeral coordinates without query strings."""
+
+    coords: CoordinatesBody | None = None
+    prefer_coords: bool | None = None
+
+
 class PlanResponse(CamelBaseModel):
     """Complete personalized clean-air plan matching src/types/index.ts."""
 
@@ -196,4 +218,6 @@ class HealthResponse(CamelBaseModel):
     status: Literal["ok"]
     gemini_configured: bool
     selected_model: str | None = None
+    remaining_daily_budget: int | None = None
+    daily_budget_limit: int | None = None
     commit_sha: str | None = Field(default=None, max_length=64)

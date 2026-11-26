@@ -8,7 +8,7 @@ import json
 import logging
 import time
 
-from fastapi import APIRouter, Query, Request, Response
+from fastapi import APIRouter, HTTPException, Request, Response
 
 from app.dependencies import (
     enforce_rate_limit,
@@ -18,8 +18,7 @@ from app.dependencies import (
     get_plan_cache,
     get_plan_limiter,
 )
-from app.routers.air_quality import validate_optional_coords
-from app.schemas import PlanResponse, UserProfile
+from app.schemas import PlanRequest, PlanResponse, UserProfile
 from app.services.fallback_plan import generate_fallback_plan
 from app.services.impact import ProfileFacts, build_profile_facts
 
@@ -49,30 +48,35 @@ async def _prepare_profile_facts(profile: UserProfile) -> ProfileFacts:
     response_model_exclude_none=True,
 )
 async def create_plan_endpoint(
-    profile: UserProfile,
+    payload: PlanRequest,
     request: Request,
     response: Response,
-    lat: float | None = Query(default=None, ge=-90.0, le=90.0),
-    lon: float | None = Query(default=None, ge=-180.0, le=180.0),
-    prefer_coords: bool | None = Query(default=None, alias="preferCoords"),
 ) -> PlanResponse:
     """Generates a personalized clean-air plan using live AQI, Gemini, safety checks, and fallback."""
     started = time.monotonic()
     response.headers["Cache-Control"] = "no-store"
+
+    if "lat" in request.query_params or "lon" in request.query_params:
+        raise HTTPException(
+            status_code=422,
+            detail="Latitude and longitude must be sent in the JSON request body, not query parameters.",
+        )
 
     await enforce_rate_limit(
         get_plan_limiter(request),
         request,
         "Too many plan requests. Please try again shortly.",
     )
-    coords = validate_optional_coords(lat, lon)
-    use_coords = coords is not None and prefer_coords is not False
+    profile = UserProfile.model_validate(
+        payload.model_dump(exclude={"coords", "prefer_coords"})
+    )
+    use_coords = payload.coords is not None and payload.prefer_coords is not False
 
     aq_service = get_air_quality_service(request)
     http_client = get_http_client(request)
     aqi_coro = (
-        aq_service.get_air_quality_by_coords(coords[0], coords[1], http_client)
-        if use_coords and coords is not None
+        aq_service.get_air_quality_by_coords(payload.coords.lat, payload.coords.lon, http_client)
+        if use_coords and payload.coords is not None
         else aq_service.get_air_quality(profile.city, http_client)
     )
     aqi_reading, facts = await asyncio.gather(aqi_coro, _prepare_profile_facts(profile))

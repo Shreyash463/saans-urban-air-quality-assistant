@@ -91,7 +91,6 @@ export interface PlanResponse {
   generatedBy?: 'gemini' | 'rules' | null;
   fallbackReason?: FallbackReason | null;
   retryAfterSeconds?: number | null;
-  isOfflineSample?: boolean | null;
 }
 
 export interface ChatReply {

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { detectChatIntent, generateSmartMockChatReply } from '../services/mockChat';
-import { generateMockPlan } from '../services/mockPlanGenerator';
+import {
+  detectChatIntent,
+  generateSmartMockChatReply,
+} from '../../tests/fixtures/mockChat';
+import { generateMockPlan } from '../../tests/fixtures/mockPlanGenerator';
 import type { UserProfile } from '../types';
 
 const DELHI_FAMILY_PROFILE: UserProfile = {

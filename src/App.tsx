@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Header } from './components/Header';
 import { NoticeBanner } from './components/NoticeBanner';
 import { ScrollProgress } from './components/ScrollProgress';
@@ -9,14 +9,17 @@ import { useScrollProgress } from './hooks/useScrollProgress';
 import { useScrollSpy } from './hooks/useScrollSpy';
 import { useSmoothScroll } from './hooks/useSmoothScroll';
 import { useTheme } from './hooks/useTheme';
-import { getMockAirQuality } from './lib/demoCities';
 import { loadLanguageBundle, t } from './lib/i18n';
 import { PLAN_SKELETON_DELAY_MS } from './lib/motion';
-import { Dashboard } from './sections/Dashboard';
 import { Footer } from './sections/Footer';
 import { Hero } from './sections/Hero';
 import { ProfileForm } from './sections/ProfileForm';
-import { generatePlan, getAirQuality, subscribeApiFallback } from './services/api';
+import {
+  ApiRequestError,
+  generatePlan,
+  getAirQuality,
+  getAirQualityByCoords,
+} from './services/api';
 import type {
   AirQualityReading,
   Coordinates,
@@ -24,9 +27,11 @@ import type {
   UserProfile,
 } from './types';
 
+const loadDashboard = () => import('./sections/Dashboard');
 const loadSimulator = () => import('./sections/Simulator');
 const loadChat = () => import('./sections/Chat');
 
+const Dashboard = lazy(loadDashboard);
 const Simulator = lazy(loadSimulator);
 const Chat = lazy(loadChat);
 
@@ -44,9 +49,6 @@ function SectionFallback() {
 
 /**
  * Root application component for Saans — Urban Air Quality Assistant.
- * Coordinates native smooth navigation, scoped scroll-progress backdrop,
- * idle chunk prefetching, single-observer section reveals, scroll-spy, and
- * reduced motion.
  */
 export default function App() {
   const { profile, updateProfile, clearPrefs } = useLocalPrefs();
@@ -56,13 +58,35 @@ export default function App() {
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [planAnnouncement, setPlanAnnouncement] = useState('');
-  const [apiFallbackActive, setApiFallbackActive] = useState(false);
+  const [planError, setPlanError] = useState<'network' | 'rate_limit' | null>(null);
   const [infoNotice, setInfoNotice] = useState<string | null>(null);
   const [locationCoords, setLocationCoords] = useState<Coordinates | null>(null);
   const [, setLangRevision] = useState(0);
-  const [previewReading, setPreviewReading] = useState<AirQualityReading>(() =>
-    getMockAirQuality(profile.city)
+  const [previewReading, setPreviewReading] = useState<AirQualityReading | null>(null);
+  const [previewError, setPreviewError] = useState(false);
+
+  const loadPreviewReading = useCallback(
+    async (city: string, coords?: Coordinates | null) => {
+      setPreviewError(false);
+      try {
+        const reading = coords
+          ? await getAirQualityByCoords(coords.lat, coords.lon)
+          : await getAirQuality(city);
+        setPreviewReading(reading);
+      } catch {
+        setPreviewError(true);
+      }
+    },
+    []
   );
+
+  const didInitPreviewRef = useRef(false);
+
+  useEffect(() => {
+    if (didInitPreviewRef.current) return;
+    didInitPreviewRef.current = true;
+    void loadPreviewReading(profile.city, locationCoords);
+  }, [loadPreviewReading, locationCoords, profile.city]);
 
   useEffect(() => {
     if (profile.language === 'hi') {
@@ -83,14 +107,8 @@ export default function App() {
   }, [profile.language]);
 
   useEffect(() => {
-    return subscribeApiFallback((usingFallback) => {
-      setApiFallbackActive(usingFallback);
-    });
-  }, []);
-
-  // Prefetch lazy Simulator and Chat chunks during idle time to avoid scroll pop-in
-  useEffect(() => {
     const prefetch = () => {
+      void loadDashboard();
       void loadSimulator();
       void loadChat();
     };
@@ -121,10 +139,18 @@ export default function App() {
       updateProfile(nextProfile);
 
       if (plan) {
-        void generatePlan(nextProfile, locationCoords).then((localizedPlan) => {
+        try {
+          const localizedPlan = await generatePlan(nextProfile, locationCoords);
           setPlan(localizedPlan);
+          setPlanError(null);
           setPreviewReading(localizedPlan.aqi);
-        });
+        } catch (err) {
+          setPlanError(
+            err instanceof ApiRequestError && err.kind === 'rate_limit'
+              ? 'rate_limit'
+              : 'network'
+          );
+        }
       }
     };
     void switchAndLocalize();
@@ -134,6 +160,7 @@ export default function App() {
     async (submittedProfile: UserProfile) => {
       setIsGenerating(true);
       setPlanAnnouncement('');
+      setPlanError(null);
       setInfoNotice(null);
       updateProfile(submittedProfile);
 
@@ -152,12 +179,20 @@ export default function App() {
 
         setPlan(result);
         setPreviewReading(result.aqi);
+        setPreviewError(false);
         setPlanAnnouncement(t(submittedProfile.language, 'planReadyAnnouncement'));
 
         globalThis.requestAnimationFrame(() => {
           const headingEl = document.getElementById('dashboard-heading');
           headingEl?.focus({ preventScroll: true });
         });
+      } catch (err) {
+        setPlan(null);
+        setPlanError(
+          err instanceof ApiRequestError && err.kind === 'rate_limit'
+            ? 'rate_limit'
+            : 'network'
+        );
       } finally {
         setIsGenerating(false);
       }
@@ -169,20 +204,19 @@ export default function App() {
     clearPrefs();
     setLocationCoords(null);
     setPlan(null);
+    setPlanError(null);
     setPlanAnnouncement('');
-    void getAirQuality('Delhi').then(setPreviewReading);
+    void loadPreviewReading('Delhi');
     setInfoNotice(t(profile.language, 'dataClearedNotice'));
-  }, [clearPrefs, profile.language]);
+  }, [clearPrefs, loadPreviewReading, profile.language]);
 
   return (
     <div className="saans-atmosphere-shell saans-theme-surface min-h-screen text-slate-900 dark:text-slate-100 flex flex-col">
-      {/* Scroll-linked "The Air Clears As You Scroll" backdrop */}
       <div id="saans-smog-backdrop" className="saans-smog-backdrop" aria-hidden="true">
         <div className="saans-haze-layer-smog" />
         <div className="saans-haze-layer-clear" />
       </div>
 
-      {/* Top scroll progress indicator */}
       <ScrollProgress />
 
       <Header
@@ -200,26 +234,19 @@ export default function App() {
         <Hero
           language={profile.language}
           previewReading={previewReading}
+          previewError={previewError}
+          onRetryPreview={() => void loadPreviewReading(profile.city, locationCoords)}
           reducedMotion={reducedMotion}
           isDark={theme === 'dark'}
         />
 
-        {apiFallbackActive || infoNotice ? (
+        {infoNotice ? (
           <div className="max-w-6xl w-full mx-auto px-4 sm:px-6 pb-4 space-y-2">
-            {apiFallbackActive ? (
-              <NoticeBanner
-                message={t(profile.language, 'apiFallbackNotice')}
-                onDismiss={() => setApiFallbackActive(false)}
-                tone="warning"
-              />
-            ) : null}
-            {infoNotice ? (
-              <NoticeBanner
-                message={infoNotice}
-                onDismiss={() => setInfoNotice(null)}
-                tone="info"
-              />
-            ) : null}
+            <NoticeBanner
+              message={infoNotice}
+              onDismiss={() => setInfoNotice(null)}
+              tone="info"
+            />
           </div>
         ) : null}
 
@@ -229,18 +256,24 @@ export default function App() {
           onSubmitProfile={handleSubmitProfile}
           onClearData={handleClearData}
           isSubmitting={isGenerating}
-          onPreviewReadingChange={setPreviewReading}
+          onPreviewReadingChange={(reading) => {
+            setPreviewReading(reading);
+            setPreviewError(false);
+          }}
           onLocationChange={setLocationCoords}
           hasActiveLocation={locationCoords !== null}
         />
 
-        <Dashboard
-          plan={plan}
-          language={profile.language}
-          announcement={planAnnouncement}
-          isLoading={isGenerating}
-          onRetryGemini={() => void handleSubmitProfile(profile)}
-        />
+        <Suspense fallback={<SectionFallback />}>
+          <Dashboard
+            plan={plan}
+            language={profile.language}
+            announcement={planAnnouncement}
+            isLoading={isGenerating}
+            planError={planError}
+            onRetryGemini={() => void handleSubmitProfile(profile)}
+          />
+        </Suspense>
 
         <Suspense fallback={<SectionFallback />}>
           <Simulator profile={profile} />

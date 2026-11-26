@@ -1,8 +1,8 @@
 import { Loader2, MapPin } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AqiCategoryBadge } from './AqiCategoryBadge';
 import { useDebounce } from '../hooks/useDebounce';
-import { QUICK_PICK_CITIES } from '../lib/demoCities';
+import { QUICK_PICK_CITIES } from '../lib/cities';
 import { t, type TranslationKey } from '../lib/i18n';
 import { CITY_MAX_LENGTH, validateCity } from '../lib/validation';
 import { getAirQuality, getAirQualityByCoords } from '../services/api';
@@ -34,6 +34,7 @@ export function CityLocationField({
   );
 
   const debouncedCity = useDebounce(city, 300);
+  const initialMountCityRef = useRef<string | null>(city.trim().toLowerCase());
 
   useEffect(() => {
     if (hasActiveLocation) return;
@@ -42,14 +43,30 @@ export function CityLocationField({
       setCityPreview(null);
       return;
     }
+    if (
+      initialMountCityRef.current !== null &&
+      check.sanitized.toLowerCase() === initialMountCityRef.current
+    ) {
+      initialMountCityRef.current = null;
+      return;
+    }
+    initialMountCityRef.current = null;
 
     let cancelled = false;
-    getAirQuality(check.sanitized).then((reading) => {
-      if (!cancelled) {
-        setCityPreview(reading);
-        onPreviewReadingChange?.(reading);
-      }
-    });
+    getAirQuality(check.sanitized)
+      .then((reading) => {
+        if (!cancelled) {
+          setCityPreview(reading);
+          setLocationNoticeKey(null);
+          onPreviewReadingChange?.(reading);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCityPreview(null);
+          setLocationNoticeKey('cityPreviewErrorNotice');
+        }
+      });
 
     return () => {
       cancelled = true;
@@ -90,11 +107,18 @@ export function CityLocationField({
         };
         onLocationChange?.(coords);
         onCityValueChange('Your location', null);
-        void getAirQualityByCoords(coords.lat, coords.lon).then((reading) => {
-          setCityPreview(reading);
-          onPreviewReadingChange?.(reading);
-          setLocating(false);
-        });
+        void getAirQualityByCoords(coords.lat, coords.lon)
+          .then((reading) => {
+            setCityPreview(reading);
+            onPreviewReadingChange?.(reading);
+          })
+          .catch(() => {
+            setCityPreview(null);
+            setLocationNoticeKey('cityPreviewErrorNotice');
+          })
+          .finally(() => {
+            setLocating(false);
+          });
       },
       () => {
         setLocating(false);

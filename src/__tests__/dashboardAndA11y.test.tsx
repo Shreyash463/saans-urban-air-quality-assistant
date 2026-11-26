@@ -9,14 +9,14 @@ import {
   waitFor,
 } from '@testing-library/react';
 import axe from 'axe-core';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Footer } from '../sections/Footer';
 import { Hero } from '../sections/Hero';
 import { Dashboard, PlanLoadingStatus } from '../sections/Dashboard';
 import { ProfileForm } from '../sections/ProfileForm';
 import Simulator from '../sections/Simulator';
 import Chat from '../sections/Chat';
-import { generateMockPlan } from '../services/mockPlanGenerator';
+import { generateMockPlan } from '../../tests/fixtures/mockPlanGenerator';
 import type { UserProfile } from '../types';
 
 const TEST_PROFILE: UserProfile = {
@@ -45,13 +45,8 @@ async function expectNoA11yViolations(container: HTMLElement) {
 }
 
 describe('Dashboard loading stages, export actions, and axe accessibility across main sections', () => {
-  beforeEach(() => {
-    vi.stubEnv('VITE_USE_MOCK', 'true');
-  });
-
   afterEach(() => {
     cleanup();
-    vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
 

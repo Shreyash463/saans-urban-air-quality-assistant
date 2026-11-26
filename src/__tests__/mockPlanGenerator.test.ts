@@ -3,7 +3,7 @@ import {
   generateMockChatReply,
   generateMockPlan,
   getMockAirQuality,
-} from '../services/mockPlanGenerator';
+} from '../../tests/fixtures/mockPlanGenerator';
 import type { UserProfile } from '../types';
 
 const BASE_ADULT_PROFILE: UserProfile = {

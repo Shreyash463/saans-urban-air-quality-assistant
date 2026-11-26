@@ -31,6 +31,7 @@ from app.schemas import (
     UserProfile,
 )
 from app.services.fallback_plan import build_community_actions
+from app.services.gemini.budget import DailyCallBudget
 from app.services.gemini.circuit_breaker import FailureKind, ModelCircuitBreaker
 from app.services.gemini.model_selection import (
     _DEFAULT_FLASH_FALLBACKS,
@@ -71,12 +72,18 @@ class GeminiClient:
         sdk_client: Any | None = None,
         breaker: ModelCircuitBreaker | None = None,
         clock: Callable[[], float] | None = None,
+        budget: DailyCallBudget | None = None,
+        utc_clock: Callable[[], float] | None = None,
     ) -> None:
         self._settings = settings
         self._api_key = settings.effective_gemini_api_key
         self._client = sdk_client
         self._clock = clock or time.monotonic
         self._breaker = breaker or ModelCircuitBreaker(clock=self._clock)
+        self._budget = budget or DailyCallBudget(
+            daily_limit=settings.gemini_daily_call_budget,
+            utc_clock=utc_clock,
+        )
         self._model_chain: list[str] = []
         self._selected_model: str | None = None
         self._discovery_lock = asyncio.Lock()
@@ -91,10 +98,7 @@ class GeminiClient:
         configured = settings.effective_gemini_model
         if configured:
             self._selected_model = configured
-            self._model_chain = [
-                configured,
-                *[m for m in _DEFAULT_FLASH_FALLBACKS if m != configured],
-            ]
+            self._model_chain = [configured]
 
     @property
     def is_configured(self) -> bool:
@@ -112,6 +116,14 @@ class GeminiClient:
     @property
     def circuit_breaker(self) -> ModelCircuitBreaker:
         return self._breaker
+
+    @property
+    def remaining_daily_budget(self) -> int:
+        return self._budget.remaining
+
+    @property
+    def daily_budget_limit(self) -> int:
+        return self._budget.limit
 
     async def initialize_models(self) -> None:
         """Discovers current flash models with bounded timeout; never fails startup."""
@@ -132,7 +144,10 @@ class GeminiClient:
                 discovered: list[Any] = []
                 async for item in pager:
                     discovered.append(item)
-                ranked = select_best_flash_models(discovered)
+                ranked = select_best_flash_models(
+                    discovered,
+                    priority=self._settings.parsed_model_priority,
+                )
                 if ranked:
                     self._selected_model = ranked[0]
                     self._model_chain = ranked[:6] + [
@@ -228,6 +243,9 @@ class GeminiClient:
         """Generates a plan or returns an explicit (None, fallback_reason, retry_after_seconds)."""
         if not self._client:
             return None, "no_key", None
+        if not self._budget.can_spend():
+            logger.warning("Gemini daily call budget exhausted; serving rule-based fallback.")
+            return None, "ai_busy", self._budget.seconds_until_reset()
         if not self._model_chain:
             await self.initialize_models()
 
@@ -306,6 +324,9 @@ class GeminiClient:
             if remaining <= 1.0:
                 return None, "abort"
             try:
+                if not self._budget.can_spend():
+                    return None, "rate_limit"
+                self._budget.record_call()
                 config = self._build_plan_config(model_name, drop_schema, use_thinking)
                 response = await asyncio.wait_for(
                     client.aio.models.generate_content(
@@ -379,6 +400,8 @@ class GeminiClient:
             return ChatReply(answer=build_injection_refusal(profile.language))
         if not self._client:
             return None
+        if not self._budget.can_spend():
+            return None
         if not self._model_chain:
             await self.initialize_models()
 
@@ -435,6 +458,9 @@ class GeminiClient:
                     if tc is not None:
                         config_kwargs["thinking_config"] = tc
 
+                if not self._budget.can_spend():
+                    return None, True
+                self._budget.record_call()
                 response = await asyncio.wait_for(
                     client.aio.models.generate_content(
                         model=model_name,

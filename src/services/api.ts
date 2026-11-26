@@ -1,19 +1,14 @@
 /**
  * ============================================================================
- * Saans API Layer — Single Network Boundary
+ * Saans API Layer — Single Network Boundary (No In-Browser Fake Data)
  * ============================================================================
- * This is the ONLY file in the frontend that performs network requests.
- *
- * Resilience & Security:
- * - Enforces explicit AbortController timeouts for plan, chat, and AQI calls.
- * - Sanitizes all user inputs before dispatch.
- * - Dynamically imports deterministic mock generators only when forced or offline
- *   so the initial JS bundle stays lean.
- * - Never persists or logs geolocation coordinates.
+ * All plan, chat, and air-quality responses come strictly from the backend.
+ * Network errors, timeouts, rate limits, and invalid payloads throw a typed
+ * ApiRequestError so the UI displays an honest, accessible retry state.
+ * Coordinates are sent exclusively inside POST JSON bodies (never query URLs).
  * ============================================================================
  */
 
-import { getMockAirQuality } from '../lib/demoCities';
 import {
   isAirQualityReading,
   isChatReply,
@@ -32,17 +27,20 @@ import type {
 
 export const REQUEST_TIMEOUT_MS = 35_000;
 export const AIR_QUALITY_TIMEOUT_MS = 12_000;
-const APPROX_LOCATION_LABEL = 'Your location (approx.)';
 
-/**
- * Returns true only when VITE_USE_MOCK="true" is explicitly configured.
- */
-export function isMockForced(): boolean {
-  const raw =
-    typeof import.meta !== 'undefined' && import.meta.env
-      ? ((import.meta.env.VITE_USE_MOCK as string | undefined) ?? '')
-      : '';
-  return raw.trim().toLowerCase() === 'true';
+export type ApiErrorKind =
+  'network' | 'timeout' | 'http' | 'rate_limit' | 'invalid_payload';
+
+export class ApiRequestError extends Error {
+  readonly kind: ApiErrorKind;
+  readonly status?: number;
+
+  constructor(kind: ApiErrorKind, message: string, status?: number) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.kind = kind;
+    this.status = status;
+  }
 }
 
 /**
@@ -57,26 +55,6 @@ export function getApiBaseUrl(): string {
   return raw.trim().replace(/\/+$/, '');
 }
 
-type FallbackListener = (usingFallback: boolean) => void;
-const fallbackListeners = new Set<FallbackListener>();
-
-/**
- * Registers a UI listener notified whenever a live API request falls back
- * to the deterministic mock due to network, timeout, HTTP, or schema errors.
- */
-export function subscribeApiFallback(listener: FallbackListener): () => void {
-  fallbackListeners.add(listener);
-  return () => {
-    fallbackListeners.delete(listener);
-  };
-}
-
-function notifyFallback(usingFallback: boolean): void {
-  for (const listener of fallbackListeners) {
-    listener(usingFallback);
-  }
-}
-
 function buildApiUrl(path: string): string {
   const base = getApiBaseUrl();
   return base ? `${base}${path}` : path;
@@ -85,80 +63,84 @@ function buildApiUrl(path: string): string {
 async function fetchJsonWithTimeout(
   url: string,
   init: RequestInit,
-  timeoutMs: number = REQUEST_TIMEOUT_MS
+  timeoutMs: number
 ): Promise<unknown> {
   const controller = new AbortController();
   const timeoutId = globalThis.setTimeout(() => controller.abort(), timeoutMs);
 
+  let response: Response;
   try {
-    const response = await fetch(url, {
+    response = await fetch(url, {
       ...init,
       signal: controller.signal,
       headers: {
-        Accept: 'application/json',
-        ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+        'Content-Type': 'application/json',
         ...(init.headers ?? {}),
       },
     });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    return (await response.json()) as unknown;
-  } finally {
+  } catch (err) {
     globalThis.clearTimeout(timeoutId);
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new ApiRequestError('timeout', 'Request timed out');
+    }
+    throw new ApiRequestError('network', 'Network request failed');
   }
+
+  globalThis.clearTimeout(timeoutId);
+
+  if (!response.ok) {
+    if (response.status === 429) {
+      throw new ApiRequestError('rate_limit', 'Rate limit exceeded', 429);
+    }
+    throw new ApiRequestError('http', `HTTP ${response.status}`, response.status);
+  }
+
+  try {
+    return (await response.json()) as unknown;
+  } catch {
+    throw new ApiRequestError('invalid_payload', 'Invalid JSON response');
+  }
+}
+
+function roundCoords(coords: Coordinates): Coordinates {
+  return {
+    lat: Number(coords.lat.toFixed(4)),
+    lon: Number(coords.lon.toFixed(4)),
+  };
 }
 
 /**
  * Generates a personalized clean-air plan for the given household profile.
- * Optionally passes ephemeral geolocation coordinates via query parameters
- * without ever storing them in the profile or browser storage.
+ * Passes ephemeral coordinates inside the JSON body rather than query strings.
  */
 export async function generatePlan(
   profile: UserProfile,
   coords?: Coordinates | null
 ): Promise<PlanResponse> {
   const cleanProfile = sanitizeUserProfile(profile);
+  const hasValidCoords =
+    coords !== null &&
+    coords !== undefined &&
+    Number.isFinite(coords.lat) &&
+    Number.isFinite(coords.lon);
 
-  if (isMockForced()) {
-    notifyFallback(false);
-    const { generateMockPlan } = await import('./mockPlanGenerator');
-    const mock = { ...generateMockPlan(cleanProfile), isOfflineSample: true };
-    return coords
-      ? { ...mock, aqi: { ...mock.aqi, city: APPROX_LOCATION_LABEL } }
-      : mock;
+  const body = hasValidCoords
+    ? { ...cleanProfile, coords: roundCoords(coords), preferCoords: true }
+    : cleanProfile;
+
+  const payload = await fetchJsonWithTimeout(
+    buildApiUrl('/api/plan'),
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+    REQUEST_TIMEOUT_MS
+  );
+
+  if (!isPlanResponse(payload)) {
+    throw new ApiRequestError('invalid_payload', 'Invalid PlanResponse payload');
   }
-
-  try {
-    const path =
-      coords && Number.isFinite(coords.lat) && Number.isFinite(coords.lon)
-        ? `/api/plan?lat=${encodeURIComponent(coords.lat.toFixed(4))}&lon=${encodeURIComponent(coords.lon.toFixed(4))}`
-        : '/api/plan';
-    const payload = await fetchJsonWithTimeout(
-      buildApiUrl(path),
-      {
-        method: 'POST',
-        body: JSON.stringify(cleanProfile),
-      },
-      REQUEST_TIMEOUT_MS
-    );
-
-    if (!isPlanResponse(payload)) {
-      throw new Error('Invalid PlanResponse payload');
-    }
-
-    notifyFallback(false);
-    return payload;
-  } catch {
-    notifyFallback(true);
-    const { generateMockPlan } = await import('./mockPlanGenerator');
-    const mock = { ...generateMockPlan(cleanProfile), isOfflineSample: true };
-    return coords
-      ? { ...mock, aqi: { ...mock.aqi, city: APPROX_LOCATION_LABEL } }
-      : mock;
-  }
+  return payload;
 }
 
 /**
@@ -172,100 +154,62 @@ export async function askFollowUp(
   const cleanQuestion = sanitizeChatQuestion(question);
   const cleanProfile = sanitizeUserProfile(profile);
 
-  if (isMockForced()) {
-    notifyFallback(false);
-    const { generateMockChatReply } = await import('./mockPlanGenerator');
-    return generateMockChatReply(cleanQuestion, cleanProfile, plan);
+  const payload = await fetchJsonWithTimeout(
+    buildApiUrl('/api/chat'),
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        question: cleanQuestion,
+        profile: cleanProfile,
+        plan,
+      }),
+    },
+    REQUEST_TIMEOUT_MS
+  );
+
+  if (!isChatReply(payload)) {
+    throw new ApiRequestError('invalid_payload', 'Invalid ChatReply payload');
   }
-
-  try {
-    const payload = await fetchJsonWithTimeout(
-      buildApiUrl('/api/chat'),
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          question: cleanQuestion,
-          profile: cleanProfile,
-          plan,
-        }),
-      },
-      REQUEST_TIMEOUT_MS
-    );
-
-    if (!isChatReply(payload)) {
-      throw new Error('Invalid ChatReply payload');
-    }
-
-    notifyFallback(false);
-    return payload;
-  } catch {
-    notifyFallback(true);
-    const { generateMockChatReply } = await import('./mockPlanGenerator');
-    return generateMockChatReply(cleanQuestion, cleanProfile, plan);
-  }
+  return payload;
 }
 
 /**
- * Fetches the current air quality reading for a city.
+ * Fetches live air quality for a city via GET /api/air-quality.
  */
 export async function getAirQuality(city: string): Promise<AirQualityReading> {
   const cleanCity = sanitizeCity(city) || 'Delhi';
+  const url = buildApiUrl(`/api/air-quality?city=${encodeURIComponent(cleanCity)}`);
+  const payload = await fetchJsonWithTimeout(
+    url,
+    { method: 'GET' },
+    AIR_QUALITY_TIMEOUT_MS
+  );
 
-  if (isMockForced()) {
-    notifyFallback(false);
-    return getMockAirQuality(cleanCity);
+  if (!isAirQualityReading(payload)) {
+    throw new ApiRequestError('invalid_payload', 'Invalid AirQualityReading payload');
   }
-
-  try {
-    const url = buildApiUrl(`/api/air-quality?city=${encodeURIComponent(cleanCity)}`);
-    const payload = await fetchJsonWithTimeout(
-      url,
-      { method: 'GET' },
-      AIR_QUALITY_TIMEOUT_MS
-    );
-
-    if (!isAirQualityReading(payload)) {
-      throw new Error('Invalid AirQualityReading payload');
-    }
-
-    notifyFallback(false);
-    return payload;
-  } catch {
-    notifyFallback(true);
-    return getMockAirQuality(cleanCity);
-  }
+  return payload;
 }
 
 /**
- * Fetches live air quality directly for ephemeral geolocation coordinates.
+ * Fetches live air quality for ephemeral coordinates via POST /api/air-quality body
+ * so latitude and longitude never appear in URL query strings or access logs.
  */
 export async function getAirQualityByCoords(
   lat: number,
   lon: number
 ): Promise<AirQualityReading> {
-  if (isMockForced()) {
-    notifyFallback(false);
-    return { ...getMockAirQuality('Delhi'), city: APPROX_LOCATION_LABEL };
+  const payload = await fetchJsonWithTimeout(
+    buildApiUrl('/api/air-quality'),
+    {
+      method: 'POST',
+      body: JSON.stringify(roundCoords({ lat, lon })),
+    },
+    AIR_QUALITY_TIMEOUT_MS
+  );
+
+  if (!isAirQualityReading(payload)) {
+    throw new ApiRequestError('invalid_payload', 'Invalid AirQualityReading payload');
   }
-
-  try {
-    const url = buildApiUrl(
-      `/api/air-quality?lat=${encodeURIComponent(lat.toFixed(4))}&lon=${encodeURIComponent(lon.toFixed(4))}`
-    );
-    const payload = await fetchJsonWithTimeout(
-      url,
-      { method: 'GET' },
-      AIR_QUALITY_TIMEOUT_MS
-    );
-
-    if (!isAirQualityReading(payload)) {
-      throw new Error('Invalid AirQualityReading payload');
-    }
-
-    notifyFallback(false);
-    return payload;
-  } catch {
-    notifyFallback(true);
-    return { ...getMockAirQuality('Delhi'), city: APPROX_LOCATION_LABEL };
-  }
+  return payload;
 }

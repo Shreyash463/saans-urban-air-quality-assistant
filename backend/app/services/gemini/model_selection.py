@@ -15,11 +15,12 @@ from app.services.gemini.circuit_breaker import FailureKind
 logger = logging.getLogger(__name__)
 
 _DEFAULT_FLASH_FALLBACKS: tuple[str, ...] = (
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
     "gemini-3.6-flash",
-    "gemini-3.5-flash",
     "gemini-3.8-flash",
     "gemini-3.7-flash",
-    "gemini-3.5-flash-lite",
+    "gemini-3.5-flash",
 )
 
 _EXCLUDED_MODEL_MARKERS = (
@@ -38,21 +39,24 @@ _EXCLUDED_MODEL_MARKERS = (
 _VERSION_RE = re.compile(r"(\d+(?:\.\d+)?)")
 
 
-def _model_rank_key(model_name: str) -> tuple[tuple[int, ...], int, int, str]:
-    """Ranks flash models so newest stable non-lite flash sorts highest."""
+def _model_rank_key(model_name: str) -> tuple[int, tuple[int, ...], int, str]:
+    """Ranks flash models so Flash-Lite (highest free-tier quota) and newest stable sort highest."""
     lower = model_name.lower()
     nums: list[int] = []
     for match in _VERSION_RE.findall(lower):
         for part in match.split("."):
             nums.append(int(part))
     version_tuple = tuple(nums) if nums else (0,)
-    is_non_lite = 0 if "lite" in lower else 1
+    is_lite = 1 if "lite" in lower else 0
     is_stable = 0 if any(tag in lower for tag in ("preview", "exp", "experimental")) else 1
-    return (version_tuple, is_non_lite, is_stable, lower)
+    return (is_lite, version_tuple, is_stable, lower)
 
 
-def select_best_flash_models(models: list[Any]) -> list[str]:
-    """Selects and orders flash-class models supporting generateContent."""
+def select_best_flash_models(
+    models: list[Any],
+    priority: list[str] | None = None,
+) -> list[str]:
+    """Selects and orders flash-class models supporting generateContent, Flash-Lite first."""
     candidates: list[str] = []
     for model in models:
         raw_name = getattr(model, "name", None)
@@ -71,7 +75,15 @@ def select_best_flash_models(models: list[Any]) -> list[str]:
 
     unique = list(dict.fromkeys(candidates))
     unique.sort(key=_model_rank_key, reverse=True)
-    return unique
+    if not priority:
+        return unique
+    priority_index = {name.lower(): idx for idx, name in enumerate(priority)}
+    prioritized = sorted(
+        [m for m in unique if m.lower() in priority_index],
+        key=lambda m: priority_index[m.lower()],
+    )
+    remainder = [m for m in unique if m.lower() not in priority_index]
+    return [*prioritized, *remainder]
 
 
 def thinking_config_for_model(model_name: str) -> types.ThinkingConfig | None:

@@ -111,10 +111,15 @@ export const HINDI_TRANSLATIONS: TranslationDictionary = {
     'पहले अनुरोध पर सर्वर शुरू होने में 15–30 सेकंड लग सकते हैं — कृपया प्रतीक्षा करें।',
   generatedByGemini: 'Gemini द्वारा तैयार',
   generatedByRules: 'नियम-आधारित फ़ॉलबैक',
-  generatedByOfflineSample: 'ऑफ़लाइन नमूना योजना',
-  offlineSampleNotice:
-    'हम सर्वर से जुड़ नहीं सके, इसलिए यह लाइव डेटा नहीं बल्कि एक ऑफ़लाइन नमूना है।',
-  offlineSampleRetryButton: 'फिर से कोशिश करें',
+  heroLoadingAqi: 'लाइव वायु गुणवत्ता ला रहे हैं...',
+  heroErrorAqi: 'लाइव वायु गुणवत्ता अस्थायी रूप से उपलब्ध नहीं है।',
+  planErrorHeading: 'सांस सर्वर से संपर्क नहीं हो सका',
+  planErrorBody:
+    'नेटवर्क समस्या, टाइमआउट या अमान्य सर्वर उत्तर के कारण अभी लाइव स्वच्छ-वायु योजना प्राप्त नहीं हो सकी। कोई नमूना डेटा नहीं दिखाया जा रहा है।',
+  planRateLimitBody:
+    'अभी बहुत अधिक योजना अनुरोध हैं। कृपया एक मिनट प्रतीक्षा करें और पुनः प्रयास करें।',
+  tryAgainButton: 'फिर से कोशिश करें',
+  cityPreviewErrorNotice: 'इस शहर के लिए लाइव वायु गुणवत्ता अभी उपलब्ध नहीं है।',
   aiBusyNotice:
     'जेमिनी अभी व्यस्त है, इसलिए यह नियम-आधारित योजना है। आप {seconds} सेकंड बाद फिर प्रयास कर सकते हैं।',
   aiBusyReadyNotice:
@@ -217,11 +222,9 @@ export const HINDI_TRANSLATIONS: TranslationDictionary = {
   chatTypingSr: 'सांस उत्तर तैयार कर रहा है',
   chatEmptyState:
     'अपनी पारिवारिक प्रोफ़ाइल के आधार पर सलाह पाने के लिए सुझाया गया प्रश्न चुनें या अपना सवाल लिखें।',
+  chatNeedPlanFirst:
+    'लाइव वायु-गुणवत्ता डेटा के आधार पर उत्तर पाने के लिए पहले ऊपर अपनी योजना बनाएं।',
   chatErrorFallback: 'अभी सहायक से संपर्क नहीं हो सका। कृपया कुछ क्षण बाद पुनः प्रयास करें।',
-
-  // Fallback notice
-  apiFallbackNotice:
-    'लाइव बैकएंड अभी उपलब्ध नहीं है—अंतर्निहित सांस डेमो मार्गदर्शन दिखाया जा रहा है।',
 
   // Footer
   footerAboutHeading: 'सांस के बारे में',

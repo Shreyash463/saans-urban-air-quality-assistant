@@ -1,5 +1,5 @@
-import { getAqiCategory } from '../lib/aqi';
-import type { ChatReply, PlanResponse, UserProfile } from '../types';
+import { getAqiCategory } from '../../src/lib/aqi';
+import type { ChatReply, PlanResponse, UserProfile } from '../../src/types';
 
 export type ChatIntent =
   | 'greeting'

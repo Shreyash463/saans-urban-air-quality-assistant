@@ -151,7 +151,7 @@ async def test_circuit_breaker_skips_failing_models_and_exposes_healthy_model_in
         async def generate_content(self, **kwargs: Any) -> Any:
             model = kwargs["model"]
             calls.append(model)
-            if model == "gemini-3.8-flash":
+            if model == "gemini-3.5-flash-lite":
                 raise _FakeErr("Service Unavailable", 503)
             usage = type("U", (), {"prompt_token_count": 320, "candidates_token_count": 410, "thoughts_token_count": 12, "total_token_count": 742})()
             return type("Resp", (), {"text": json.dumps(compact_narrative), "usage_metadata": usage})()
@@ -169,7 +169,7 @@ async def test_circuit_breaker_skips_failing_models_and_exposes_healthy_model_in
 
     with TestClient(app) as tc:
         health_before = tc.get("/api/health").json()
-        assert health_before["selectedModel"] == "gemini-3.8-flash"
+        assert health_before["selectedModel"] == "gemini-3.5-flash-lite"
         assert health_before["commitSha"] == "dev"
 
         plan = await client.generate_plan(_sample_profile(), _sample_reading())
@@ -179,10 +179,10 @@ async def test_circuit_breaker_skips_failing_models_and_exposes_healthy_model_in
 
         plan2 = await client.generate_plan(_sample_profile(), _sample_reading())
         assert plan2 is not None
-        assert calls == ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.5-flash-lite"]
+        assert calls == ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-3.8-flash"]
 
         health_after = tc.get("/api/health").json()
-        assert health_after["selectedModel"] == "gemini-3.5-flash-lite"
+        assert health_after["selectedModel"] == "gemini-3.8-flash"
 
 
 @pytest.mark.asyncio
@@ -305,29 +305,36 @@ async def test_air_quality_coords_endpoint_and_in_flight_coalescing(
     client: TestClient,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    with caplog.at_level(logging.INFO, logger="app"):
-        r = client.get("/api/air-quality?lat=28.6139&lon=77.2090")
+    with caplog.at_level(logging.INFO):
+        r = client.post("/api/air-quality", json={"lat": 28.6139, "lon": 77.2090})
     assert r.status_code == 200
     data = r.json()
     assert data["city"] == APPROX_LOCATION_LABEL
     assert data["source"] == "live"
-    assert "max-age=" in r.headers.get("cache-control", "")
-    app_logs = "\n".join(rec.getMessage() for rec in caplog.records if not rec.name.startswith("httpx"))
+    assert r.headers.get("cache-control") == "no-store"
+    app_logs = "\n".join(rec.getMessage() for rec in caplog.records)
     assert "28.6139" not in app_logs
     assert "77.209" not in app_logs
 
-    assert client.get("/api/air-quality?lat=28.61").status_code == 422
+    # Query-string coordinates must be rejected for privacy
+    assert client.get("/api/air-quality?lat=28.6139&lon=77.2090").status_code == 422
+    assert client.post("/api/air-quality", json={"lat": 28.61}).status_code == 422
 
-    # Plan endpoint accepts paired coordinates cleanly without leaking to logs
+    # Plan endpoint accepts paired coordinates in JSON body cleanly without leaking to logs
     prof = _sample_profile().model_dump(by_alias=True)
     caplog.clear()
-    with caplog.at_level(logging.INFO, logger="app"):
-        pr = client.post("/api/plan?lat=28.6139&lon=77.2090", json=prof)
+    with caplog.at_level(logging.INFO):
+        pr = client.post(
+            "/api/plan",
+            json={**prof, "coords": {"lat": 28.6139, "lon": 77.2090}},
+        )
     assert pr.status_code == 200
     assert pr.json()["aqi"]["city"] == APPROX_LOCATION_LABEL
     assert pr.headers.get("cache-control") == "no-store"
-    plan_app_logs = "\n".join(rec.getMessage() for rec in caplog.records if not rec.name.startswith("httpx"))
+    plan_app_logs = "\n".join(rec.getMessage() for rec in caplog.records)
     assert "28.6139" not in plan_app_logs
+    assert "77.209" not in plan_app_logs
+    assert client.post("/api/plan?lat=28.6139&lon=77.2090", json=prof).status_code == 422
 
     calls = 0
 
@@ -543,14 +550,14 @@ async def test_fallback_plans_do_not_stick_and_breaker_recovery_calls_gemini(tmp
         async def generate_content(self, **_kwargs: Any) -> Any:
             nonlocal gemini_calls
             gemini_calls += 1
-            if gemini_calls <= 5:
+            if gemini_calls <= 6:
                 raise _Err429("RESOURCE_EXHAUSTED", details={"retryDelay": "42s"})
             return type("Resp", (), {"text": json.dumps(compact_narrative)})()
 
     sdk = type("Sdk", (), {"aio": type("Aio", (), {"models": _ToggleModels()})()})()
     breaker = ModelCircuitBreaker(clock=lambda: now)
     client = GeminiClient(
-        Settings(gemini_api_key="test-key", gemini_model="gemini-3.8-flash"),
+        Settings(gemini_api_key="test-key"),
         sdk_client=sdk,
         breaker=breaker,
         clock=lambda: now,
@@ -638,7 +645,10 @@ def test_plan_prefer_coords_false_uses_city_and_offline_sample_chat_omits_sample
 
     pune_profile = _sample_profile().model_copy(update={"city": "Pune"})
     prof = pune_profile.model_dump(by_alias=True)
-    res = client.post("/api/plan?lat=28.6139&lon=77.2090&preferCoords=false", json=prof)
+    res = client.post(
+        "/api/plan",
+        json={**prof, "coords": {"lat": 28.6139, "lon": 77.2090}, "preferCoords": False},
+    )
     assert res.status_code == 200
     body = res.json()
     # Mocked geocoder returns city name ("Delhi") rather than APPROX_LOCATION_LABEL

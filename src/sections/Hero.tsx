@@ -11,7 +11,9 @@ const SmogCanvas = lazy(() => import('../components/SmogCanvas'));
 
 interface HeroProps {
   language: LanguageCode;
-  previewReading: AirQualityReading;
+  previewReading: AirQualityReading | null;
+  previewError?: boolean;
+  onRetryPreview?: () => void;
   reducedMotion: boolean;
   isDark: boolean;
 }
@@ -21,7 +23,14 @@ interface HeroProps {
  * under reduced motion), accessible word-by-word H1 entrance, sweeping CPCB AQI
  * gauge, and scroll-drawn 3-step "How it works" connector.
  */
-export function Hero({ language, previewReading, reducedMotion, isDark }: HeroProps) {
+export function Hero({
+  language,
+  previewReading,
+  previewError = false,
+  onRetryPreview,
+  reducedMotion,
+  isDark,
+}: HeroProps) {
   const titleText = t(language, 'heroTitle');
   const promiseText = t(language, 'heroPromise');
   const promiseWords = promiseText.split(' ');
@@ -45,7 +54,9 @@ export function Hero({ language, previewReading, reducedMotion, isDark }: HeroPr
     },
   ];
 
-  const gaugeCaption = `${t(language, 'dominantPollutantLabel')}: ${previewReading.dominantPollutant}`;
+  const gaugeCaption = previewReading
+    ? `${t(language, 'dominantPollutantLabel')}: ${previewReading.dominantPollutant}`
+    : '';
 
   return (
     <section
@@ -146,24 +157,50 @@ export function Hero({ language, previewReading, reducedMotion, isDark }: HeroPr
           {/* Right column: Focal sweeping SVG AQI Gauge card */}
           <div className="lg:col-span-5 flex justify-center lg:justify-end">
             <div className="saans-theme-surface w-full max-w-sm rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-[#131C2E]/95 p-6 sm:p-7 shadow-sm">
-              <div className="min-h-[36px] flex items-center justify-between gap-2 mb-3">
-                {previewReading.source === 'demo' ? (
-                  <DemoReadingInfo language={language} />
-                ) : (
-                  <span className="text-sm font-medium text-teal-800 dark:text-teal-300 leading-snug">
-                    {formatAqiSourceLabel(previewReading, language)}
-                  </span>
-                )}
-              </div>
+              {previewReading ? (
+                <>
+                  <div className="min-h-[36px] flex items-center justify-between gap-2 mb-3">
+                    {previewReading.source === 'demo' ? (
+                      <DemoReadingInfo language={language} />
+                    ) : (
+                      <span className="text-sm font-medium text-teal-800 dark:text-teal-300 leading-snug">
+                        {formatAqiSourceLabel(previewReading, language)}
+                      </span>
+                    )}
+                  </div>
 
-              <AqiGauge
-                aqi={previewReading.aqi}
-                city={previewReading.city}
-                language={language}
-                size="hero"
-                caption={gaugeCaption}
-                animateOnMount
-              />
+                  <AqiGauge
+                    aqi={previewReading.aqi}
+                    city={previewReading.city}
+                    language={language}
+                    size="hero"
+                    caption={gaugeCaption}
+                    animateOnMount
+                  />
+                </>
+              ) : previewError ? (
+                <div role="status" className="py-8 text-center space-y-3">
+                  <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                    {t(language, 'heroErrorAqi')}
+                  </p>
+                  {onRetryPreview ? (
+                    <button
+                      type="button"
+                      onClick={onRetryPreview}
+                      className="min-h-[44px] px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-semibold text-slate-800 dark:text-slate-100 hover:border-teal-600 cursor-pointer"
+                    >
+                      {t(language, 'tryAgainButton')}
+                    </button>
+                  ) : null}
+                </div>
+              ) : (
+                <div role="status" aria-live="polite" className="py-10 space-y-4">
+                  <div className="saans-skeleton h-32 w-32 mx-auto rounded-full bg-slate-200/80 dark:bg-slate-800/80" />
+                  <p className="text-center text-sm font-medium text-slate-600 dark:text-slate-300">
+                    {t(language, 'heroLoadingAqi')}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

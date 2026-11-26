@@ -4,7 +4,7 @@ import {
   formatAqiTimestampIst,
   formatPlanAsText,
 } from '../lib/planExport';
-import { generateMockPlan } from '../services/mockPlanGenerator';
+import { generateMockPlan } from '../../tests/fixtures/mockPlanGenerator';
 import type { UserProfile } from '../types';
 
 const PROFILE: UserProfile = {
