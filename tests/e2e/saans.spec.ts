@@ -573,4 +573,157 @@ test.describe('Saans end-to-end user workflows and accessibility', () => {
     );
     await expect(page.getByTestId('plan-error-state')).toHaveCount(0);
   });
+
+  test('Hindi full journey with validation, rate-limit 429 retry recovery, and persistence', async ({
+    page,
+  }) => {
+    let hit429Once = true;
+    await page.route('**/api/air-quality**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          city: 'Delhi',
+          aqi: 342,
+          dominantPollutant: 'PM2.5',
+          updatedAt: '2026-11-26T15:00:00+05:30',
+          source: 'live',
+          sourceDetail: 'Open-Meteo, PM-based CPCB estimate',
+        }),
+      });
+    });
+
+    await page.route('**/api/plan**', async (route) => {
+      if (hit429Once) {
+        hit429Once = false;
+        await route.fulfill({
+          status: 429,
+          headers: { 'Retry-After': '5' },
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Rate limit exceeded.' }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          aqi: {
+            city: 'Delhi',
+            aqi: 342,
+            dominantPollutant: 'PM2.5',
+            updatedAt: '2026-11-26T15:00:00+05:30',
+            source: 'live',
+          },
+          summary: 'दिल्ली के लिए आपकी व्यक्तिगत स्वच्छ वायु योजना।',
+          healthAdvisory: 'बहुत खराब वायु गुणवत्ता। यह चिकित्सीय सलाह नहीं है।',
+          routine: [
+            {
+              timeSlot: 'morning',
+              title: 'सुबह',
+              detail: 'खिड़कियां बंद रखें।',
+              impactNote: 'पीएम 2.5 रोकें',
+            },
+            {
+              timeSlot: 'midday',
+              title: 'दोपहर',
+              detail: 'दोपहर वेंटिलेशन।',
+              impactNote: 'हवा ताज़ा करें',
+            },
+            {
+              timeSlot: 'evening',
+              title: 'शाम',
+              detail: 'एग्जॉस्ट चलाएं।',
+              impactNote: 'धुआं निकालें',
+            },
+            {
+              timeSlot: 'night',
+              title: 'रात',
+              detail: 'अंदर रहें।',
+              impactNote: 'सुरक्षित नींद',
+            },
+          ],
+          indoorHacks: [
+            {
+              title: 'गीला पोंछा',
+              howTo: 'रोज़ गीला पोंछा लगाएं।',
+              estimatedBenefit: 'कम धूल',
+              costLevel: 'free',
+            },
+          ],
+          alternatives: [
+            {
+              current: 'कार',
+              swap: 'मेट्रो उपयोग करें',
+              why: 'कम उत्सर्जन',
+              pm25ReductionPct: 24,
+              co2SavedKgPerMonth: 45,
+            },
+          ],
+          maskGuidance: 'बाहर जाने पर फिटेड N95 पहनें।',
+          disclaimer: 'यह चिकित्सीय सलाह नहीं है।',
+          generatedBy: 'gemini',
+        }),
+      });
+    });
+
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'हिन्दी' }).first().click();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'hi');
+
+    await page.locator('#saans-city-input').fill('');
+    await page.getByRole('button', { name: 'मेरी स्वच्छ-वायु योजना बनाएं' }).click();
+    await expect(page.locator('#saans-city-error')).toBeVisible();
+
+    await page.locator('#saans-city-input').fill('Delhi');
+    await page.getByRole('button', { name: 'मेरी स्वच्छ-वायु योजना बनाएं' }).click();
+    await expect(page.getByTestId('plan-error-state')).toBeVisible();
+
+    await page
+      .getByTestId('plan-error-state')
+      .getByRole('button', { name: 'फिर से कोशिश करें' })
+      .click();
+    await expect(page.getByTestId('plan-generator-badge')).toBeVisible();
+    await expect(page.locator('#dashboard')).toContainText(
+      'दिल्ली के लिए आपकी व्यक्तिगत स्वच्छ वायु योजना'
+    );
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.locator('#saans-city-input')).toHaveValue('Delhi');
+  });
+
+  test('geolocation denied shows honest notice cleanly without crashing', async ({
+    page,
+  }) => {
+    await page.route('**/api/air-quality**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          city: 'Delhi',
+          aqi: 342,
+          dominantPollutant: 'PM2.5',
+          updatedAt: '2026-11-26T15:00:00+05:30',
+          source: 'live',
+        }),
+      });
+    });
+
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'geolocation', {
+        configurable: true,
+        value: {
+          getCurrentPosition: (_ok: PositionCallback, err: PositionErrorCallback) => {
+            err({ code: 1, message: 'Permission denied' } as GeolocationPositionError);
+          },
+        },
+      });
+    });
+
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: /Use my location/i }).click();
+    await expect(page.locator('#profile')).toContainText(
+      /Location permission declined/i
+    );
+  });
 });

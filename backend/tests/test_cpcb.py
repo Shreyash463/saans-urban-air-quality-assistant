@@ -87,3 +87,12 @@ def test_cpcb_category_boundaries() -> None:
     assert get_aqi_category(201).key == "poor"
     assert get_aqi_category(301).key == "very_poor"
     assert get_aqi_category(401).key == "severe"
+
+
+def test_cpcb_single_pollutant_tiebreak_and_negative_filtering() -> None:
+    assert compute_cpcb_aqi_from_means(30.0, None) == (50, "PM2.5")
+    assert compute_cpcb_aqi_from_means(None, 100.0) == (100, "PM10")
+    assert compute_cpcb_aqi_from_means(30.0, 50.0) == (50, "PM2.5")
+
+    assert compute_cpcb_aqi_from_hourly([50.0] * 11, [100.0] * 12) == (100, "PM10")
+    assert compute_cpcb_aqi_from_hourly([-1.0] * 12 + [30.0] * 12, [None] * 24) == (50, "PM2.5")

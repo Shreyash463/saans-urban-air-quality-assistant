@@ -9,7 +9,7 @@ export default defineConfig({
       include: ['src/lib/**/*.ts', 'src/services/**/*.ts', 'src/hooks/**/*.ts'],
       reporter: ['text', 'lcov'],
       thresholds: {
-        lines: 80,
+        lines: 90,
       },
     },
   },

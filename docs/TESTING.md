@@ -11,16 +11,19 @@ Saans validates behavior across four layers—pure contract math, React/TypeScri
 
 2. **Frontend Unit & Component Accessibility (`Vitest` + `axe-core`)**
    - Location: `src/__tests__/`
-   - Covers API error propagation & timeouts, CPCB mapping, impact math, locale parity, validation boundaries, hooks (`useDebounce`, `useLocalPrefs`, `useReducedMotion`, `useSmoothScroll`), export formatting, and automated `axe-core` sweeps on all sections.
+   - Coverage threshold: `lines: 90` enforced in `vitest.config.ts` (current measured: **95.98% lines** overall, **94.93% lines** across `src/hooks/` across 15 test files / 81 tests).
+   - Covers API error propagation & timeouts, CPCB mapping, impact math, locale parity, validation boundaries, hooks (`useDebounce`, `useLocalPrefs`, `useReducedMotion`, `useSmoothScroll`, `useScrollSpy`, `useReveal`, `useGeolocationAqi`, `useChatController`), export formatting, and automated `axe-core` sweeps on all sections.
 
 3. **Backend Unit, Integration & Property Tests (`Pytest` + `Hypothesis`)**
    - Location: `backend/tests/`
-   - Covers `AirQualityService` caching & in-flight coalescing, CPCB property invariants, Pydantic strictness (`extra="forbid"`), prompt-injection/secret-leak guards, rate limiting & proxy-header spoofing defense, circuit breaker & daily budget behavior, and offline fallback endpoints.
-   - Optional live smoke test (`@pytest.mark.live`) is deselected by default and runs only with `RUN_LIVE_TESTS=1`.
+   - Coverage threshold: `fail_under = 94` with `--cov-branch` enforced in `backend/pyproject.toml` (current measured: **95.43% combined line + branch coverage** across 191 offline tests; 1 deselected `@pytest.mark.live` test run with `RUN_LIVE_TESTS=1`).
+   - Random order verification: `pytest-randomly` (`--randomly-seed=764379728` and 3 consecutive full frontend+backend runs passing with 0 flakes).
+   - Mutation testing: Targeted AST mutation sweep across `cpcb.py`, `impact.py`, and `safety.py` killed **44/56** sampled mutants (`cpcb.py`: 12/16, `impact.py`: 15/20, `safety.py`: 17/20), with remaining 12 documented as mathematically equivalent boundary conditions (`<=` vs `<` at continuous piecewise breakpoints/zero). Note: `mutmut` requires POSIX `os.fork()` (unavailable natively on Windows), so automated AST mutation testing runs in Python directly on Windows without needing WSL.
+   - Covers `AirQualityService` caching & in-flight coalescing, CPCB property invariants, Pydantic strictness (`extra="forbid"`), prompt-injection/secret-leak guards, rate limiting & proxy-header spoofing defense, `/.well-known/security.txt`, circuit breaker & daily budget behavior, and offline fallback endpoints.
 
 4. **End-to-End Browser Workflows (`Playwright`)**
    - Location: `tests/e2e/saans.spec.ts`
-   - Boots the production FastAPI + built SPA bundle on `127.0.0.1:8124` and exercises full journeys, EN/HI switching, theme/reduced-motion persistence, keyboard navigation, opt-in geolocation, print stylesheet (`<= 5` pages), viewport checks (`390`, `768`, `1280`), error + retry recovery, and `axe-core` scans.
+   - Boots the production FastAPI + built SPA bundle on `127.0.0.1:8124` and exercises 7 full workflows: EN/HI full journeys, theme/reduced-motion/profile persistence, keyboard navigation, opt-in & denied geolocation handling, print stylesheet (`<= 5` pages), viewport checks (`390`, `768`, `1280`), `503` + `429` error & retry recovery, and `axe-core` scans.
 
 ## Static & Code Quality Gates (Enforced Locally & in CI)
 

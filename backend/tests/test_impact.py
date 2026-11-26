@@ -83,3 +83,38 @@ def test_ground_alternatives_numbers_clamps_and_zeros_non_emission_co2() -> None
     assert grounded[0].co2_saved_kg_per_month == 0
     assert grounded[1].co2_saved_kg_per_month == 0
     assert 0 <= grounded[0].pm25_reduction_pct <= MAX_PM25_REDUCTION_PCT
+
+
+def test_impact_mutation_boundaries() -> None:
+    from app.services.impact import get_commute_scale_factor, get_scaled_co2
+
+    assert get_commute_scale_factor(None) == 1.0
+    assert get_commute_scale_factor(0) == 1.0
+    assert get_commute_scale_factor(float("nan")) == 1.0
+    assert calculate_multiplicative_pm25_reduction([-0.5, 0.5]) == 50
+    assert get_scaled_co2("commute_transit", 32) > 90
+    res_baseline = calculate_profile_impact(_profile(), ["fitted_n95_mask"])
+    assert res_baseline["baseline_score"] == 0
+
+    facts_bio = build_profile_facts(_profile(cookingFuel="biomass_wood"))
+    assert "cooking_biomass_to_clean" in [key for key, _, _ in facts_bio.swap_targets]
+
+    mixed = _profile(commuteMode="car", cookingFuel="induction_electric", hasAirPurifier=True)
+    facts_mixed = build_profile_facts(mixed)
+    assert "clean_cooking" not in facts_mixed.recommended_actions
+    assert "bedroom_purifier" not in facts_mixed.recommended_actions
+    assert facts_mixed.recommended_actions[0] == "fitted_n95_mask"
+    assert "commute_transit" in facts_mixed.recommended_actions
+
+    car_swaps = [
+        Alternative(
+            current="Solo car",
+            swap="Metro 3 days/week",
+            why="Cuts exhaust",
+            pm25ReductionPct=90,
+            co2SavedKgPerMonth=999,
+        )
+    ]
+    grounded_car = ground_alternatives_numbers(car_swaps, _profile(commuteMode="car", commuteKm=20))
+    assert grounded_car[0].co2_saved_kg_per_month > 0
+    assert grounded_car[0].co2_saved_kg_per_month < 999

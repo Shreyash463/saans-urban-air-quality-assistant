@@ -287,19 +287,22 @@ Response (`ChatReply`):
 
 ## Tests, Linting, Typechecking, and Build
 
+See [`docs/TESTING.md`](docs/TESTING.md) for full test layers, coverage reports (**95.98%** frontend lines, **95.43%** backend line+branch), flake-free seed runs, and mutation testing summary.
+
 ```bash
 # Frontend checks
 npm run format:check
 npm run lint
-npm run test:run
+npm run test:coverage
 npm run build
+npm run test:e2e
 npm audit --omit=dev
 
 # Backend checks (inside backend/)
-ruff check app tests
+ruff check app tests scripts
 mypy app
 pyright --project pyproject.toml
-pytest --cov=app --cov-report=term-missing
+pytest --cov=app --cov-branch --cov-report=term-missing
 pip-audit -r requirements.txt
 ```
 
