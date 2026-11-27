@@ -40,8 +40,6 @@ export interface ImpactActionFactor {
   };
 }
 
-export type AlternativePresetKey = keyof typeof contractData.alternativeNumbers;
-
 export const MAX_PM25_REDUCTION_PCT = contractData.constants.MAX_PM25_REDUCTION_PCT;
 export const MIN_RESIDUAL_EXPOSURE_PCT =
   contractData.constants.MIN_RESIDUAL_EXPOSURE_PCT;
@@ -63,32 +61,3 @@ export const IMPACT_ACTION_MAP: Readonly<Record<ImpactActionId, ImpactActionFact
     },
     {} as Record<ImpactActionId, ImpactActionFactor>
   );
-
-/**
- * Computes consistent PM2.5 and monthly CO2 numbers for plan alternatives
- * directly from the shared contract constants.
- */
-export function getAlternativeMetrics(
-  presetKey: AlternativePresetKey,
-  commuteKm: number
-): { pm25ReductionPct: number; co2SavedKgPerMonth: number } {
-  const spec = contractData.alternativeNumbers[presetKey];
-  const pm25ReductionPct = Math.min(
-    MAX_PM25_REDUCTION_PCT,
-    Math.max(0, Math.round(spec.pm25ReductionPct))
-  );
-  if (!spec.emissionRelevant) {
-    return { pm25ReductionPct, co2SavedKgPerMonth: 0 };
-  }
-  const scale =
-    spec.commuteScaled && Number.isFinite(commuteKm) && commuteKm > 0
-      ? Math.min(
-          MAX_COMMUTE_SCALE,
-          Math.max(MIN_COMMUTE_SCALE, commuteKm / REFERENCE_DAILY_COMMUTE_KM)
-        )
-      : 1;
-  return {
-    pm25ReductionPct,
-    co2SavedKgPerMonth: Math.max(0, Math.round(spec.baseCo2KgPerMonth * scale)),
-  };
-}

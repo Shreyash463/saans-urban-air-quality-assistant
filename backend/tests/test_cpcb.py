@@ -6,6 +6,7 @@ from app.services.cpcb import (
     compute_cpcb_aqi_from_means,
     compute_pm10_sub_index,
     compute_pm25_sub_index,
+    compute_sub_index,
     get_aqi_category,
 )
 
@@ -96,3 +97,11 @@ def test_cpcb_single_pollutant_tiebreak_and_negative_filtering() -> None:
 
     assert compute_cpcb_aqi_from_hourly([50.0] * 11, [100.0] * 12) == (100, "PM10")
     assert compute_cpcb_aqi_from_hourly([-1.0] * 12 + [30.0] * 12, [None] * 24) == (50, "PM2.5")
+
+
+def test_cpcb_subindex_degenerate_and_invalid_hourly_edges() -> None:
+    assert compute_sub_index(0.0, ((0.0, 30.0, 0.0, 50.0),)) == 0.0
+    assert compute_sub_index(5.0, ((10.0, 5.0, 0.0, 50.0),)) == 50.0
+    with pytest.raises(ValueError):
+        compute_cpcb_aqi_from_means(None, None)
+    assert compute_cpcb_aqi_from_hourly(["bad", None, -1.0, float("nan")], [None]) is None  # type: ignore[list-item]

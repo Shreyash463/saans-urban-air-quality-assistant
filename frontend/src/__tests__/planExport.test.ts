@@ -1,26 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { buildSamplePlan } from '../../tests/fixtures/samplePlan';
 import {
   formatAqiSourceLabel,
   formatAqiTimestampIst,
   formatPlanAsText,
 } from '../lib/planExport';
-import { generateMockPlan } from '../../tests/fixtures/mockPlanGenerator';
-import type { UserProfile } from '../types';
-
-const PROFILE: UserProfile = {
-  city: 'Pune',
-  householdSize: 3,
-  hasChildren: true,
-  hasElderly: false,
-  hasRespiratoryCondition: false,
-  commuteMode: 'public_transport',
-  commuteKm: 12,
-  homeType: 'apartment',
-  hasAirPurifier: true,
-  cookingFuel: 'induction_electric',
-  budget: 'medium',
-  language: 'en',
-};
 
 describe('Plan plain-text exporter and IST timestamp formatting', () => {
   it('formats live Open-Meteo timestamps into IST and labels demo readings honestly', () => {
@@ -53,7 +37,16 @@ describe('Plan plain-text exporter and IST timestamp formatting', () => {
   });
 
   it('exports a clean plain-text plan with PM2.5-only label when CO2 savings is 0', () => {
-    const plan = generateMockPlan(PROFILE);
+    const plan = buildSamplePlan({
+      generatedBy: 'rules',
+      aqi: {
+        city: 'Pune',
+        aqi: 130,
+        dominantPollutant: 'PM10',
+        updatedAt: '',
+        source: 'demo',
+      },
+    });
     const txt = formatPlanAsText(plan, 'en');
     expect(txt).toContain('Pune: AQI 130');
     expect(txt).toContain('Rule-based fallback');

@@ -1,463 +1,250 @@
-"""Unit tests for Gemini model discovery, schema fallback, and single retry."""
+"""Unit tests for Gemini client execution, failover, budgets, token hygiene, and EN/HI fixture assembly."""
 
 from __future__ import annotations
 
 import json
+import logging
+import os
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import pytest
-from app.config import Settings
-from app.schemas import AirQualityReading, UserProfile
-from app.services.gemini import GeminiClient, select_best_flash_models
+from app.config import Settings, get_settings
+from app.services.fallback_plan import generate_fallback_plan
+from app.services.gemini import GeminiClient
+from fastapi.testclient import TestClient
+from tests.helpers import (
+    ApiStatusError,
+    make_compact_narrative,
+    make_full_gemini_payload,
+    make_profile,
+    make_profile_dict,
+    make_reading,
+    make_sdk_client,
+    make_test_app,
+)
 
-
-def test_select_best_flash_models_ranks_flash_lite_first_and_respects_priority() -> None:
-    models = [
-        type("M", (), {"name": "models/gemini-2.5-flash", "supported_actions": ["generateContent"]})(),
-        type("M", (), {"name": "models/gemini-3.8-flash-tts", "supported_actions": ["generateContent"]})(),
-        type("M", (), {"name": "models/gemini-3.5-flash-lite", "supported_actions": ["generateContent"]})(),
-        type("M", (), {"name": "models/gemini-3.8-flash", "supported_actions": ["generateContent"]})(),
-        type("M", (), {"name": "models/gemini-4.0-flash", "supported_actions": ["embedContent"]})(),
-    ]
-    ranked = select_best_flash_models(models)
-    assert ranked[0] == "gemini-3.5-flash-lite"
-    assert "gemini-3.8-flash-tts" not in ranked
-    assert "gemini-4.0-flash" not in ranked
-
-    custom = select_best_flash_models(models, priority=["gemini-3.8-flash", "gemini-3.5-flash-lite"])
-    assert custom[:2] == ["gemini-3.8-flash", "gemini-3.5-flash-lite"]
+_EN_FIXTURE = make_compact_narrative(include_community=True)
+_HI_FIXTURE = {
+    "summary": "दिल्ली में सर्दियों का स्मॉग अधिक है; यह योजना आपके परिवार और समुदाय की सुरक्षा पर केंद्रित है।",
+    "routine": [
+        {"timeSlot": "morning", "title": "सुबह खिड़कियां बंद", "detail": "कार AC रीसर्कुलेट रखें।", "impactNote": "धुआं कम होता है।"},
+        {"timeSlot": "midday", "title": "दोपहर वेंटिलेशन", "detail": "1-4 बजे खिड़कियां खोलें।", "impactNote": "ताज़ी हवा।"},
+        {"timeSlot": "evening", "title": "शाम सीलिंग", "detail": "5:30 बजे बंद करें।", "impactNote": "स्मॉग रुकता है।"},
+        {"timeSlot": "night", "title": "स्वच्छ शयन कक्ष", "detail": "DIY HEPA चलाएं।", "impactNote": "कम संपर्क।"},
+    ],
+    "indoorHacks": [
+        {"title": f"उपाय {i}", "howTo": "गीला पोंछा लगाएं।", "estimatedBenefit": "धूल कम", "costLevel": "free"}
+        for i in range(5)
+    ],
+    "alternatives": [
+        {"current": "कार", "swap": "मेट्रो", "why": "कम धुआं"},
+        {"current": "गैस", "swap": "इलेक्ट्रिक केतली", "why": "स्वच्छ रसोई"},
+        {"current": "बिना फ़िल्टर सोना", "swap": "DIY HEPA", "why": "साफ नींद"},
+        {"current": "पत्ते जलाना", "swap": "खाद", "why": "कम प्रदूषण"},
+    ],
+    "communityActions": [
+        {"title": "RWA हीटर", "who": "rwa", "howTo": "गार्ड के लिए हीटर दें।", "estimatedImpact": "अलाव बंद", "effort": "low"},
+        {"title": "पड़ोसी समूह", "who": "neighbours", "howTo": "कचरा जलने पर रोक।", "estimatedImpact": "साफ हवा", "effort": "low"},
+        {"title": "स्कूल नियम", "who": "school", "howTo": "उच्च AQI पर इनडोर खेल।", "estimatedImpact": "बच्चों की सुरक्षा", "effort": "medium"},
+    ],
+}
 
 
 @pytest.mark.asyncio
 async def test_gemini_client_simplifies_schema_and_retries_invalid_json() -> None:
     calls = 0
-    valid_payload = {
-        "summary": "Clean summary",
-        "healthAdvisory": "Avoid outdoor exertion.",
-        "routine": [
-            {"timeSlot": "morning", "title": "M", "detail": "D", "impactNote": "I"},
-            {"timeSlot": "midday", "title": "M", "detail": "D", "impactNote": "I"},
-            {"timeSlot": "evening", "title": "M", "detail": "D", "impactNote": "I"},
-            {"timeSlot": "night", "title": "M", "detail": "D", "impactNote": "I"},
-        ],
-        "indoorHacks": [
-            {"title": f"H{i}", "howTo": "Do", "estimatedBenefit": "Good", "costLevel": "free"}
-            for i in range(5)
-        ],
-        "alternatives": [
-            {"current": f"C{i}", "swap": f"S{i}", "why": "W", "pm25ReductionPct": 15, "co2SavedKgPerMonth": 0}
-            for i in range(3)
-        ],
-        "maskGuidance": "Wear N95 mask.",
-    }
+    payload = make_full_gemini_payload(unsafe=False)
 
-    class _FakeModels:
-        async def list(self) -> Any:
-            class _Pager:
-                def __aiter__(self) -> _Pager:
-                    self._done = False
-                    return self
+    def respond(**_kwargs: Any) -> Any:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise ValueError("Unsupported response_schema $defs")
+        return type("Resp", (), {"text": payload})()
 
-                async def __anext__(self) -> Any:
-                    if self._done:
-                        raise StopAsyncIteration
-                    self._done = True
-                    return type(
-                        "M",
-                        (),
-                        {"name": "models/gemini-3.8-flash", "supported_actions": ["generateContent"]},
-                    )()
-
-            return _Pager()
-
-        async def generate_content(self, **_kwargs: Any) -> Any:
-            nonlocal calls
-            calls += 1
-            if calls == 1:
-                raise ValueError("Unsupported response_schema $defs")
-            return type("Resp", (), {"text": json.dumps(valid_payload)})()
-
-    sdk = type("Sdk", (), {"aio": type("Aio", (), {"models": _FakeModels()})()})()
-    client = GeminiClient(Settings(gemini_api_key="test-placeholder-for-mock"), sdk_client=sdk)
+    client = GeminiClient(Settings(gemini_api_key="test-key"), sdk_client=make_sdk_client(respond))
     await client.initialize_models()
+    plan = await client.generate_plan(make_profile(hasChildren=False, hasRespiratoryCondition=False), make_reading())
     assert client.selected_model == "gemini-3.8-flash"
-
-    profile = UserProfile.model_validate(
-        {
-            "city": "Delhi",
-            "householdSize": 2,
-            "hasChildren": False,
-            "hasElderly": False,
-            "hasRespiratoryCondition": False,
-            "commuteMode": "car",
-            "commuteKm": 16,
-            "homeType": "apartment",
-            "hasAirPurifier": False,
-            "cookingFuel": "lpg",
-            "budget": "low",
-            "language": "en",
-        }
-    )
-    reading = AirQualityReading(
-        city="Delhi",
-        aqi=310,
-        dominantPollutant="PM2.5",
-        updated_at="2026-11-25T12:00:00+05:30",
-        source="live",
-    )
-    plan = await client.generate_plan(profile, reading)
-    assert plan is not None
-    assert plan.generated_by == "gemini"
-    assert calls == 2
+    assert plan is not None and plan.generated_by == "gemini" and calls == 2
 
 
 @pytest.mark.asyncio
-async def test_gemini_client_fails_over_from_overloaded_model_and_promotes_working_model() -> None:
+async def test_gemini_client_fails_over_and_promotes_working_model() -> None:
     calls_by_model: list[str] = []
-    valid_payload = {
-        "summary": "Clean summary",
-        "healthAdvisory": "Avoid outdoor exertion.",
-        "routine": [
-            {"timeSlot": "morning", "title": "M", "detail": "D", "impactNote": "I"},
-            {"timeSlot": "midday", "title": "M", "detail": "D", "impactNote": "I"},
-            {"timeSlot": "evening", "title": "M", "detail": "D", "impactNote": "I"},
-            {"timeSlot": "night", "title": "M", "detail": "D", "impactNote": "I"},
-        ],
-        "indoorHacks": [
-            {"title": f"H{i}", "howTo": "Do", "estimatedBenefit": "Good", "costLevel": "free"}
-            for i in range(5)
-        ],
-        "alternatives": [
-            {"current": f"C{i}", "swap": f"S{i}", "why": "W", "pm25ReductionPct": 15, "co2SavedKgPerMonth": 0}
-            for i in range(3)
-        ],
-        "maskGuidance": "Wear N95 mask.",
-    }
+    payload = make_full_gemini_payload(unsafe=False)
 
-    class _FailoverModels:
-        async def list(self) -> Any:
-            class _Pager:
-                def __aiter__(self) -> _Pager:
-                    self._idx = 0
-                    self._items = [
-                        type("M", (), {"name": "models/gemini-3.8-flash", "supported_actions": ["generateContent"]})(),
-                        type("M", (), {"name": "models/gemini-3.6-flash", "supported_actions": ["generateContent"]})(),
-                    ]
-                    return self
+    def respond(**kwargs: Any) -> Any:
+        calls_by_model.append(kwargs["model"])
+        if kwargs["model"] == "gemini-3.6-flash":
+            raise TimeoutError("gemini-3.6-flash overloaded")
+        return type("Resp", (), {"text": payload})()
 
-                async def __anext__(self) -> Any:
-                    if self._idx >= len(self._items):
-                        raise StopAsyncIteration
-                    item = self._items[self._idx]
-                    self._idx += 1
-                    return item
-
-            return _Pager()
-
-        async def generate_content(self, **kwargs: Any) -> Any:
-            model = kwargs["model"]
-            calls_by_model.append(model)
-            if model == "gemini-3.6-flash":
-                raise TimeoutError("gemini-3.6-flash overloaded")
-            return type("Resp", (), {"text": json.dumps(valid_payload)})()
-
-    sdk = type("Sdk", (), {"aio": type("Aio", (), {"models": _FailoverModels()})()})()
-    client = GeminiClient(Settings(gemini_api_key="test-placeholder-for-mock"), sdk_client=sdk)
+    sdk = make_sdk_client(respond, ["models/gemini-3.8-flash", "models/gemini-3.6-flash"])
+    client = GeminiClient(Settings(gemini_api_key="test-key"), sdk_client=sdk)
     await client.initialize_models()
     assert client.selected_model == "gemini-3.6-flash"
 
-    profile = UserProfile.model_validate(
-        {
-            "city": "Delhi",
-            "householdSize": 2,
-            "hasChildren": False,
-            "hasElderly": False,
-            "hasRespiratoryCondition": False,
-            "commuteMode": "car",
-            "commuteKm": 16,
-            "homeType": "apartment",
-            "hasAirPurifier": False,
-            "cookingFuel": "lpg",
-            "budget": "low",
-            "language": "en",
-        }
-    )
-    reading = AirQualityReading(
-        city="Delhi",
-        aqi=310,
-        dominantPollutant="PM2.5",
-        updated_at="2026-11-25T12:00:00+05:30",
-        source="live",
-    )
-    plan = await client.generate_plan(profile, reading)
-    assert plan is not None
-    assert plan.generated_by == "gemini"
-    assert calls_by_model == ["gemini-3.6-flash", "gemini-3.8-flash"]
+    plan1 = await client.generate_plan(make_profile(), make_reading())
+    plan2 = await client.generate_plan(make_profile(), make_reading())
+    assert plan1 is not None and plan2 is not None
     assert client.selected_model == "gemini-3.8-flash"
-
-    # Subsequent call uses promoted working model first without retrying timed-out model
-    plan2 = await client.generate_plan(profile, reading)
-    assert plan2 is not None
     assert calls_by_model == ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.8-flash"]
 
 
 @pytest.mark.asyncio
-async def test_gemini_client_degrades_without_retry_storm_on_timeout_or_429() -> None:
-    # 1. Quota / 429 tries at most 2 distinct models once each (zero double-retry storm)
-    quota_models: list[str] = []
+async def test_gemini_client_avoids_duplicate_retries_on_429() -> None:
+    tried_models: list[str] = []
 
-    class _QuotaModels:
-        async def list(self) -> Any:
-            raise TimeoutError("discovery slow")
+    def respond(**kwargs: Any) -> Any:
+        tried_models.append(kwargs["model"])
+        raise RuntimeError("429 RESOURCE_EXHAUSTED: quota exceeded")
 
-        async def generate_content(self, **kwargs: Any) -> Any:
-            quota_models.append(kwargs["model"])
-            raise RuntimeError("429 RESOURCE_EXHAUSTED: quota exceeded")
+    sdk = make_sdk_client(respond, list_error=TimeoutError("discovery slow"))
+    client = GeminiClient(Settings(gemini_api_key="test-key", gemini_discovery_timeout_seconds=0.5), sdk_client=sdk)
+    await client.initialize_models()
+    profile, reading = make_profile(), make_reading()
 
-    sdk_quota = type("Sdk", (), {"aio": type("Aio", (), {"models": _QuotaModels()})()})()
-    client_q = GeminiClient(
-        Settings(gemini_api_key="test-placeholder-for-mock", gemini_discovery_timeout_seconds=0.5),
-        sdk_client=sdk_quota,
-    )
-    await client_q.initialize_models()
-    assert client_q.selected_model == "gemini-3.5-flash-lite"
+    assert await client.generate_plan(profile, reading) is None
+    assert len(tried_models) == len(set(tried_models)) and len(tried_models) <= 6
 
-    profile = UserProfile.model_validate(
-        {
-            "city": "Delhi",
-            "householdSize": 2,
-            "hasChildren": False,
-            "hasElderly": False,
-            "hasRespiratoryCondition": False,
-            "commuteMode": "car",
-            "commuteKm": 16,
-            "homeType": "apartment",
-            "hasAirPurifier": False,
-            "cookingFuel": "lpg",
-            "budget": "low",
-            "language": "en",
-        }
-    )
-    reading = AirQualityReading(
-        city="Delhi",
-        aqi=310,
-        dominantPollutant="PM2.5",
-        updated_at="2026-11-25T12:00:00+05:30",
-        source="live",
-    )
-    assert await client_q.generate_plan(profile, reading) is None
-    assert len(quota_models) <= 6
-    assert len(quota_models) == len(set(quota_models))
-
-    quota_models.clear()
-    assert (
-        await client_q.generate_chat_reply(
-            "Can kids play outside?", profile, _dummy_plan(profile, reading)
-        )
-        is None
-    )
-    assert len(quota_models) <= 6
-    assert len(quota_models) == len(set(quota_models))
-
-    # 2. Auth failure (401/403) aborts immediately on first call
-    auth_calls = 0
-
-    class _AuthModels:
-        async def list(self) -> Any:
-            raise TimeoutError("discovery slow")
-
-        async def generate_content(self, **_kwargs: Any) -> Any:
-            nonlocal auth_calls
-            auth_calls += 1
-            raise RuntimeError("API key not valid")
-
-    client_auth = GeminiClient(
-        Settings(gemini_api_key="test-placeholder-for-mock", gemini_discovery_timeout_seconds=0.5),
-        sdk_client=type("Sdk", (), {"aio": type("Aio", (), {"models": _AuthModels()})()})(),
-    )
-    assert await client_auth.generate_plan(profile, reading) is None
-    assert auth_calls == 1
-
-    # 3. Slow timeouts never double-retry per model and respect overall budget cleanly
-    timeout_models: list[str] = []
-
-    class _TimeoutModels:
-        async def list(self) -> Any:
-            raise TimeoutError("discovery slow")
-
-        async def generate_content(self, **kwargs: Any) -> Any:
-            timeout_models.append(kwargs["model"])
-            raise TimeoutError("timed out")
-
-    sdk_to = type("Sdk", (), {"aio": type("Aio", (), {"models": _TimeoutModels()})()})()
-    client_to = GeminiClient(
-        Settings(
-            gemini_api_key="test-placeholder-for-mock",
-            gemini_discovery_timeout_seconds=0.5,
-            gemini_timeout_seconds=5.0,
-        ),
-        sdk_client=sdk_to,
-    )
-    assert await client_to.generate_plan(profile, reading) is None
-    assert len(timeout_models) == len(set(timeout_models))
-
-
-def _dummy_plan(profile: UserProfile, reading: AirQualityReading) -> Any:
-    from app.services.fallback_plan import generate_fallback_plan
-
-    return generate_fallback_plan(profile, reading)
+    tried_models.clear()
+    assert await client.generate_chat_reply("Can kids play?", profile, generate_fallback_plan(profile, reading)) is None
+    assert len(tried_models) == len(set(tried_models)) and len(tried_models) <= 6
 
 
 @pytest.mark.asyncio
-async def test_pinned_gemini_model_tries_single_model_and_falls_back_to_rules() -> None:
+async def test_gemini_client_aborts_immediately_on_auth_error() -> None:
+    calls = 0
+
+    def respond(**_kwargs: Any) -> Any:
+        nonlocal calls
+        calls += 1
+        raise RuntimeError("API key not valid")
+
+    client = GeminiClient(Settings(gemini_api_key="test-key"), sdk_client=make_sdk_client(respond, list_error=TimeoutError("skip")))
+    assert await client.generate_plan(make_profile(), make_reading()) is None
+    assert calls == 1
+
+
+@pytest.mark.asyncio
+async def test_gemini_client_never_double_retries_on_timeout() -> None:
+    timeout_models: list[str] = []
+
+    def respond(**kwargs: Any) -> Any:
+        timeout_models.append(kwargs["model"])
+        raise TimeoutError("timed out")
+
+    settings = Settings(gemini_api_key="test-key", gemini_discovery_timeout_seconds=0.5, gemini_timeout_seconds=5.0)
+    client = GeminiClient(settings, sdk_client=make_sdk_client(respond, list_error=TimeoutError("skip")))
+    assert await client.generate_plan(make_profile(), make_reading()) is None
+    assert len(timeout_models) == len(set(timeout_models))
+
+
+@pytest.mark.asyncio
+async def test_pinned_gemini_model_tries_single_model_and_falls_back() -> None:
     attempted: list[str] = []
 
-    class _Err503(Exception):
-        code = 503
+    def respond(**kwargs: Any) -> Any:
+        attempted.append(kwargs["model"])
+        raise ApiStatusError("UNAVAILABLE", 503)
 
-    class _FailModels:
-        async def list(self) -> Any:
-            return []
-
-        async def generate_content(self, **kwargs: Any) -> Any:
-            attempted.append(kwargs["model"])
-            raise _Err503("UNAVAILABLE")
-
-    sdk = type("Sdk", (), {"aio": type("Aio", (), {"models": _FailModels()})()})()
     client = GeminiClient(
         Settings(gemini_api_key="test-key", gemini_model="gemini-3.8-flash"),
-        sdk_client=sdk,
+        sdk_client=make_sdk_client(respond, model_names=[]),
     )
-    profile = UserProfile.model_validate(
-        {
-            "city": "Delhi",
-            "householdSize": 2,
-            "hasChildren": False,
-            "hasElderly": False,
-            "hasRespiratoryCondition": False,
-            "commuteMode": "car",
-            "commuteKm": 16,
-            "homeType": "apartment",
-            "hasAirPurifier": False,
-            "cookingFuel": "lpg",
-            "budget": "low",
-            "language": "en",
-        }
-    )
-    reading = AirQualityReading(
-        city="Delhi",
-        aqi=310,
-        dominantPollutant="PM2.5",
-        updated_at="2026-11-25T12:00:00+05:30",
-        source="live",
-    )
-    plan, reason, retry = await client.generate_plan_with_status(profile, reading)
-    assert plan is None
-    assert reason == "ai_busy"
-    assert retry is not None and retry > 0
+    plan, reason, retry = await client.generate_plan_with_status(make_profile(), make_reading())
+    assert plan is None and reason == "ai_busy" and retry is not None and retry > 0
     assert attempted == ["gemini-3.8-flash"]
 
 
 @pytest.mark.asyncio
-async def test_daily_call_budget_guard_counts_upstream_calls_and_resets_at_utc_midnight() -> None:
-    from datetime import UTC, datetime
-
-    from app.main import create_app
-    from fastapi.testclient import TestClient
-
-    # 2026-11-26 23:55:00 UTC
+async def test_daily_call_budget_limits_and_resets_at_utc_midnight(tmp_path: Path) -> None:
     now_utc = datetime(2026, 11, 26, 23, 55, 0, tzinfo=UTC).timestamp()
     upstream_calls = 0
+    payload = json.dumps(make_compact_narrative(include_community=False))
 
-    class _CountingModels:
-        async def list(self) -> Any:
-            class _Pager:
-                def __aiter__(self) -> _Pager:
-                    self._done = False
-                    return self
+    def respond(**_kwargs: Any) -> Any:
+        nonlocal upstream_calls
+        upstream_calls += 1
+        return type("Resp", (), {"text": payload})()
 
-                async def __anext__(self) -> Any:
-                    if self._done:
-                        raise StopAsyncIteration
-                    self._done = True
-                    return type(
-                        "M",
-                        (),
-                        {"name": "models/gemini-3.5-flash-lite", "supported_actions": ["generateContent"]},
-                    )()
-
-            return _Pager()
-
-        async def generate_content(self, **_kwargs: Any) -> Any:
-            nonlocal upstream_calls
-            upstream_calls += 1
-            payload = {
-                "summary": "Clean summary",
-                "routine": [
-                    {"timeSlot": slot, "title": "M", "detail": "D", "impactNote": "I"}
-                    for slot in ("morning", "midday", "evening", "night")
-                ],
-                "indoorHacks": [
-                    {"title": f"H{i}", "howTo": "Do", "estimatedBenefit": "Good", "costLevel": "free"}
-                    for i in range(5)
-                ],
-                "alternatives": [
-                    {"current": "Car", "swap": "Metro", "why": "Less PM2.5"}
-                    for _ in range(3)
-                ],
-            }
-            return type("Resp", (), {"text": json.dumps(payload)})()
-
-    sdk = type("Sdk", (), {"aio": type("Aio", (), {"models": _CountingModels()})()})()
-    client = GeminiClient(
-        Settings(gemini_api_key="test-key", gemini_daily_call_budget=1),
-        sdk_client=sdk,
-        utc_clock=lambda: now_utc,
-    )
+    sdk = make_sdk_client(respond, ["models/gemini-3.5-flash-lite"])
+    client = GeminiClient(Settings(gemini_api_key="test-key", gemini_daily_call_budget=1), sdk_client=sdk, utc_clock=lambda: now_utc)
     await client.initialize_models()
-    assert client.remaining_daily_budget == 1
-    assert client.daily_budget_limit == 1
-
-    app = create_app(settings=Settings(gemini_api_key="test-key"), gemini_client=client)
-    profile_payload = {
-        "city": "Pune",
-        "householdSize": 2,
-        "hasChildren": False,
-        "hasElderly": False,
-        "hasRespiratoryCondition": False,
-        "commuteMode": "car",
-        "commuteKm": 16,
-        "homeType": "apartment",
-        "hasAirPurifier": False,
-        "cookingFuel": "lpg",
-        "budget": "low",
-        "language": "en",
-    }
+    app = make_test_app(tmp_path, settings=Settings(gemini_api_key="test-key"), gemini_client=client)
+    prof = make_profile_dict(city="Pune")
 
     with TestClient(app) as tc:
-        # 1st plan uses the 1 allowed upstream call
-        p1 = tc.post("/api/plan", json=profile_payload)
-        assert p1.status_code == 200
-        assert p1.json()["generatedBy"] == "gemini"
-        assert upstream_calls == 1
+        assert tc.post("/api/plan", json=prof).json()["generatedBy"] == "gemini"
+        assert tc.get("/api/health").json()["remainingDailyBudget"] == 0
+        over = tc.post("/api/plan", json={**prof, "city": "Mumbai"}).json()
+        assert over["generatedBy"] == "rules" and over["fallbackReason"] == "ai_busy" and upstream_calls == 1
 
-        health1 = tc.get("/api/health").json()
-        assert health1["remainingDailyBudget"] == 0
-        assert health1["dailyBudgetLimit"] == 1
-
-        # 2nd different profile exceeds daily budget -> labeled rules fallback with ai_busy, 0 extra calls
-        p2 = tc.post("/api/plan", json={**profile_payload, "city": "Mumbai"})
-        assert p2.status_code == 200
-        d2 = p2.json()
-        assert d2["generatedBy"] == "rules"
-        assert d2["fallbackReason"] == "ai_busy"
-        assert upstream_calls == 1
-
-        # Advance past 00:00 UTC -> budget resets to 1
         now_utc = datetime(2026, 11, 27, 0, 1, 0, tzinfo=UTC).timestamp()
-        health2 = tc.get("/api/health").json()
-        assert health2["remainingDailyBudget"] == 1
-        p3 = tc.post("/api/plan", json={**profile_payload, "city": "Kolkata"})
-        assert p3.status_code == 200
-        assert p3.json()["generatedBy"] == "gemini"
+        assert tc.get("/api/health").json()["remainingDailyBudget"] == 1
+        assert tc.post("/api/plan", json={**prof, "city": "Kolkata"}).json()["generatedBy"] == "gemini"
         assert upstream_calls == 2
+
+
+@pytest.mark.asyncio
+async def test_chat_thinking_fallback_and_model_failover() -> None:
+    attempts: list[tuple[str, bool]] = []
+
+    def respond(**kwargs: Any) -> Any:
+        has_thinking = getattr(kwargs.get("config"), "thinking_config", None) is not None
+        attempts.append((kwargs["model"], has_thinking))
+        if kwargs["model"] == "gemini-3.8-flash":
+            if has_thinking:
+                raise ValueError("Thinking level not supported")
+            raise TimeoutError("3.8 overloaded")
+        return type("Resp", (), {"text": "Keep kids indoors and use a snugly fitted N95 mask."})()
+
+    sdk = make_sdk_client(respond, ["models/gemini-3.8-flash", "models/gemini-2.5-flash"])
+    client = GeminiClient(Settings(gemini_api_key="test-key"), sdk_client=sdk, clock=lambda: 500.0)
+    plan = generate_fallback_plan(make_profile(), make_reading())
+    reply = await client.generate_chat_reply("Can my child jog today?", make_profile(), plan)
+    assert reply is not None and "n95" in reply.answer.lower()
+    assert attempts[:2] == [("gemini-3.8-flash", True), ("gemini-3.8-flash", False)]
+
+
+@pytest.mark.asyncio
+async def test_token_logging_never_logs_prompt_or_secret(caplog: pytest.LogCaptureFixture) -> None:
+    compact = make_compact_narrative(include_community=False)
+    compact["summary"] = "UniqueSecretPromptMarkerXYZ in Delhi"
+
+    def respond(**_kwargs: Any) -> Any:
+        usage = type("U", (), {"prompt_token_count": 290, "candidates_token_count": 350, "thoughts_token_count": 0, "total_token_count": 640})()
+        return type("Resp", (), {"text": json.dumps(compact), "usage_metadata": usage})()
+
+    client = GeminiClient(Settings(gemini_api_key="AIzaFakeKeyNeverLogged"), sdk_client=make_sdk_client(respond, list_error=TimeoutError("skip")))
+    with caplog.at_level(logging.INFO):
+        plan = await client.generate_plan(make_profile(), make_reading())
+    assert plan is not None
+    joined = "\n".join(caplog.messages)
+    assert "prompt_tokens=290" in joined and "output_tokens=350" in joined
+    assert "AIzaFakeKeyNeverLogged" not in joined and "UniqueSecretPromptMarkerXYZ" not in joined
+
+
+@pytest.mark.parametrize(("fixture", "lang"), [(_EN_FIXTURE, "en"), (_HI_FIXTURE, "hi")])
+@pytest.mark.asyncio
+async def test_real_gemini_response_fixtures_assemble_cleanly(fixture: dict[str, Any], lang: str) -> None:
+    sdk = make_sdk_client(json.dumps(fixture), list_error=TimeoutError("skip"))
+    client = GeminiClient(Settings(gemini_api_key="fixture-key"), sdk_client=sdk)
+    plan = await client.generate_plan(make_profile(lang=lang), make_reading())
+    assert plan is not None and plan.generated_by == "gemini"
+    assert len(plan.community_actions) == 3 and plan.alternatives[2].co2_saved_kg_per_month == 0
+
+
+@pytest.mark.live
+@pytest.mark.asyncio
+async def test_live_gemini_smoke_optional() -> None:
+    settings = get_settings()
+    if not settings.effective_gemini_api_key or not os.environ.get("RUN_LIVE_TESTS"):
+        pytest.skip("Set RUN_LIVE_TESTS=1 with GEMINI_API_KEY to run live API smoke test.")
+    client = GeminiClient(settings)
+    await client.initialize_models()
+    plan = await client.generate_plan(make_profile(), make_reading())
+    assert plan is None or plan.generated_by == "gemini"

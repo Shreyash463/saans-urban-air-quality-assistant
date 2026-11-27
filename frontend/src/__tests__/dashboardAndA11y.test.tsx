@@ -17,23 +17,9 @@ import { PlanLoadingStatus } from '../components/DashboardLoadingStatus';
 import { ProfileForm } from '../sections/ProfileForm';
 import Simulator from '../sections/Simulator';
 import Chat from '../sections/Chat';
-import { generateMockPlan } from '../../tests/fixtures/mockPlanGenerator';
-import type { UserProfile } from '../types';
+import { buildSamplePlan, buildSampleProfile } from '../../tests/fixtures/samplePlan';
 
-const TEST_PROFILE: UserProfile = {
-  city: 'Delhi',
-  householdSize: 4,
-  hasChildren: true,
-  hasElderly: false,
-  hasRespiratoryCondition: true,
-  commuteMode: 'car',
-  commuteKm: 18,
-  homeType: 'apartment',
-  hasAirPurifier: false,
-  cookingFuel: 'lpg',
-  budget: 'low',
-  language: 'en',
-};
+const TEST_PROFILE = buildSampleProfile();
 
 async function expectNoA11yViolations(container: HTMLElement) {
   const results = await axe.run(container, {
@@ -74,18 +60,17 @@ describe('Dashboard loading stages, export actions, and axe accessibility across
   });
 
   it('shows Gemini/fallback badges, handles copy/download/print safely, and passes axe', async () => {
-    const geminiPlan = {
-      ...generateMockPlan(TEST_PROFILE),
-      generatedBy: 'gemini' as const,
+    const geminiPlan = buildSamplePlan({
+      generatedBy: 'gemini',
       aqi: {
         city: 'Delhi',
         aqi: 320,
         dominantPollutant: 'PM2.5',
         updatedAt: '2026-11-25T06:30:00Z',
-        source: 'live' as const,
+        source: 'live',
         sourceDetail: 'Open-Meteo, PM-based CPCB estimate',
       },
-    };
+    });
 
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', {
@@ -128,7 +113,7 @@ describe('Dashboard loading stages, export actions, and axe accessibility across
   });
 
   it('passes automated axe checks on Hero, ProfileForm, Simulator, Chat, and Footer', async () => {
-    const plan = generateMockPlan(TEST_PROFILE);
+    const plan = buildSamplePlan();
 
     const heroRender = render(
       <Hero

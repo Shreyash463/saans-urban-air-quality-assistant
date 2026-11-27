@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { buildSamplePlan, buildSampleProfile } from '../../tests/fixtures/samplePlan';
 import {
   ApiRequestError,
   askFollowUp,
@@ -7,23 +8,8 @@ import {
   getAirQualityByCoords,
   REQUEST_TIMEOUT_MS,
 } from '../services/api';
-import { generateMockPlan } from '../../tests/fixtures/mockPlanGenerator';
-import type { UserProfile } from '../types';
 
-const SAMPLE_PROFILE: UserProfile = {
-  city: 'Delhi',
-  householdSize: 4,
-  hasChildren: true,
-  hasElderly: false,
-  hasRespiratoryCondition: false,
-  commuteMode: 'car',
-  commuteKm: 18,
-  homeType: 'apartment',
-  hasAirPurifier: false,
-  cookingFuel: 'lpg',
-  budget: 'low',
-  language: 'en',
-};
+const SAMPLE_PROFILE = buildSampleProfile({ hasRespiratoryCondition: false });
 
 describe('API layer: strict server-backed responses and coordinate POST privacy', () => {
   afterEach(() => {
@@ -37,10 +23,7 @@ describe('API layer: strict server-backed responses and coordinate POST privacy'
 
   it('calls POST /api/plan with JSON body and passes coords only inside body', async () => {
     vi.stubEnv('VITE_API_BASE_URL', '');
-    const mockPlan = {
-      ...generateMockPlan(SAMPLE_PROFILE),
-      generatedBy: 'gemini' as const,
-    };
+    const mockPlan = buildSamplePlan({ generatedBy: 'gemini' });
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => mockPlan,
@@ -63,7 +46,7 @@ describe('API layer: strict server-backed responses and coordinate POST privacy'
   });
 
   it('uses POST /api/air-quality body for coordinates and GET for city only', async () => {
-    const sampleAqi = generateMockPlan(SAMPLE_PROFILE).aqi;
+    const sampleAqi = buildSamplePlan().aqi;
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ ...sampleAqi, source: 'live' }),
@@ -88,7 +71,7 @@ describe('API layer: strict server-backed responses and coordinate POST privacy'
     );
   });
 
-  it('throws typed ApiRequestError on network failure, HTTP 429, timeout, and invalid JSON', async () => {
+  it('throws typed ApiRequestError on network, timeout, HTTP status, invalid JSON, and external abort', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network down')));
     await expect(generatePlan(SAMPLE_PROFILE)).rejects.toMatchObject({
       name: 'ApiRequestError',
@@ -109,7 +92,13 @@ describe('API layer: strict server-backed responses and coordinate POST privacy'
       status: 429,
     });
 
-    const samplePlan = generateMockPlan(SAMPLE_PROFILE);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503 }));
+    await expect(generatePlan(SAMPLE_PROFILE)).rejects.toMatchObject({
+      kind: 'http',
+      status: 503,
+    });
+
+    const samplePlan = buildSamplePlan();
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({ ok: true, json: async () => ({ bad: true }) })
