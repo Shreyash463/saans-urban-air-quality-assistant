@@ -118,5 +118,11 @@ describe('API layer: strict server-backed responses and coordinate POST privacy'
     await expect(
       askFollowUp('Do air plants work?', SAMPLE_PROFILE, samplePlan)
     ).rejects.toMatchObject({ kind: 'invalid_payload' });
+
+    const externalAbort = new AbortController();
+    externalAbort.abort();
+    await expect(
+      generatePlan(SAMPLE_PROFILE, null, externalAbort.signal)
+    ).rejects.toMatchObject({ name: 'AbortError' });
   });
 });

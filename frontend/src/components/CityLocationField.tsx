@@ -2,7 +2,7 @@ import { LocateFixed, MapPin } from 'lucide-react';
 import { useGeolocationAqi } from '../hooks/useGeolocationAqi';
 import { QUICK_PICK_CITIES } from '../lib/cities';
 import { t } from '../lib/i18n';
-import { validateCity } from '../lib/validation';
+import { CITY_MAX_LENGTH, validateCity } from '../lib/validation';
 import { getAirQuality } from '../services/api';
 import type { AirQualityReading, Coordinates, LanguageCode } from '../types';
 
@@ -147,7 +147,7 @@ function CityInputField({
         id="saans-city-input"
         type="text"
         value={city}
-        maxLength={60}
+        maxLength={CITY_MAX_LENGTH}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
         placeholder={t(language, 'cityPlaceholder')}

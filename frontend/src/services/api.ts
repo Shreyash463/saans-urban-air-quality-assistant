@@ -53,12 +53,50 @@ function buildApiUrl(path: string): string {
   return base ? `${base}${path}` : path;
 }
 
+async function parseJsonResponse(
+  response: Response,
+  ext?: AbortSignal
+): Promise<unknown> {
+  if (!response.ok) {
+    if (response.status === 429) {
+      throw new ApiRequestError('rate_limit', 'Rate limit exceeded', 429);
+    }
+    throw new ApiRequestError('http', `HTTP ${response.status}`, response.status);
+  }
+  try {
+    return (await response.json()) as unknown;
+  } catch (err) {
+    if (ext?.aborted) {
+      throw err instanceof DOMException
+        ? err
+        : new DOMException('Aborted', 'AbortError');
+    }
+    throw new ApiRequestError('invalid_payload', 'Invalid JSON response');
+  }
+}
+
+function mapFetchError(err: unknown, ext?: AbortSignal): Error {
+  if (ext?.aborted) {
+    return err instanceof DOMException
+      ? err
+      : new DOMException('Aborted', 'AbortError');
+  }
+  if (err instanceof DOMException && err.name === 'AbortError') {
+    return new ApiRequestError('timeout', 'Request timed out');
+  }
+  return new ApiRequestError('network', 'Network request failed');
+}
+
 async function fetchJsonWithTimeout(
   url: string,
   init: RequestInit,
   timeoutMs: number
 ): Promise<unknown> {
+  const ext = init.signal ?? undefined;
+  if (ext?.aborted) throw new DOMException('Aborted', 'AbortError');
   const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  ext?.addEventListener('abort', onAbort, { once: true });
   const timeoutId = globalThis.setTimeout(() => controller.abort(), timeoutMs);
 
   let response: Response;
@@ -72,27 +110,12 @@ async function fetchJsonWithTimeout(
       },
     });
   } catch (err) {
+    throw mapFetchError(err, ext);
+  } finally {
+    ext?.removeEventListener('abort', onAbort);
     globalThis.clearTimeout(timeoutId);
-    if (err instanceof DOMException && err.name === 'AbortError') {
-      throw new ApiRequestError('timeout', 'Request timed out');
-    }
-    throw new ApiRequestError('network', 'Network request failed');
   }
-
-  globalThis.clearTimeout(timeoutId);
-
-  if (!response.ok) {
-    if (response.status === 429) {
-      throw new ApiRequestError('rate_limit', 'Rate limit exceeded', 429);
-    }
-    throw new ApiRequestError('http', `HTTP ${response.status}`, response.status);
-  }
-
-  try {
-    return (await response.json()) as unknown;
-  } catch {
-    throw new ApiRequestError('invalid_payload', 'Invalid JSON response');
-  }
+  return parseJsonResponse(response, ext);
 }
 
 function roundCoords(coords: Coordinates): Coordinates {
@@ -102,13 +125,28 @@ function roundCoords(coords: Coordinates): Coordinates {
   };
 }
 
+async function fetchValidated<T>(
+  path: string,
+  init: RequestInit,
+  timeoutMs: number,
+  guard: (v: unknown) => v is T,
+  label: string
+): Promise<T> {
+  const payload = await fetchJsonWithTimeout(buildApiUrl(path), init, timeoutMs);
+  if (!guard(payload)) {
+    throw new ApiRequestError('invalid_payload', `Invalid ${label} payload`);
+  }
+  return payload;
+}
+
 /**
  * Generates a personalized clean-air plan for the given household profile.
  * Passes ephemeral coordinates inside the JSON body rather than query strings.
  */
-export async function generatePlan(
+export function generatePlan(
   profile: UserProfile,
-  coords?: Coordinates | null
+  coords?: Coordinates | null,
+  signal?: AbortSignal
 ): Promise<PlanResponse> {
   const cleanProfile = sanitizeUserProfile(profile);
   const hasValidCoords =
@@ -121,88 +159,66 @@ export async function generatePlan(
     ? { ...cleanProfile, coords: roundCoords(coords), preferCoords: true }
     : cleanProfile;
 
-  const payload = await fetchJsonWithTimeout(
-    buildApiUrl('/api/plan'),
-    {
-      method: 'POST',
-      body: JSON.stringify(body),
-    },
-    REQUEST_TIMEOUT_MS
+  return fetchValidated(
+    '/api/plan',
+    { method: 'POST', body: JSON.stringify(body), signal },
+    REQUEST_TIMEOUT_MS,
+    isPlanResponse,
+    'PlanResponse'
   );
-
-  if (!isPlanResponse(payload)) {
-    throw new ApiRequestError('invalid_payload', 'Invalid PlanResponse payload');
-  }
-  return payload;
 }
 
 /**
  * Sends a follow-up question contextualized by the user's profile and active plan.
  */
-export async function askFollowUp(
+export function askFollowUp(
   question: string,
   profile: UserProfile,
   plan: PlanResponse
 ): Promise<ChatReply> {
-  const cleanQuestion = sanitizeChatQuestion(question);
-  const cleanProfile = sanitizeUserProfile(profile);
-
-  const payload = await fetchJsonWithTimeout(
-    buildApiUrl('/api/chat'),
+  return fetchValidated(
+    '/api/chat',
     {
       method: 'POST',
       body: JSON.stringify({
-        question: cleanQuestion,
-        profile: cleanProfile,
+        question: sanitizeChatQuestion(question),
+        profile: sanitizeUserProfile(profile),
         plan,
       }),
     },
-    REQUEST_TIMEOUT_MS
+    REQUEST_TIMEOUT_MS,
+    isChatReply,
+    'ChatReply'
   );
-
-  if (!isChatReply(payload)) {
-    throw new ApiRequestError('invalid_payload', 'Invalid ChatReply payload');
-  }
-  return payload;
 }
 
 /**
  * Fetches live air quality for a city via GET /api/air-quality.
  */
-export async function getAirQuality(city: string): Promise<AirQualityReading> {
+export function getAirQuality(city: string): Promise<AirQualityReading> {
   const cleanCity = sanitizeCity(city) || 'Delhi';
-  const url = buildApiUrl(`/api/air-quality?city=${encodeURIComponent(cleanCity)}`);
-  const payload = await fetchJsonWithTimeout(
-    url,
+  return fetchValidated(
+    `/api/air-quality?city=${encodeURIComponent(cleanCity)}`,
     { method: 'GET' },
-    AIR_QUALITY_TIMEOUT_MS
+    AIR_QUALITY_TIMEOUT_MS,
+    isAirQualityReading,
+    'AirQualityReading'
   );
-
-  if (!isAirQualityReading(payload)) {
-    throw new ApiRequestError('invalid_payload', 'Invalid AirQualityReading payload');
-  }
-  return payload;
 }
 
 /**
  * Fetches live air quality for ephemeral coordinates via POST /api/air-quality body
  * so latitude and longitude never appear in URL query strings or access logs.
  */
-export async function getAirQualityByCoords(
+export function getAirQualityByCoords(
   lat: number,
   lon: number
 ): Promise<AirQualityReading> {
-  const payload = await fetchJsonWithTimeout(
-    buildApiUrl('/api/air-quality'),
-    {
-      method: 'POST',
-      body: JSON.stringify(roundCoords({ lat, lon })),
-    },
-    AIR_QUALITY_TIMEOUT_MS
+  return fetchValidated(
+    '/api/air-quality',
+    { method: 'POST', body: JSON.stringify(roundCoords({ lat, lon })) },
+    AIR_QUALITY_TIMEOUT_MS,
+    isAirQualityReading,
+    'AirQualityReading'
   );
-
-  if (!isAirQualityReading(payload)) {
-    throw new ApiRequestError('invalid_payload', 'Invalid AirQualityReading payload');
-  }
-  return payload;
 }

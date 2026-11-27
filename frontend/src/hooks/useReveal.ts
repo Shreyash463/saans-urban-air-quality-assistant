@@ -55,7 +55,7 @@ function observePendingTargets(observer: IntersectionObserver): void {
 
 export function useReveal(reducedMotion: boolean, refreshKey: string): void {
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+    if (typeof document === 'undefined') return;
     const root = document.documentElement;
     if (reducedMotion || typeof IntersectionObserver === 'undefined') {
       root.classList.remove('js-anim');

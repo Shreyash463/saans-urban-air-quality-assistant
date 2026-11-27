@@ -1,11 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import contractFactors from '../../../contract/impact-factors.json';
+import contractLimits from '../../../contract/limits.json';
+import apiContract from '../../../contract/api.schema.json';
 import goldenVectors from '../../../contract/golden-vectors.json';
 import samplePlan from '../../../contract/plan.sample.json';
 import { getAqiCategory } from '../lib/aqi';
 import { calculateImpact } from '../lib/impact';
 import { MAX_PM25_REDUCTION_PCT } from '../lib/impactFactors';
-import { isAirQualityReading, isPlanResponse } from '../lib/validation';
+import {
+  CHAT_MAX_LENGTH,
+  CITY_MAX_LENGTH,
+  isAirQualityReading,
+  isPlanResponse,
+  MAX_COMMUTE_KM,
+  MAX_HOUSEHOLD_SIZE,
+  MIN_COMMUTE_KM,
+  MIN_HOUSEHOLD_SIZE,
+} from '../lib/validation';
 import type { UserProfile } from '../types';
 import type { ImpactActionId } from '../lib/impactFactors';
 
@@ -37,6 +48,24 @@ describe('Shared cross-language contract fixtures and golden vectors', () => {
       MAX_PM25_REDUCTION_PCT
     );
     expect(contractFactors.actions).toHaveLength(8);
+  });
+
+  it('keeps shared input limits synchronized between contract/limits.json, JSON schema, and validation', () => {
+    const userProps = apiContract.models.UserProfile.properties;
+    const chatProps = apiContract.models.ChatRequest.properties;
+    expect(MIN_HOUSEHOLD_SIZE).toBe(contractLimits.householdSizeMin);
+    expect(MAX_HOUSEHOLD_SIZE).toBe(contractLimits.householdSizeMax);
+    expect(MIN_COMMUTE_KM).toBe(contractLimits.commuteKmMin);
+    expect(MAX_COMMUTE_KM).toBe(contractLimits.commuteKmMax);
+    expect(CITY_MAX_LENGTH).toBe(contractLimits.cityMaxLength);
+    expect(CHAT_MAX_LENGTH).toBe(contractLimits.questionMaxLength);
+
+    expect(userProps.householdSize.minimum).toBe(MIN_HOUSEHOLD_SIZE);
+    expect(userProps.householdSize.maximum).toBe(MAX_HOUSEHOLD_SIZE);
+    expect(userProps.commuteKm.minimum).toBe(MIN_COMMUTE_KM);
+    expect(userProps.commuteKm.maximum).toBe(MAX_COMMUTE_KM);
+    expect(userProps.city.maxLength).toBe(CITY_MAX_LENGTH);
+    expect(chatProps.question.maxLength).toBe(CHAT_MAX_LENGTH);
   });
 
   it('matches cross-language CPCB category and impact math golden vectors', () => {

@@ -131,4 +131,54 @@ describe('Chat and App state controllers', () => {
     act(() => result.current.handleClearData());
     expect(result.current.plan).toBeNull();
   });
+
+  it('aborts stale language regeneration requests, prevents rapid-toggle duplicates, and surfaces failures', async () => {
+    const basePlan = generateMockPlan(TEST_PROFILE);
+    let capturedSignal: AbortSignal | undefined;
+    const genSpy = vi
+      .spyOn(api, 'generatePlan')
+      .mockResolvedValueOnce(basePlan)
+      .mockImplementationOnce(
+        (_profile, _coords, signal) =>
+          new Promise((_resolve, reject) => {
+            capturedSignal = signal;
+            signal?.addEventListener('abort', () =>
+              reject(new DOMException('Aborted', 'AbortError'))
+            );
+          })
+      )
+      .mockRejectedValueOnce(new api.ApiRequestError('rate_limit', 'Too busy'))
+      .mockResolvedValueOnce({ ...basePlan, summary: 'Retried Hindi summary' });
+
+    vi.spyOn(api, 'getAirQuality').mockResolvedValue(basePlan.aqi);
+    const { result } = renderHook(() => useSaansAppState(vi.fn()));
+    await waitFor(() => expect(result.current.previewReading).toEqual(basePlan.aqi));
+
+    await act(async () => {
+      await result.current.handleSubmitProfile(TEST_PROFILE);
+    });
+    expect(genSpy).toHaveBeenCalledTimes(1);
+
+    // Toggle en -> hi starts request 2 with AbortSignal; rapid toggle back hi -> en aborts request 2 without duplicate fetch
+    act(() => {
+      result.current.toggleLanguage();
+      result.current.toggleLanguage();
+    });
+    expect(capturedSignal?.aborted).toBe(true);
+    expect(genSpy).toHaveBeenCalledTimes(2);
+    expect(result.current.profile.language).toBe('en');
+
+    // Toggle en -> hi fails cleanly without wiping plan, announcing status + setting langSyncError
+    act(() => result.current.toggleLanguage());
+    await waitFor(() => expect(result.current.langSyncError).toBe('rate_limit'));
+    expect(result.current.plan).toEqual(basePlan);
+    await waitFor(() => expect(result.current.statusMessage).not.toBe(''));
+
+    // Retry clears notice and updates plan
+    act(() => result.current.retryLanguageSync());
+    await waitFor(() =>
+      expect(result.current.plan?.summary).toBe('Retried Hindi summary')
+    );
+    expect(result.current.langSyncError).toBeNull();
+  });
 });

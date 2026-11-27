@@ -32,10 +32,7 @@ export function RangeSlider({
         >
           {label}
         </label>
-        <span
-          className="text-sm font-semibold text-teal-800 dark:text-teal-300 tabular-nums"
-          style={{ fontFamily: 'var(--font-mono)' }}
-        >
+        <span className="font-mono text-sm font-semibold text-teal-800 dark:text-teal-300 tabular-nums">
           {valueLabel}
         </span>
       </div>

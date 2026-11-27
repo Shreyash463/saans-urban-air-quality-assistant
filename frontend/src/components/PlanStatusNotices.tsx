@@ -77,6 +77,48 @@ export function AiBusyRetryNotice({
   );
 }
 
+export function LanguageSyncNotice({
+  language,
+  errorKind,
+  onRetry,
+}: {
+  language: LanguageCode;
+  errorKind?: 'network' | 'rate_limit' | null;
+  onRetry?: () => void;
+}) {
+  if (!errorKind) return null;
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      data-testid="language-sync-notice"
+      className="no-print mt-4 rounded-xl border border-amber-300 dark:border-amber-700/80 bg-amber-50/90 dark:bg-amber-950/35 px-4 py-3 flex flex-wrap items-center justify-between gap-3"
+    >
+      <div className="space-y-0.5">
+        <p className="text-sm font-semibold text-amber-950 dark:text-amber-100">
+          {t(language, 'planErrorHeading')}
+        </p>
+        <p className="text-xs text-amber-900 dark:text-amber-200">
+          {t(
+            language,
+            errorKind === 'rate_limit' ? 'planRateLimitBody' : 'planErrorBody'
+          )}
+        </p>
+      </div>
+      {onRetry ? (
+        <Button
+          type="button"
+          onClick={onRetry}
+          className="min-h-[40px] px-3.5 py-2 border-amber-400 dark:border-amber-600 bg-white dark:bg-[#0B1220] text-amber-950 dark:text-amber-100"
+        >
+          <RefreshCw className="w-4 h-4 shrink-0" aria-hidden="true" />
+          <span>{t(language, 'tryAgainButton')}</span>
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 export function PlanErrorState({
   language,
   errorKind,

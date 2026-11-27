@@ -1,12 +1,14 @@
 import { ArrowRight, RefreshCw, ShieldCheck } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { AqiGauge } from '../components/AqiGauge';
-import { DemoReadingInfo } from '../components/DemoReadingInfo';
 import { t } from '../lib/i18n';
 import { formatAqiSourceLabel, formatAqiTimestampIst } from '../lib/planExport';
 import type { AirQualityReading, LanguageCode } from '../types';
 
 const SmogCanvas = lazy(() => import('../components/SmogCanvas'));
+const DemoReadingInfo = lazy(() =>
+  import('../components/DemoReadingInfo').then((m) => ({ default: m.DemoReadingInfo }))
+);
 
 interface HeroProps {
   language: LanguageCode;
@@ -69,7 +71,6 @@ function HeroLeftColumn({
       <h1
         id="hero-heading"
         className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900 dark:text-slate-50 leading-[1.08]"
-        style={{ fontFamily: 'var(--font-display)' }}
       >
         <span className="block">{t(language, 'heroTitle')}</span>
         <span className="mt-2 block text-2xl sm:text-3xl lg:text-4xl font-semibold text-teal-700 dark:text-teal-300 leading-snug">
@@ -84,6 +85,37 @@ function HeroLeftColumn({
   );
 }
 
+function HeroSourceBadge({
+  language,
+  reading,
+}: {
+  language: LanguageCode;
+  reading: AirQualityReading;
+}) {
+  if (reading.source === 'live') {
+    return (
+      <span className="inline-flex items-center gap-1.5 font-medium text-teal-800 dark:text-teal-300">
+        <span
+          className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
+          aria-hidden="true"
+        />
+        <span>{formatAqiSourceLabel(reading, language)}</span>
+      </span>
+    );
+  }
+  return (
+    <Suspense
+      fallback={
+        <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
+          {t(language, 'sampleReadingForDemo')}
+        </span>
+      }
+    >
+      <DemoReadingInfo language={language} />
+    </Suspense>
+  );
+}
+
 function HeroLiveReadingBody({
   language,
   reading,
@@ -91,10 +123,9 @@ function HeroLiveReadingBody({
   language: LanguageCode;
   reading: AirQualityReading;
 }) {
-  const isLive = reading.source === 'live';
   const timeIst = formatAqiTimestampIst(reading.updatedAt);
   const caption =
-    isLive && timeIst
+    reading.source === 'live' && timeIst
       ? `${language === 'hi' ? 'अपडेट' : 'Updated'} ${timeIst} · ${reading.dominantPollutant} · Open-Meteo`
       : t(language, 'cpcbScaleLabel');
 
@@ -109,21 +140,8 @@ function HeroLiveReadingBody({
         animateOnMount
       />
       <div className="mt-4 pt-4 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2 text-sm text-slate-600 dark:text-slate-300">
-        {isLive ? (
-          <span className="inline-flex items-center gap-1.5 font-medium text-teal-800 dark:text-teal-300">
-            <span
-              className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
-              aria-hidden="true"
-            />
-            <span>{formatAqiSourceLabel(reading, language)}</span>
-          </span>
-        ) : (
-          <DemoReadingInfo language={language} />
-        )}
-        <span
-          className="font-semibold text-slate-800 dark:text-slate-100 tabular-nums"
-          style={{ fontFamily: 'var(--font-mono)' }}
-        >
+        <HeroSourceBadge language={language} reading={reading} />
+        <span className="font-mono font-semibold text-slate-800 dark:text-slate-100 tabular-nums">
           {reading.dominantPollutant}
         </span>
       </div>
@@ -212,24 +230,8 @@ function useDeferredCanvas(reducedMotion: boolean): boolean {
       setReady(false);
       return;
     }
-    let cancelled = false;
-    const w = window as Window & {
-      requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
-    };
-    const id = w.requestIdleCallback
-      ? w.requestIdleCallback(
-          () => {
-            if (!cancelled) setReady(true);
-          },
-          { timeout: 600 }
-        )
-      : window.setTimeout(() => {
-          if (!cancelled) setReady(true);
-        }, 120);
-    return () => {
-      cancelled = true;
-      if (typeof id === 'number') window.clearTimeout(id);
-    };
+    const id = window.setTimeout(() => setReady(true), 120);
+    return () => window.clearTimeout(id);
   }, [reducedMotion]);
   return ready;
 }

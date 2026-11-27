@@ -47,9 +47,11 @@ describe('Input sanitization and validation', () => {
 
   it('clamps numeric household size and commute distance safely', () => {
     expect(clampHouseholdSize(0)).toBe(1);
-    expect(clampHouseholdSize(99)).toBe(15);
+    expect(clampHouseholdSize(20)).toBe(20);
+    expect(clampHouseholdSize(99)).toBe(20);
     expect(clampCommuteKm(-5)).toBe(0);
-    expect(clampCommuteKm(500)).toBe(120);
+    expect(clampCommuteKm(300)).toBe(300);
+    expect(clampCommuteKm(500)).toBe(300);
   });
 
   it('rejects malformed external API response shapes via type guards', () => {

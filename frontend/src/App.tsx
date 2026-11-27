@@ -8,14 +8,18 @@ import { useScrollProgress } from './hooks/useScrollProgress';
 import { useScrollSpy } from './hooks/useScrollSpy';
 import { useSmoothScroll } from './hooks/useSmoothScroll';
 import { loadLanguageBundle, t } from './lib/i18n';
-import { Footer } from './sections/Footer';
 import { Hero } from './sections/Hero';
-import { HowItWorks } from './sections/HowItWorks';
 import { ProfileForm } from './sections/ProfileForm';
 
+const HowItWorks = lazy(() =>
+  import('./sections/HowItWorks').then((m) => ({ default: m.HowItWorks }))
+);
 const Dashboard = lazy(() => import('./sections/Dashboard'));
 const Simulator = lazy(() => import('./sections/Simulator'));
 const Chat = lazy(() => import('./sections/Chat'));
+const Footer = lazy(() =>
+  import('./sections/Footer').then((m) => ({ default: m.Footer }))
+);
 
 function DeferredSections({ state }: { state: ReturnType<typeof useSaansAppState> }) {
   return (
@@ -31,7 +35,9 @@ function DeferredSections({ state }: { state: ReturnType<typeof useSaansAppState
         language={state.profile.language}
         isLoading={state.isGeneratingPlan}
         errorKind={state.planError}
+        langSyncError={state.langSyncError}
         onRetryGemini={state.handleRetryGemini}
+        onRetryLangSync={state.retryLanguageSync}
       />
       <Simulator profile={state.profile} />
       <Chat profile={state.profile} plan={state.plan} />
@@ -60,7 +66,13 @@ function MainSections({
         onRetryAqi={state.reloadHeroAqi}
         onGetStarted={onGetStarted}
       />
-      <HowItWorks language={state.profile.language} />
+      <Suspense
+        fallback={
+          <section id="how-it-works" className="py-12 sm:py-16 min-h-[280px]" />
+        }
+      >
+        <HowItWorks language={state.profile.language} />
+      </Suspense>
       <ProfileForm
         profile={state.profile}
         onChangeProfile={state.updateProfile}
@@ -133,11 +145,13 @@ export default function App() {
         reducedMotion={reducedMotion}
         onGetStarted={() => scrollToElement('#profile')}
       />
-      <Footer
-        language={state.profile.language}
-        reducedMotion={reducedMotion}
-        onToggleReducedMotion={toggleReducedMotion}
-      />
+      <Suspense fallback={<footer className="mt-8 min-h-[260px]" aria-hidden="true" />}>
+        <Footer
+          language={state.profile.language}
+          reducedMotion={reducedMotion}
+          onToggleReducedMotion={toggleReducedMotion}
+        />
+      </Suspense>
     </div>
   );
 }

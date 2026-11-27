@@ -18,7 +18,7 @@ export function useScrollSpy(refreshKey: string): NavSectionId | null {
   const [activeId, setActiveId] = useState<NavSectionId | null>(null);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof IntersectionObserver === 'undefined') {
+    if (typeof IntersectionObserver === 'undefined') {
       return;
     }
 

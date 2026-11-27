@@ -8,7 +8,11 @@ import {
   IndoorHacksCard,
   RoutineTimelineCard,
 } from '../components/DashboardPlanCards';
-import { AiBusyRetryNotice, PlanErrorState } from '../components/PlanStatusNotices';
+import {
+  AiBusyRetryNotice,
+  LanguageSyncNotice,
+  PlanErrorState,
+} from '../components/PlanStatusNotices';
 import { Badge } from '../components/ui/Badge';
 import { t } from '../lib/i18n';
 import { formatAqiSourceLabel } from '../lib/planExport';
@@ -20,7 +24,9 @@ export interface DashboardProps {
   isLoading: boolean;
   announcement?: string;
   errorKind?: 'network' | 'rate_limit' | null;
+  langSyncError?: 'network' | 'rate_limit' | null;
   onRetryGemini?: () => void;
+  onRetryLangSync?: () => void;
 }
 
 function DashboardMetaHeader({
@@ -146,16 +152,25 @@ function DashboardPlanContent({
   plan,
   language,
   isLoading,
+  langSyncError,
   onRetryGemini,
+  onRetryLangSync,
 }: {
   plan: PlanResponse;
   language: LanguageCode;
   isLoading: boolean;
+  langSyncError?: 'network' | 'rate_limit' | null;
   onRetryGemini?: () => void;
+  onRetryLangSync?: () => void;
 }) {
   return (
     <div id="print-plan-area" className="max-w-6xl mx-auto px-4 sm:px-6">
       <DashboardMetaHeader plan={plan} language={language} />
+      <LanguageSyncNotice
+        language={language}
+        errorKind={langSyncError}
+        onRetry={onRetryLangSync}
+      />
       <AiBusyRetryNotice
         plan={plan}
         language={language}
@@ -220,7 +235,9 @@ export default function Dashboard({
   isLoading,
   announcement,
   errorKind = null,
+  langSyncError = null,
   onRetryGemini,
+  onRetryLangSync,
 }: DashboardProps) {
   if (!plan && !isLoading && !errorKind) return null;
   return (
@@ -239,7 +256,9 @@ export default function Dashboard({
           plan={plan}
           language={language}
           isLoading={isLoading}
+          langSyncError={langSyncError}
           onRetryGemini={onRetryGemini}
+          onRetryLangSync={onRetryLangSync}
         />
       ) : (
         <DashboardStatusFallback

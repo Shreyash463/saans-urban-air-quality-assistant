@@ -11,6 +11,25 @@ import type {
   UserProfile,
 } from '../types';
 
+type ErrKind = 'network' | 'rate_limit';
+type SyncState = {
+  profile: UserProfile;
+  planLang: LanguageCode | null;
+  inFlight: LanguageCode | null;
+  abort: AbortController | null;
+};
+type PlanHookApi = {
+  setPlan: (p: PlanResponse | null) => void;
+  setPlanError: (e: ErrKind | null) => void;
+  setLangSyncError: (e: ErrKind | null) => void;
+  setIsGeneratingPlan: (v: boolean) => void;
+  setPreviewReading: (r: AirQualityReading | null) => void;
+  announce: (m: string) => void;
+};
+
+const toErrKind = (e: unknown): ErrKind =>
+  e instanceof ApiRequestError && e.kind === 'rate_limit' ? 'rate_limit' : 'network';
+
 function useHeroAqiLoader(initialCity: string) {
   const [previewReading, setPreviewReading] = useState<AirQualityReading | null>(null);
   const [aqiLoading, setAqiLoading] = useState(true);
@@ -20,9 +39,7 @@ function useHeroAqiLoader(initialCity: string) {
     setAqiLoading(true);
     setAqiError(false);
     getAirQuality(city)
-      .then((reading) => {
-        setPreviewReading(reading);
-      })
+      .then(setPreviewReading)
       .catch(() => {
         setPreviewReading(null);
         setAqiError(true);
@@ -30,88 +47,192 @@ function useHeroAqiLoader(initialCity: string) {
       .finally(() => setAqiLoading(false));
   }, []);
 
-  const initialCityRef = useRef(initialCity);
-  useEffect(() => {
-    loadHeroAqi(initialCityRef.current);
-  }, [loadHeroAqi]);
-
+  const initRef = useRef(initialCity);
+  useEffect(() => loadHeroAqi(initRef.current), [loadHeroAqi]);
   return { previewReading, setPreviewReading, aqiLoading, aqiError, loadHeroAqi };
+}
+
+function abortSync(
+  ref: { current: SyncState },
+  setSyncErr: (e: ErrKind | null) => void
+) {
+  ref.current.abort?.abort();
+  ref.current.abort = null;
+  ref.current.inFlight = null;
+  setSyncErr(null);
+}
+
+function startLangSync(
+  target: UserProfile,
+  coords: Coordinates | null,
+  ref: { current: SyncRefsAlias },
+  api: PlanHookApi
+) {
+  abortSync(ref, api.setLangSyncError);
+  const ctrl = new AbortController();
+  ref.current.abort = ctrl;
+  ref.current.inFlight = target.language;
+  void generatePlan(target, coords, ctrl.signal)
+    .then((next) => {
+      if (ctrl.signal.aborted) return;
+      ref.current.planLang = target.language;
+      ref.current.inFlight = null;
+      api.setPlan(next);
+      api.setPreviewReading(next.aqi);
+      api.announce(t(target.language, 'planReadyAnnouncement'));
+    })
+    .catch((err: unknown) => {
+      if (
+        ctrl.signal.aborted ||
+        (err instanceof DOMException && err.name === 'AbortError')
+      )
+        return;
+      ref.current.inFlight = null;
+      const k = toErrKind(err);
+      api.setLangSyncError(k);
+      api.announce(
+        t(
+          target.language,
+          k === 'rate_limit' ? 'planRateLimitBody' : 'planErrorHeading'
+        )
+      );
+    });
+}
+type SyncRefsAlias = SyncState;
+
+async function submitMainPlan(
+  target: UserProfile,
+  coords: Coordinates | null,
+  shouldScroll: boolean,
+  ref: { current: SyncState },
+  api: PlanHookApi,
+  scroll: (t: string | HTMLElement) => void
+) {
+  abortSync(ref, api.setLangSyncError);
+  api.setIsGeneratingPlan(true);
+  api.setPlanError(null);
+  api.announce(t(target.language, 'planLoadingLabel'));
+  try {
+    const next = await generatePlan(target, coords);
+    ref.current.planLang = target.language;
+    api.setPlan(next);
+    api.setPreviewReading(next.aqi);
+    api.announce(t(target.language, 'planReadyAnnouncement'));
+    if (shouldScroll) window.setTimeout(() => scroll('#dashboard'), 80);
+  } catch (err) {
+    api.setPlanError(toErrKind(err));
+    api.setPlan(null);
+    api.announce(t(target.language, 'planErrorHeading'));
+  } finally {
+    api.setIsGeneratingPlan(false);
+  }
+}
+
+function runClearFlow(
+  ref: { current: SyncState },
+  clearPrefs: () => void,
+  updateProfile: (u: (p: UserProfile) => UserProfile) => void,
+  setActiveCoords: (c: Coordinates | null) => void,
+  api: PlanHookApi,
+  loadHeroAqi: (city: string) => void
+): void {
+  const lang = ref.current.profile.language;
+  abortSync(ref, api.setLangSyncError);
+  ref.current = {
+    profile: { ...DEFAULT_USER_PROFILE, language: lang },
+    planLang: null,
+    inFlight: null,
+    abort: null,
+  };
+  clearPrefs();
+  updateProfile((p) => ({ ...DEFAULT_USER_PROFILE, language: p.language }));
+  setActiveCoords(null);
+  api.setPlan(null);
+  api.setPlanError(null);
+  loadHeroAqi(DEFAULT_USER_PROFILE.city);
+  api.announce(t(lang, 'dataClearedNotice'));
+}
+
+function runToggleFlow(
+  ref: { current: SyncState },
+  updateProfile: (u: UserProfile) => void,
+  plan: PlanResponse | null,
+  liveCoords: Coordinates | null,
+  api: PlanHookApi
+): void {
+  const lang: LanguageCode = ref.current.profile.language === 'en' ? 'hi' : 'en';
+  const next = { ...ref.current.profile, language: lang };
+  ref.current.profile = next;
+  updateProfile(next);
+  api.setLangSyncError(null);
+  if (!plan) return;
+  if (ref.current.planLang === lang) return abortSync(ref, api.setLangSyncError);
+  if (ref.current.inFlight !== lang) startLangSync(next, liveCoords, ref, api);
 }
 
 function useStatusAnnouncer() {
   const [statusMessage, setStatusMessage] = useState('');
-  const announce = useCallback((msg: string) => {
+  const announce = useCallback((m: string) => {
     setStatusMessage('');
-    window.setTimeout(() => setStatusMessage(msg), 20);
+    window.setTimeout(() => setStatusMessage(m), 20);
   }, []);
   return { statusMessage, announce };
 }
 
-function usePlanRequestState(
-  activeCoords: Coordinates | null,
-  scrollToElement: (target: string | HTMLElement) => void,
-  setPreviewReading: (r: AirQualityReading) => void
-) {
-  const [plan, setPlan] = useState<PlanResponse | null>(null);
-  const [planError, setPlanError] = useState<'network' | 'rate_limit' | null>(null);
-  const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
-  const { statusMessage, announce } = useStatusAnnouncer();
-
-  const requestPlan = useCallback(
-    async (targetProfile: UserProfile, shouldScroll: boolean) => {
-      setIsGeneratingPlan(true);
-      setPlanError(null);
-      announce(t(targetProfile.language, 'planLoadingLabel'));
-      try {
-        const next = await generatePlan(targetProfile, activeCoords);
-        setPlan(next);
-        setPreviewReading(next.aqi);
-        announce(t(targetProfile.language, 'planReadyAnnouncement'));
-        if (shouldScroll) window.setTimeout(() => scrollToElement('#dashboard'), 80);
-      } catch (err) {
-        setPlanError(
-          err instanceof ApiRequestError && err.kind === 'rate_limit'
-            ? 'rate_limit'
-            : 'network'
-        );
-        setPlan(null);
-        announce(t(targetProfile.language, 'planErrorHeading'));
-      } finally {
-        setIsGeneratingPlan(false);
-      }
-    },
-    [activeCoords, announce, scrollToElement, setPreviewReading]
-  );
-
-  return {
-    plan,
-    setPlan,
-    planError,
-    setPlanError,
-    isGeneratingPlan,
-    statusMessage,
-    announce,
-    requestPlan,
-  };
+interface AppActionDeps {
+  profile: UserProfile;
+  updateProfile: (u: UserProfile | ((p: UserProfile) => UserProfile)) => void;
+  clearPrefs: () => void;
+  activeCoords: Coordinates | null;
+  setActiveCoords: (c: Coordinates | null) => void;
+  hero: ReturnType<typeof useHeroAqiLoader>;
+  announce: (m: string) => void;
+  scroll: (t: string | HTMLElement) => void;
 }
 
-function toggleProfileLanguage(
-  profile: UserProfile,
-  plan: PlanResponse | null,
-  activeCoords: Coordinates | null,
-  updateProfile: (next: UserProfile) => void,
-  onSuccess: (next: PlanResponse) => void
-): void {
-  const next = {
-    ...profile,
-    language: (profile.language === 'en' ? 'hi' : 'en') as LanguageCode,
+function useAppActions(d: AppActionDeps) {
+  const [plan, setPlan] = useState<PlanResponse | null>(null);
+  const [planError, setPlanError] = useState<ErrKind | null>(null);
+  const [langSyncError, setLangSyncError] = useState<ErrKind | null>(null);
+  const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
+  const ref = useRef<SyncState>({
+    profile: d.profile,
+    planLang: null,
+    inFlight: null,
+    abort: null,
+  });
+  useEffect(() => {
+    ref.current.profile = d.profile;
+  }, [d.profile]);
+
+  const api: PlanHookApi = {
+    setPlan,
+    setPlanError,
+    setLangSyncError,
+    setIsGeneratingPlan,
+    setPreviewReading: d.hero.setPreviewReading,
+    announce: d.announce,
   };
-  updateProfile(next);
-  if (!plan) return;
-  const coords = plan.aqi.source === 'live' ? activeCoords : null;
-  void generatePlan(next, coords)
-    .then(onSuccess)
-    .catch(() => undefined);
+  const liveCoords = plan?.aqi.source === 'live' ? d.activeCoords : null;
+  return {
+    state: { plan, planError, langSyncError, isGeneratingPlan },
+    toggleLanguage: () => runToggleFlow(ref, d.updateProfile, plan, liveCoords, api),
+    retryLanguageSync: () =>
+      plan && startLangSync(ref.current.profile, liveCoords, ref, api),
+    handleSubmitProfile: (clean: UserProfile) =>
+      submitMainPlan(clean, d.activeCoords, true, ref, api, d.scroll),
+    handleRetryGemini: () =>
+      void submitMainPlan(d.profile, d.activeCoords, false, ref, api, d.scroll),
+    handleClearData: () =>
+      runClearFlow(
+        ref,
+        d.clearPrefs,
+        d.updateProfile,
+        d.setActiveCoords,
+        api,
+        d.hero.loadHeroAqi
+      ),
+  };
 }
 
 export function useSaansAppState(
@@ -120,47 +241,33 @@ export function useSaansAppState(
   const { profile, updateProfile, clearPrefs } = useLocalPrefs();
   const { theme, toggleTheme } = useTheme();
   const [activeCoords, setActiveCoords] = useState<Coordinates | null>(null);
+  const { statusMessage, announce } = useStatusAnnouncer();
   const hero = useHeroAqiLoader(profile.city);
-  const req = usePlanRequestState(
+  const act = useAppActions({
+    profile,
+    updateProfile,
+    clearPrefs,
     activeCoords,
-    scrollToElement,
-    hero.setPreviewReading
-  );
-
-  const toggleLanguage = () =>
-    toggleProfileLanguage(profile, req.plan, activeCoords, updateProfile, (p) => {
-      req.setPlan(p);
-      hero.setPreviewReading(p.aqi);
-    });
-
-  const handleClearData = () => {
-    const lang = profile.language;
-    clearPrefs();
-    updateProfile((prev) => ({ ...DEFAULT_USER_PROFILE, language: prev.language }));
-    setActiveCoords(null);
-    req.setPlan(null);
-    req.setPlanError(null);
-    hero.loadHeroAqi(DEFAULT_USER_PROFILE.city);
-    req.announce(t(lang, 'dataClearedNotice'));
-  };
-
+    setActiveCoords,
+    hero,
+    announce,
+    scroll: scrollToElement,
+  });
   return {
     profile,
     updateProfile,
     theme,
     toggleTheme,
     ...hero,
-    reloadHeroAqi: () => hero.loadHeroAqi(profile.city),
+    ...act.state,
     activeCoords,
     setActiveCoords,
-    plan: req.plan,
-    planError: req.planError,
-    isGeneratingPlan: req.isGeneratingPlan,
-    statusMessage: req.statusMessage,
-    toggleLanguage,
-    handleSubmitProfile: (cleanProfile: UserProfile) =>
-      req.requestPlan(cleanProfile, true),
-    handleRetryGemini: () => void req.requestPlan(profile, false),
-    handleClearData,
+    statusMessage,
+    reloadHeroAqi: () => hero.loadHeroAqi(profile.city),
+    toggleLanguage: act.toggleLanguage,
+    retryLanguageSync: act.retryLanguageSync,
+    handleSubmitProfile: act.handleSubmitProfile,
+    handleRetryGemini: act.handleRetryGemini,
+    handleClearData: act.handleClearData,
   };
 }

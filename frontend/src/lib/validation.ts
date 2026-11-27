@@ -1,12 +1,13 @@
+import limitsContract from '../../../contract/limits.json';
 import { validateContractModel } from './contractValidator';
 import type { AirQualityReading, ChatReply, PlanResponse, UserProfile } from '../types';
 
-export const CITY_MAX_LENGTH = 60;
-export const CHAT_MAX_LENGTH = 500;
-export const MIN_HOUSEHOLD_SIZE = 1;
-export const MAX_HOUSEHOLD_SIZE = 15;
-export const MIN_COMMUTE_KM = 0;
-export const MAX_COMMUTE_KM = 120;
+export const CITY_MAX_LENGTH = limitsContract.cityMaxLength;
+export const CHAT_MAX_LENGTH = limitsContract.questionMaxLength;
+export const MIN_HOUSEHOLD_SIZE = limitsContract.householdSizeMin;
+export const MAX_HOUSEHOLD_SIZE = limitsContract.householdSizeMax;
+export const MIN_COMMUTE_KM = limitsContract.commuteKmMin;
+export const MAX_COMMUTE_KM = limitsContract.commuteKmMax;
 
 // eslint-disable-next-line no-control-regex
 const CONTROL_CHAR_REGEX = /[\u0000-\u001F\u007F]/g;
@@ -33,23 +34,35 @@ export function sanitizeCity(rawCity: string): string {
   return stripControlChars(rawCity).slice(0, CITY_MAX_LENGTH);
 }
 
-/** Validates a city string (1-60 Unicode letters, spaces, commas, periods, hyphens). */
-export function validateCity(rawCity: string): ValidationResult {
-  const cleaned = stripControlChars(rawCity);
-  if (cleaned.length === 0) {
-    return { valid: false, sanitized: '', errorKey: 'errorCityRequired' };
+function validateBoundedText(
+  raw: string,
+  maxLen: number,
+  emptyKey: ValidationResult['errorKey'],
+  tooLongKey: ValidationResult['errorKey'],
+  pattern?: RegExp,
+  invalidKey?: ValidationResult['errorKey']
+): ValidationResult {
+  const cleaned = stripControlChars(raw);
+  if (cleaned.length === 0) return { valid: false, sanitized: '', errorKey: emptyKey };
+  if (cleaned.length > maxLen) {
+    return { valid: false, sanitized: cleaned.slice(0, maxLen), errorKey: tooLongKey };
   }
-  if (cleaned.length > CITY_MAX_LENGTH) {
-    return {
-      valid: false,
-      sanitized: cleaned.slice(0, CITY_MAX_LENGTH),
-      errorKey: 'errorCityTooLong',
-    };
-  }
-  if (!ALLOWED_CITY_REGEX.test(cleaned)) {
-    return { valid: false, sanitized: cleaned, errorKey: 'errorCityInvalidChars' };
+  if (pattern && !pattern.test(cleaned)) {
+    return { valid: false, sanitized: cleaned, errorKey: invalidKey };
   }
   return { valid: true, sanitized: cleaned };
+}
+
+/** Validates a city string (1-60 Unicode letters, spaces, commas, periods, hyphens). */
+export function validateCity(rawCity: string): ValidationResult {
+  return validateBoundedText(
+    rawCity,
+    CITY_MAX_LENGTH,
+    'errorCityRequired',
+    'errorCityTooLong',
+    ALLOWED_CITY_REGEX,
+    'errorCityInvalidChars'
+  );
 }
 
 /** Sanitizes a follow-up chat question and limits length to CHAT_MAX_LENGTH (500). */
@@ -59,18 +72,12 @@ export function sanitizeChatQuestion(rawQuestion: string): string {
 
 /** Validates a follow-up chat question for submission. */
 export function validateChatQuestion(rawQuestion: string): ValidationResult {
-  const cleaned = stripControlChars(rawQuestion);
-  if (cleaned.length === 0) {
-    return { valid: false, sanitized: '', errorKey: 'errorChatRequired' };
-  }
-  if (cleaned.length > CHAT_MAX_LENGTH) {
-    return {
-      valid: false,
-      sanitized: cleaned.slice(0, CHAT_MAX_LENGTH),
-      errorKey: 'errorChatTooLong',
-    };
-  }
-  return { valid: true, sanitized: cleaned };
+  return validateBoundedText(
+    rawQuestion,
+    CHAT_MAX_LENGTH,
+    'errorChatRequired',
+    'errorChatTooLong'
+  );
 }
 
 /** Clamps household size into [MIN_HOUSEHOLD_SIZE, MAX_HOUSEHOLD_SIZE]. */

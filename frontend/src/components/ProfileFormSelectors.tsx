@@ -88,13 +88,10 @@ function CommuteDistanceControl({
         value={isWfh ? 0 : commuteKm}
         onChange={onChangeKm}
       />
-      <div
-        className="mt-1.5 flex justify-between text-sm text-slate-600 dark:text-slate-300 tabular-nums"
-        style={{ fontFamily: 'var(--font-mono)' }}
-      >
-        <span>0 km</span>
-        <span>60 km</span>
-        <span>120 km</span>
+      <div className="font-mono mt-1.5 flex justify-between text-sm text-slate-600 dark:text-slate-300 tabular-nums">
+        <span>{MIN_COMMUTE_KM} km</span>
+        <span>{Math.round((MIN_COMMUTE_KM + MAX_COMMUTE_KM) / 2)} km</span>
+        <span>{MAX_COMMUTE_KM} km</span>
       </div>
     </div>
   );
