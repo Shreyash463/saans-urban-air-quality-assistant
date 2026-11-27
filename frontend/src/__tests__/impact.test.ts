@@ -3,8 +3,8 @@ import {
   calculateHouseholdImpact,
   calculateImpact,
   calculateMultiplicativePm25Reduction,
-  getActionStates,
 } from '../lib/impact';
+import { getActionStates } from '../lib/impactStates';
 import {
   IMPACT_ACTION_FACTORS,
   MAX_AIR_FRIENDLY_SCORE,

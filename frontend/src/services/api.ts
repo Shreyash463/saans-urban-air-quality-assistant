@@ -43,20 +43,13 @@ export class ApiRequestError extends Error {
   }
 }
 
-/**
- * Resolves the configured backend base URL (trimmed, without trailing slash).
- * Empty string means same-origin requests (/api/...).
- */
-function getApiBaseUrl(): string {
+/** Resolves base URL from VITE_API_BASE_URL (empty string uses same-origin /api/...). */
+function buildApiUrl(path: string): string {
   const raw =
     typeof import.meta !== 'undefined' && import.meta.env
       ? ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '')
       : '';
-  return raw.trim().replace(/\/+$/, '');
-}
-
-function buildApiUrl(path: string): string {
-  const base = getApiBaseUrl();
+  const base = raw.trim().replace(/\/+$/, '');
   return base ? `${base}${path}` : path;
 }
 

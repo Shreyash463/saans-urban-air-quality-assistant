@@ -3,7 +3,7 @@ import contractFactors from '../../../contract/impact-factors.json';
 import goldenVectors from '../../../contract/golden-vectors.json';
 import samplePlan from '../../../contract/plan.sample.json';
 import { getAqiCategory } from '../lib/aqi';
-import { calculateProfileImpact } from '../lib/impact';
+import { calculateImpact } from '../lib/impact';
 import { MAX_PM25_REDUCTION_PCT } from '../lib/impactFactors';
 import { isAirQualityReading, isPlanResponse } from '../lib/validation';
 import type { UserProfile } from '../types';
@@ -45,7 +45,7 @@ describe('Shared cross-language contract fixtures and golden vectors', () => {
     }
 
     for (const vec of goldenVectors.impactVectors) {
-      const result = calculateProfileImpact(
+      const result = calculateImpact(
         vec.profile as UserProfile,
         vec.selectedActions as ImpactActionId[]
       );

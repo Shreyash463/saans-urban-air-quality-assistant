@@ -5,12 +5,12 @@ import { ToggleSwitch } from '../components/ToggleSwitch';
 import { Button } from '../components/ui/Button';
 import { RangeSlider } from '../components/ui/RangeSlider';
 import { t } from '../lib/i18n';
+import { calculateImpact } from '../lib/impact';
 import {
-  calculateImpact,
   getActionStates,
   getRecommendedInitialActions,
   type EvaluatedActionState,
-} from '../lib/impact';
+} from '../lib/impactStates';
 import { IMPACT_ACTION_FACTORS, type ImpactActionId } from '../lib/impactFactors';
 import type { LanguageCode, UserProfile } from '../types';
 

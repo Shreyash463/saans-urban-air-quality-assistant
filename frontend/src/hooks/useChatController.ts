@@ -4,33 +4,13 @@ import { getAqiCategory } from '../lib/aqi';
 import { t } from '../lib/i18n';
 import { validateChatQuestion } from '../lib/validation';
 import { ApiRequestError, askFollowUp } from '../services/api';
-import type { ChatMessage, PlanResponse, RoutineItem, UserProfile } from '../types';
+import type { ChatMessage, PlanResponse, RoutineTimeSlot, UserProfile } from '../types';
 
-const FALLBACK_ROUTINE: RoutineItem[] = [
-  {
-    timeSlot: 'morning',
-    title: 'Morning protection',
-    detail: 'Keep windows closed.',
-    impactNote: 'Cuts smog ingress.',
-  },
-  {
-    timeSlot: 'midday',
-    title: 'Midday window',
-    detail: 'Brief cross-ventilation.',
-    impactNote: 'Refreshes air.',
-  },
-  {
-    timeSlot: 'evening',
-    title: 'Evening seal',
-    detail: 'Run exhaust when cooking.',
-    impactNote: 'Traps fumes.',
-  },
-  {
-    timeSlot: 'night',
-    title: 'Night recovery',
-    detail: 'Wet-mop floors earlier.',
-    impactNote: 'Lower dust.',
-  },
+const TIME_SLOTS: readonly RoutineTimeSlot[] = [
+  'morning',
+  'midday',
+  'evening',
+  'night',
 ];
 
 function makeMessage(
@@ -42,18 +22,24 @@ function makeMessage(
 }
 
 function buildFallbackContextPlan(profile: UserProfile): PlanResponse {
+  const city = profile.city || 'Delhi';
   const cat = getAqiCategory(180);
   return {
     aqi: {
-      city: profile.city || 'Delhi',
+      city,
       aqi: 180,
       dominantPollutant: 'PM2.5',
       updatedAt: '',
       source: 'demo',
     },
-    summary: `${profile.city || 'Delhi'} sample context (${cat.label.en}).`,
+    summary: `${city} sample context (${cat.label.en}).`,
     healthAdvisory: 'Consult a doctor if symptoms occur.',
-    routine: FALLBACK_ROUTINE,
+    routine: TIME_SLOTS.map((timeSlot) => ({
+      timeSlot,
+      title: `${timeSlot} routine`,
+      detail: 'Keep indoor air clean during smog hours.',
+      impactNote: 'Lowers PM2.5 exposure.',
+    })),
     indoorHacks: [
       {
         title: 'Wet mop',

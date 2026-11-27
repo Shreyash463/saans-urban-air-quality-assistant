@@ -1,21 +1,18 @@
 import { AlertTriangle, ShieldAlert } from 'lucide-react';
 import { AqiGauge } from '../components/AqiGauge';
 import { CommunityActionsSection } from '../components/CommunityActionsSection';
+import { DashboardExportActions } from '../components/DashboardExportActions';
 import { PlanLoadingStatus } from '../components/DashboardLoadingStatus';
 import {
-  AiBusyRetryNotice,
   AlternativesCard,
-  DashboardExportActions,
   IndoorHacksCard,
-  PlanErrorState,
   RoutineTimelineCard,
 } from '../components/DashboardPlanCards';
+import { AiBusyRetryNotice, PlanErrorState } from '../components/PlanStatusNotices';
 import { Badge } from '../components/ui/Badge';
 import { t } from '../lib/i18n';
 import { formatAqiSourceLabel } from '../lib/planExport';
 import type { LanguageCode, PlanResponse } from '../types';
-
-export { PlanLoadingStatus };
 
 export interface DashboardProps {
   plan: PlanResponse | null;

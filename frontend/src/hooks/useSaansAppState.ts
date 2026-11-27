@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { DEFAULT_USER_PROFILE, useLocalPrefs } from '../hooks/useLocalPrefs';
 import { useTheme } from '../hooks/useTheme';
 import { t } from '../lib/i18n';
@@ -22,7 +22,6 @@ function useHeroAqiLoader(initialCity: string) {
     getAirQuality(city)
       .then((reading) => {
         setPreviewReading(reading);
-        setAqiError(false);
       })
       .catch(() => {
         setPreviewReading(null);
@@ -31,36 +30,12 @@ function useHeroAqiLoader(initialCity: string) {
       .finally(() => setAqiLoading(false));
   }, []);
 
+  const initialCityRef = useRef(initialCity);
   useEffect(() => {
-    loadHeroAqi(initialCity);
-    // Initial mount load only
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    loadHeroAqi(initialCityRef.current);
+  }, [loadHeroAqi]);
 
   return { previewReading, setPreviewReading, aqiLoading, aqiError, loadHeroAqi };
-}
-
-function useLanguagePlanSync(
-  plan: PlanResponse | null,
-  profile: UserProfile,
-  activeCoords: Coordinates | null,
-  onPlanUpdated: (next: PlanResponse) => void
-) {
-  useEffect(() => {
-    if (!plan) return;
-    let active = true;
-    const coords = plan.aqi.source === 'live' ? activeCoords : null;
-    void generatePlan(profile, coords)
-      .then((nextPlan) => {
-        if (active) onPlanUpdated(nextPlan);
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-    // Re-generate when active language changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile.language]);
 }
 
 function useStatusAnnouncer() {
@@ -73,7 +48,6 @@ function useStatusAnnouncer() {
 }
 
 function usePlanRequestState(
-  profile: UserProfile,
   activeCoords: Coordinates | null,
   scrollToElement: (target: string | HTMLElement) => void,
   setPreviewReading: (r: AirQualityReading) => void
@@ -109,10 +83,6 @@ function usePlanRequestState(
     [activeCoords, announce, scrollToElement, setPreviewReading]
   );
 
-  useLanguagePlanSync(plan, profile, activeCoords, (next) => {
-    setPlan(next);
-    setPreviewReading(next.aqi);
-  });
   return {
     plan,
     setPlan,
@@ -125,6 +95,25 @@ function usePlanRequestState(
   };
 }
 
+function toggleProfileLanguage(
+  profile: UserProfile,
+  plan: PlanResponse | null,
+  activeCoords: Coordinates | null,
+  updateProfile: (next: UserProfile) => void,
+  onSuccess: (next: PlanResponse) => void
+): void {
+  const next = {
+    ...profile,
+    language: (profile.language === 'en' ? 'hi' : 'en') as LanguageCode,
+  };
+  updateProfile(next);
+  if (!plan) return;
+  const coords = plan.aqi.source === 'live' ? activeCoords : null;
+  void generatePlan(next, coords)
+    .then(onSuccess)
+    .catch(() => undefined);
+}
+
 export function useSaansAppState(
   scrollToElement: (target: string | HTMLElement) => void
 ) {
@@ -133,11 +122,16 @@ export function useSaansAppState(
   const [activeCoords, setActiveCoords] = useState<Coordinates | null>(null);
   const hero = useHeroAqiLoader(profile.city);
   const req = usePlanRequestState(
-    profile,
     activeCoords,
     scrollToElement,
     hero.setPreviewReading
   );
+
+  const toggleLanguage = () =>
+    toggleProfileLanguage(profile, req.plan, activeCoords, updateProfile, (p) => {
+      req.setPlan(p);
+      hero.setPreviewReading(p.aqi);
+    });
 
   const handleClearData = () => {
     const lang = profile.language;
@@ -163,11 +157,7 @@ export function useSaansAppState(
     planError: req.planError,
     isGeneratingPlan: req.isGeneratingPlan,
     statusMessage: req.statusMessage,
-    toggleLanguage: () =>
-      updateProfile((prev) => ({
-        ...prev,
-        language: (prev.language === 'en' ? 'hi' : 'en') as LanguageCode,
-      })),
+    toggleLanguage,
     handleSubmitProfile: (cleanProfile: UserProfile) =>
       req.requestPlan(cleanProfile, true),
     handleRetryGemini: () => void req.requestPlan(profile, false),

@@ -10,7 +10,7 @@ import {
 } from '@testing-library/react';
 import axe from 'axe-core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AiBusyRetryNotice } from '../components/DashboardPlanCards';
+import { AiBusyRetryNotice } from '../components/PlanStatusNotices';
 import { CommunityActionsSection } from '../components/CommunityActionsSection';
 import { Hero } from '../sections/Hero';
 import { QUICK_PICK_CITIES } from '../lib/cities';

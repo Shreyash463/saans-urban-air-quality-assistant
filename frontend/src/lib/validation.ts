@@ -100,10 +100,7 @@ export function sanitizeUserProfile(profile: UserProfile): UserProfile {
 export function isAirQualityReading(value: unknown): value is AirQualityReading {
   return (
     validateContractModel('AirQualityReading', value) &&
-    value !== null &&
-    typeof value === 'object' &&
-    typeof (value as { city?: unknown }).city === 'string' &&
-    (value as { city: string }).city.trim().length > 0
+    (value as AirQualityReading).city.trim().length > 0
   );
 }
 
@@ -116,7 +113,6 @@ export function isPlanResponse(value: unknown): value is PlanResponse {
 export function isChatReply(value: unknown): value is ChatReply {
   return (
     validateContractModel('ChatReply', value) &&
-    typeof (value as { answer?: unknown }).answer === 'string' &&
-    (value as { answer: string }).answer.trim().length > 0
+    (value as ChatReply).answer.trim().length > 0
   );
 }

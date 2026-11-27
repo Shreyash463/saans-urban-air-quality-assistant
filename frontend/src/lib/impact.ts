@@ -9,13 +9,9 @@ import {
 } from './impactFactors';
 import {
   getActionStates,
-  getRecommendedInitialActions,
   getScaledCo2,
   type EvaluatedActionState,
 } from './impactStates';
-
-export type { EvaluatedActionState };
-export { getActionStates, getRecommendedInitialActions };
 
 export interface ProfileImpactResult {
   beforeExposurePct: number;
@@ -119,13 +115,6 @@ export function calculateImpact(
     selectedActions,
     alreadyDoingActions,
   };
-}
-
-export function calculateProfileImpact(
-  profile: UserProfile,
-  selectedActionIds: readonly ImpactActionId[]
-): ProfileImpactResult {
-  return calculateImpact(profile, selectedActionIds);
 }
 
 export function calculateHouseholdImpact(
