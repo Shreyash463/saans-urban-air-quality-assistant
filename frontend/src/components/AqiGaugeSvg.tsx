@@ -58,8 +58,7 @@ function GaugeTicksAndLabels() {
         x="38"
         y="184"
         textAnchor="middle"
-        style={{ fontFamily: 'var(--font-mono)' }}
-        className="fill-slate-600 dark:fill-slate-300 text-[11px]"
+        className="font-mono fill-slate-600 dark:fill-slate-300 text-[11px]"
       >
         0
       </text>
@@ -67,8 +66,7 @@ function GaugeTicksAndLabels() {
         x="182"
         y="184"
         textAnchor="middle"
-        style={{ fontFamily: 'var(--font-mono)' }}
-        className="fill-slate-600 dark:fill-slate-300 text-[11px]"
+        className="font-mono fill-slate-600 dark:fill-slate-300 text-[11px]"
       >
         500
       </text>
@@ -97,8 +95,7 @@ function GaugeCenterReadout({
         x={CENTER}
         y={CENTER + 28}
         textAnchor="middle"
-        style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}
-        className="fill-slate-900 dark:fill-slate-50 text-[40px] font-semibold"
+        className="font-mono tabular-nums fill-slate-900 dark:fill-slate-50 text-[40px] font-semibold"
       >
         {displayAqi}
       </text>

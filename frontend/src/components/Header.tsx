@@ -158,8 +158,7 @@ export function Header(props: HeaderProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2 xl:gap-4">
         <a
           href="#hero"
-          className="inline-flex items-center gap-2 text-lg font-bold tracking-tight text-slate-900 dark:text-slate-50 whitespace-nowrap shrink-0 min-h-[44px]"
-          style={{ fontFamily: 'var(--font-display)' }}
+          className="font-display inline-flex items-center gap-2 text-lg font-bold tracking-tight text-slate-900 dark:text-slate-50 whitespace-nowrap shrink-0 min-h-[44px]"
         >
           <Wind
             className="w-5 h-5 text-teal-700 dark:text-teal-400 shrink-0"

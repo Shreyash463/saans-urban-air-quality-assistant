@@ -66,8 +66,7 @@ function HouseholdSizeStepper({ householdSize, language, onChangeSize }: Stepper
           <Minus className="w-4 h-4" aria-hidden="true" />
         </Button>
         <span
-          className="min-w-[92px] text-center text-base font-semibold text-slate-900 dark:text-slate-100 tabular-nums"
-          style={{ fontFamily: 'var(--font-mono)' }}
+          className="font-mono min-w-[92px] text-center text-base font-semibold text-slate-900 dark:text-slate-100 tabular-nums"
           aria-live="polite"
         >
           {householdSize}{' '}
