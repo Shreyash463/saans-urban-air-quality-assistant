@@ -28,17 +28,14 @@ from app.static_spa import StaticAsset, build_static_index, serve_indexed_asset
 
 logger = logging.getLogger("saans")
 
+_HTTP_MAX_KEEPALIVE_CONNECTIONS = 10
+_HTTP_MAX_CONNECTIONS = 25
+_GZIP_MINIMUM_SIZE_BYTES = 500
+_GZIP_COMPRESS_LEVEL = 6
 
-class _CoordsLogFilter(logging.Filter):
-    """Strips query strings containing coordinates from uvicorn access log records."""
 
-    def filter(self, record: logging.LogRecord) -> bool:
-        if record.args and isinstance(record.args, tuple):
-            record.args = tuple(
-                a.split("?", 1)[0] if isinstance(a, str) and ("lat=" in a or "lon=" in a) else a
-                for a in record.args
-            )
-        return True
+def _not_found_response() -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": "Not found."})
 
 
 def _register_exception_handlers(app: FastAPI) -> None:
@@ -68,17 +65,13 @@ def _register_exception_handlers(app: FastAPI) -> None:
 
 
 def _configure_logging(resolved_settings: Settings) -> None:
-    """Configures root logging while ensuring coordinate query strings are never logged."""
+    """Configures application and HTTP client logging levels."""
     logging.basicConfig(
         level=getattr(logging, resolved_settings.log_level.upper(), logging.INFO),
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
-    uvicorn_access = logging.getLogger("uvicorn.access")
-    if any(isinstance(f, _CoordsLogFilter) for f in uvicorn_access.filters):
-        return
-    uvicorn_access.addFilter(_CoordsLogFilter())
 
 
 def _populate_app_state(
@@ -90,15 +83,21 @@ def _populate_app_state(
     application.state.settings = settings
     application.state.http_client = http_client
     application.state.gemini_client = gemini
-    application.state.air_quality_cache = TTLCache[AirQualityReading](ttl_seconds=settings.cache_ttl_seconds, maxsize=256)
-    application.state.plan_cache = TTLCache[PlanResponse](ttl_seconds=settings.cache_ttl_seconds, maxsize=256)
+    application.state.air_quality_cache = TTLCache[AirQualityReading](
+        ttl_seconds=settings.cache_ttl_seconds,
+        maxsize=settings.cache_maxsize,
+    )
+    application.state.plan_cache = TTLCache[PlanResponse](
+        ttl_seconds=settings.cache_ttl_seconds,
+        maxsize=settings.cache_maxsize,
+    )
     application.state.air_quality_service = AirQualityService(
         cache=application.state.air_quality_cache,
         timeout_seconds=settings.air_quality_timeout_seconds,
     )
-    application.state.air_quality_limiter = SlidingWindowRateLimiter(max_requests=60)
-    application.state.plan_limiter = SlidingWindowRateLimiter(max_requests=20)
-    application.state.chat_limiter = SlidingWindowRateLimiter(max_requests=20)
+    application.state.air_quality_limiter = SlidingWindowRateLimiter(max_requests=settings.air_quality_rate_limit)
+    application.state.plan_limiter = SlidingWindowRateLimiter(max_requests=settings.plan_rate_limit)
+    application.state.chat_limiter = SlidingWindowRateLimiter(max_requests=settings.chat_rate_limit)
 
 
 def _mount_spa_route(
@@ -109,17 +108,17 @@ def _mount_spa_route(
     @app.get("/{full_path:path}", include_in_schema=False)
     async def spa_fallback(request: Request, full_path: str) -> Response:
         if full_path.startswith("api/") or full_path == "api":
-            return JSONResponse(status_code=404, content={"detail": "Not found."})
+            return _not_found_response()
         if not docs_enabled and full_path.rstrip("/") in {"docs", "redoc", "openapi.json"}:
-            return JSONResponse(status_code=404, content={"detail": "Not found."})
+            return _not_found_response()
         if not static_index:
-            return JSONResponse(status_code=404, content={"detail": "Not found."})
+            return _not_found_response()
         normalized = full_path.lstrip("/")
         matched = static_index.get(normalized) if normalized else None
         if matched is not None:
             return serve_indexed_asset(request, matched)
         index_asset = static_index.get("index.html")
-        return serve_indexed_asset(request, index_asset) if index_asset is not None else JSONResponse(status_code=404, content={"detail": "Not found."})
+        return serve_indexed_asset(request, index_asset) if index_asset is not None else _not_found_response()
 
 
 def _make_lifespan(
@@ -132,7 +131,10 @@ def _make_lifespan(
         owns_http = http_client is None
         client = http_client or httpx.AsyncClient(
             timeout=httpx.Timeout(resolved_settings.air_quality_timeout_seconds),
-            limits=httpx.Limits(max_keepalive_connections=10, max_connections=25),
+            limits=httpx.Limits(
+                max_keepalive_connections=_HTTP_MAX_KEEPALIVE_CONNECTIONS,
+                max_connections=_HTTP_MAX_CONNECTIONS,
+            ),
         )
         g_client = gemini_client or GeminiClient(resolved_settings)
         await g_client.initialize_models()
@@ -154,10 +156,7 @@ def create_app(
 ) -> FastAPI:
     """Creates and configures the FastAPI application instance."""
     resolved_settings = settings or get_settings()
-    default_dist = PROJECT_ROOT / "frontend" / "dist"
-    if not default_dist.is_dir():
-        default_dist = PROJECT_ROOT / "dist"
-    resolved_dist = dist_dir or default_dist
+    resolved_dist = dist_dir or (PROJECT_ROOT / "frontend" / "dist")
     _configure_logging(resolved_settings)
     docs_enabled = resolved_settings.should_expose_docs
     app = FastAPI(
@@ -168,7 +167,11 @@ def create_app(
         openapi_url="/openapi.json" if docs_enabled else None,
         lifespan=_make_lifespan(resolved_settings, gemini_client, http_client),
     )
-    app.add_middleware(GZipMiddleware, minimum_size=500, compresslevel=6)
+    app.add_middleware(
+        GZipMiddleware,
+        minimum_size=_GZIP_MINIMUM_SIZE_BYTES,
+        compresslevel=_GZIP_COMPRESS_LEVEL,
+    )
     app.add_middleware(MaxBodySizeMiddleware, max_bytes=resolved_settings.max_body_bytes)
     app.add_middleware(
         CORSMiddleware,

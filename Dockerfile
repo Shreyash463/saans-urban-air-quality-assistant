@@ -11,7 +11,7 @@ COPY frontend/public ./public
 COPY frontend/src ./src
 RUN npm run build
 
-# Stage 2: Slim Python FastAPI runtime serving both /api and static SPA dist/
+# Stage 2: Slim Python FastAPI runtime serving both /api and static SPA frontend/dist/
 FROM python:3.13-slim@sha256:7249d5587b78209a006dc4a3b5340678f84ea729239193aa559962cd8c1fce50 AS runtime
 WORKDIR /app
 
@@ -25,7 +25,7 @@ RUN pip install --no-cache-dir --require-hashes -r ./backend/requirements.txt
 
 COPY contract ./contract
 COPY backend/app ./backend/app
-COPY --from=frontend-builder /build/frontend/dist ./dist
+COPY --from=frontend-builder /build/frontend/dist ./frontend/dist
 
 RUN addgroup --system appgroup \
     && adduser --system --ingroup appgroup --no-create-home appuser \
