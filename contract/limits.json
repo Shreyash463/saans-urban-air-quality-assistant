@@ -1,0 +1,8 @@
+{
+  "cityMaxLength": 60,
+  "commuteKmMax": 300,
+  "commuteKmMin": 0,
+  "householdSizeMax": 20,
+  "householdSizeMin": 1,
+  "questionMaxLength": 500
+}

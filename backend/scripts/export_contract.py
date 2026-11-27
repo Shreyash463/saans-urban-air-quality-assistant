@@ -15,6 +15,12 @@ if str(BACKEND_DIR) not in sys.path:
 
 from app.main import create_app  # noqa: E402
 from app.schemas import (  # noqa: E402
+    CITY_MAX_LENGTH,
+    COMMUTE_KM_MAX,
+    COMMUTE_KM_MIN,
+    HOUSEHOLD_SIZE_MAX,
+    HOUSEHOLD_SIZE_MIN,
+    QUESTION_MAX_LENGTH,
     AirQualityReading,
     Alternative,
     ChatReply,
@@ -161,6 +167,17 @@ def _render_openapi() -> str:
     return json.dumps(spec, indent=2, sort_keys=True) + "\n"
 
 
+def _build_limits_contract() -> dict[str, int]:
+    return {
+        "cityMaxLength": CITY_MAX_LENGTH,
+        "commuteKmMax": COMMUTE_KM_MAX,
+        "commuteKmMin": COMMUTE_KM_MIN,
+        "householdSizeMax": HOUSEHOLD_SIZE_MAX,
+        "householdSizeMin": HOUSEHOLD_SIZE_MIN,
+        "questionMaxLength": QUESTION_MAX_LENGTH,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Export OpenAPI, JSON Schema, and TypeScript contract.")
     parser.add_argument("--check", action="store_true", help="Fail if generated files differ from disk.")
@@ -168,11 +185,13 @@ def main() -> int:
 
     contract_schema = _build_contract_schema()
     schema_text = json.dumps(contract_schema, indent=2, sort_keys=True) + "\n"
+    limits_text = json.dumps(_build_limits_contract(), indent=2, sort_keys=True) + "\n"
     ts_text = _render_ts(contract_schema)
     openapi_text = _render_openapi()
 
     targets = {
         REPO_ROOT / "contract" / "api.schema.json": schema_text,
+        REPO_ROOT / "contract" / "limits.json": limits_text,
         REPO_ROOT / "frontend" / "src" / "types" / "generated.ts": ts_text,
         REPO_ROOT / "docs" / "openapi.json": openapi_text,
     }

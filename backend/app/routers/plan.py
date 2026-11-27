@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import time
+from collections.abc import Callable
 
 from fastapi import APIRouter, Request, Response
 
@@ -24,6 +25,32 @@ from app.services.impact import ProfileFacts, build_profile_facts
 
 logger = logging.getLogger("saans")
 router = APIRouter(prefix="/api", tags=["plan"])
+
+
+def _to_user_profile(payload: PlanRequest) -> UserProfile:
+    return UserProfile.model_construct(
+        city=payload.city,
+        household_size=payload.household_size,
+        has_children=payload.has_children,
+        has_elderly=payload.has_elderly,
+        has_respiratory_condition=payload.has_respiratory_condition,
+        commute_mode=payload.commute_mode,
+        commute_km=payload.commute_km,
+        home_type=payload.home_type,
+        has_air_purifier=payload.has_air_purifier,
+        cooking_fuel=payload.cooking_fuel,
+        budget=payload.budget,
+        language=payload.language,
+    )
+
+
+def _elapsed_ms(started: float, now: float) -> int:
+    return max(0, round((now - started) * 1000))
+
+
+def _resolve_clock(request: Request) -> Callable[[], float]:
+    clock = getattr(request.app.state, "clock", None)
+    return clock if callable(clock) else time.monotonic
 
 
 def _build_plan_cache_key(profile: UserProfile, aqi_source: str, aqi_val: int) -> str:
@@ -64,6 +91,23 @@ async def _generate_or_fallback_plan(
     return fallback
 
 
+def _log_plan_latency(
+    cache_state: str,
+    aqi_reading: AirQualityReading,
+    plan: PlanResponse,
+    started: float,
+    clock: Callable[[], float],
+) -> None:
+    log_route_event(
+        logger,
+        "/api/plan",
+        cache=cache_state,
+        aqi_source=aqi_reading.source,
+        generated_by=plan.generated_by,
+        latency_ms=_elapsed_ms(started, clock()),
+    )
+
+
 @router.post(
     "/plan",
     response_model=PlanResponse,
@@ -76,7 +120,8 @@ async def create_plan_endpoint(
     response: Response,
 ) -> PlanResponse:
     """Generates a personalized clean-air plan using live AQI, Gemini, safety checks, and fallback."""
-    started = time.monotonic()
+    clock = _resolve_clock(request)
+    started = clock()
     response.headers["Cache-Control"] = "no-store"
 
     if "lat" in request.query_params or "lon" in request.query_params:
@@ -89,25 +134,22 @@ async def create_plan_endpoint(
         request,
         "Too many plan requests. Please try again shortly.",
     )
-    profile = UserProfile.model_validate(payload.model_dump(exclude={"coords", "prefer_coords"}))
-    use_coords = payload.coords is not None and payload.prefer_coords is not False
-
+    profile = _to_user_profile(payload)
+    coords = payload.coords if payload.prefer_coords is not False else None
     aq_service = get_air_quality_service(request)
     http_client = get_http_client(request)
     aqi_reading = await (
-        aq_service.get_air_quality_by_coords(payload.coords.lat, payload.coords.lon, http_client)
-        if use_coords and payload.coords is not None
+        aq_service.get_air_quality_by_coords(coords.lat, coords.lon, http_client)
+        if coords is not None
         else aq_service.get_air_quality(profile.city, http_client)
     )
-    facts = build_profile_facts(profile)
-
     cache_key = _build_plan_cache_key(profile, aqi_reading.source, aqi_reading.aqi)
     cached_plan = await get_plan_cache(request).get(cache_key)
-    elapsed_ms = int((time.monotonic() - started) * 1000)
     if cached_plan is not None:
-        log_route_event(logger, "/api/plan", cache="hit", aqi_source=aqi_reading.source, generated_by=cached_plan.generated_by, latency_ms=elapsed_ms)
+        _log_plan_latency("hit", aqi_reading, cached_plan, started, clock)
         return cached_plan.model_copy(update={"aqi": aqi_reading})
 
+    facts = build_profile_facts(profile)
     plan = await _generate_or_fallback_plan(profile, aqi_reading, facts, cache_key, request)
-    log_route_event(logger, "/api/plan", cache="miss", aqi_source=aqi_reading.source, generated_by=plan.generated_by, latency_ms=elapsed_ms)
+    _log_plan_latency("miss", aqi_reading, plan, started, clock)
     return plan

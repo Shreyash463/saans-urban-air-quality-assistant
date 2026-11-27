@@ -34,6 +34,10 @@ _WHITESPACE_RE = re.compile(r"\s+")
 
 CITY_MAX_LENGTH = 60
 QUESTION_MAX_LENGTH = 500
+HOUSEHOLD_SIZE_MIN = 1
+HOUSEHOLD_SIZE_MAX = 20
+COMMUTE_KM_MIN = 0
+COMMUTE_KM_MAX = 300
 
 
 def strip_control_chars(value: str) -> str:
@@ -73,12 +77,12 @@ class UserProfile(CamelBaseModel):
     """Household lifestyle profile submitted by the frontend."""
 
     city: str = Field(min_length=1, max_length=CITY_MAX_LENGTH)
-    household_size: int = Field(ge=1, le=20)
+    household_size: int = Field(ge=HOUSEHOLD_SIZE_MIN, le=HOUSEHOLD_SIZE_MAX)
     has_children: bool
     has_elderly: bool
     has_respiratory_condition: bool
     commute_mode: CommuteMode
-    commute_km: int = Field(ge=0, le=300)
+    commute_km: int = Field(ge=COMMUTE_KM_MIN, le=COMMUTE_KM_MAX)
     home_type: HomeType
     has_air_purifier: bool
     cooking_fuel: CookingFuel
@@ -93,7 +97,7 @@ class UserProfile(CamelBaseModel):
         cleaned = strip_control_chars(raw)
         if not is_valid_city_text(cleaned):
             raise ValueError(
-                "City must be 1-60 characters and contain only letters, spaces, commas, periods, or hyphens."
+                f"City must be 1-{CITY_MAX_LENGTH} characters and contain only letters, spaces, commas, periods, or hyphens."
             )
         return cleaned
 

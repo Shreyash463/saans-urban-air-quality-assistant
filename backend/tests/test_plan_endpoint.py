@@ -153,3 +153,43 @@ def test_plan_endpoint_falls_back_when_gemini_returns_invalid_json(
         resp = tc.post("/api/plan", json=sample_profile_dict)
     assert resp.status_code == 200
     assert resp.json()["generatedBy"] == "rules"
+
+
+def test_plan_cache_miss_logs_post_generation_latency_with_injected_clock(
+    tmp_path: Path,
+    sample_profile_dict: dict[str, Any],
+    caplog: Any,
+) -> None:
+    now = 100.0
+    sample_plan = json.loads((Path(__file__).resolve().parents[2] / "contract" / "plan.sample.json").read_text(encoding="utf-8"))
+    sample_plan["communityActions"] = []
+    fake_json = json.dumps({k: sample_plan[k] for k in ("summary", "healthAdvisory", "routine", "indoorHacks", "alternatives", "maskGuidance")})
+
+    class _AdvancingModels(_FakeAsyncModels):
+        async def generate_content(self, **_kwargs: Any) -> Any:
+            nonlocal now
+            now += 0.5
+            return type("Resp", (), {"text": fake_json})()
+
+    settings = Settings(gemini_api_key="test-placeholder-for-mock")
+    sdk_client = type("Sdk", (), {"aio": type("Aio", (), {"models": _AdvancingModels(fake_json)})()})()
+    g_client = GeminiClient(settings, sdk_client=sdk_client)
+    dist_dir = tmp_path / "dist"
+    dist_dir.mkdir()
+    app = create_app(
+        settings=settings,
+        gemini_client=g_client,
+        http_client=build_mock_http_client(),
+        dist_dir=dist_dir,
+    )
+
+    with caplog.at_level("INFO", logger="saans"), TestClient(app) as tc:
+        app.state.clock = lambda: now
+        resp = tc.post(
+            "/api/plan",
+            json={**sample_profile_dict, "householdSize": 20, "commuteKm": 300},
+        )
+    assert resp.status_code == 200
+    miss_logs = [rec.getMessage() for rec in caplog.records if "route=/api/plan cache=miss" in rec.getMessage()]
+    assert len(miss_logs) == 1
+    assert "latency_ms=500" in miss_logs[0]

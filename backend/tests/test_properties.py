@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.schemas import UserProfile
+from app.schemas import COMMUTE_KM_MAX, COMMUTE_KM_MIN, UserProfile
 from app.services.cpcb import (
     compute_cpcb_aqi_from_means,
     compute_pm10_sub_index,
@@ -75,7 +75,7 @@ def test_multiplicative_pm25_stacking_is_bounded_and_order_independent(
 
 @given(
     selected=st.lists(st.sampled_from(_ACTION_IDS), max_size=8),
-    commute_km=st.integers(min_value=0, max_value=120),
+    commute_km=st.integers(min_value=COMMUTE_KM_MIN, max_value=COMMUTE_KM_MAX),
     has_purifier=st.booleans(),
 )
 def test_profile_impact_score_consistency_and_floor(
