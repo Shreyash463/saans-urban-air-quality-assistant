@@ -24,7 +24,6 @@ class TTLCache[T]:
         self._lock = asyncio.Lock()
 
     async def get(self, key: str) -> T | None:
-        """Fetches a cached value if present and unexpired."""
         now = self._clock()
         async with self._lock:
             entry = self._store.get(key)
@@ -38,7 +37,6 @@ class TTLCache[T]:
             return value
 
     async def set(self, key: str, value: T, ttl_seconds: float | None = None) -> None:
-        """Stores a value with optional per-entry TTL override and LRU eviction."""
         ttl = self._ttl_seconds if ttl_seconds is None else ttl_seconds
         async with self._lock:
             self._purge_expired_locked(self._clock())
@@ -53,7 +51,6 @@ class TTLCache[T]:
                 self._store.popitem(last=False)
 
     async def clear(self) -> None:
-        """Clears all cached items."""
         async with self._lock:
             self._store.clear()
 

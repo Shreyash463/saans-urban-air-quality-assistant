@@ -6,9 +6,10 @@ import ipaddress
 from typing import cast
 
 import httpx
-from fastapi import HTTPException, Request
+from fastapi import Request
 
 from app.config import Settings
+from app.exceptions import RateLimitExceededError
 from app.schemas import PlanResponse
 from app.services.air_quality import AirQualityService
 from app.services.cache import TTLCache
@@ -97,8 +98,4 @@ async def enforce_rate_limit(
     """Checks sliding-window quota for the caller IP and raises 429 with Retry-After."""
     allowed, retry_after = await limiter.check(get_client_ip(request))
     if not allowed:
-        raise HTTPException(
-            status_code=429,
-            detail=detail,
-            headers={"Retry-After": str(retry_after)},
-        )
+        raise RateLimitExceededError(detail, retry_after_seconds=retry_after)

@@ -36,13 +36,6 @@ class InvalidInputError(SaansError):
         super().__init__(message, code="INVALID_INPUT", status_code=422)
 
 
-class UpstreamServiceError(SaansError):
-    """Raised when an external service fails or times out."""
-
-    def __init__(self, message: str) -> None:
-        super().__init__(message, code="UPSTREAM_ERROR", status_code=502)
-
-
 def log_route_event(logger: logging.Logger, route: str, **fields: object) -> None:
     """Emits a consistent structured key=value log entry without secrets or PII."""
     parts = [f"route={route}", *(f"{k}={v}" for k, v in fields.items())]

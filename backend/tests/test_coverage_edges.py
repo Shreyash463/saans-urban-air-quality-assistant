@@ -14,7 +14,6 @@ from app.exceptions import (
     InvalidInputError,
     RateLimitExceededError,
     SaansError,
-    UpstreamServiceError,
     log_route_event,
 )
 from app.main import create_app
@@ -122,7 +121,6 @@ def test_exceptions_and_structured_log_event(caplog: pytest.LogCaptureFixture) -
     rate = RateLimitExceededError("slow down", retry_after_seconds=45)
     assert rate.status_code == 429 and rate.retry_after_seconds == 45
     assert InvalidInputError("bad").status_code == 422
-    assert UpstreamServiceError("down").status_code == 502
 
     logger = logging.getLogger("saans.test")
     with caplog.at_level(logging.INFO, logger="saans.test"):

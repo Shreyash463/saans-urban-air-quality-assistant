@@ -6,8 +6,10 @@ import asyncio
 import json
 import logging
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
+from google.genai import errors as genai_errors
 from google.genai import types
 from pydantic import ValidationError
 
@@ -27,13 +29,20 @@ from app.services.gemini.schema import SIMPLE_PLAN_JSON_SCHEMA, GeminiPlanDraft
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True, slots=True)
+class GeminiCallContext:
+    sdk_client: Any
+    budget: DailyCallBudget
+    max_output_tokens: int
+    record_failure: Callable[[str, Exception], FailureKind | None]
+
+
 def build_plan_config(
     model_name: str,
     max_output_tokens: int,
     drop_schema: bool,
     use_thinking: bool,
 ) -> types.GenerateContentConfig:
-    """Builds GenerateContentConfig for plan generation."""
     kwargs: dict[str, Any] = {
         "system_instruction": PLAN_SYSTEM_PROMPT,
         "temperature": 0.3,
@@ -62,29 +71,27 @@ def classify_attempt_exception(
     if is_schema_rejection(exc) and not drop_schema:
         return "retry", True, use_thinking
     failure_kind = record_failure(model_name, exc)
+    if failure_kind is None and not isinstance(exc, genai_errors.APIError | TimeoutError | OSError):
+        logger.warning("Unexpected Gemini call failure (%s) on model=%s", type(exc).__name__, model_name)
     return (failure_kind or "retry"), drop_schema, use_thinking
 
 
 async def execute_plan_attempt(
-    sdk_client: Any,
-    budget: DailyCallBudget,
+    ctx: GeminiCallContext,
     model_name: str,
     user_prompt: str,
     remaining: float,
-    max_output_tokens: int,
     attempt_num: int,
     drop_schema: bool,
     use_thinking: bool,
-    record_failure: Callable[[str, Exception], FailureKind | None],
 ) -> tuple[GeminiPlanDraft | None, str, bool, bool]:
-    """Runs one bounded plan generation call and classifies outcome."""
-    if not budget.can_spend():
+    if not ctx.budget.can_spend():
         return None, "rate_limit", drop_schema, use_thinking
     try:
-        budget.record_call()
-        config = build_plan_config(model_name, max_output_tokens, drop_schema, use_thinking)
+        ctx.budget.record_call()
+        config = build_plan_config(model_name, ctx.max_output_tokens, drop_schema, use_thinking)
         response = await asyncio.wait_for(
-            sdk_client.aio.models.generate_content(model=model_name, contents=user_prompt, config=config),
+            ctx.sdk_client.aio.models.generate_content(model=model_name, contents=user_prompt, config=config),
             timeout=min(13.0, remaining),
         )
         log_usage_metadata("plan", model_name, response)
@@ -96,24 +103,21 @@ async def execute_plan_attempt(
     except (ValidationError, ValueError, json.JSONDecodeError) as exc:
         logger.warning("Invalid JSON/schema from model=%s attempt=%d (%s)", model_name, attempt_num, type(exc).__name__)
         return None, "retry", drop_schema, use_thinking
-    except Exception as exc:
+    except Exception as exc:  # google-genai + httpx raise heterogeneous transport/status exceptions
         status, next_drop, next_think = classify_attempt_exception(
-            exc, model_name, drop_schema, use_thinking, record_failure
+            exc, model_name, drop_schema, use_thinking, ctx.record_failure
         )
         return None, status, next_drop, next_think
 
 
 async def execute_chat_attempt(
-    sdk_client: Any,
-    budget: DailyCallBudget,
+    ctx: GeminiCallContext,
     model_name: str,
     user_prompt: str,
     max_tokens: int,
     remaining: float,
     use_thinking: bool,
-    record_failure: Callable[[str, Exception], FailureKind | None],
 ) -> tuple[str | None, str, bool]:
-    """Runs one bounded chat generation call and classifies outcome."""
     kwargs: dict[str, Any] = {
         "system_instruction": CHAT_SYSTEM_PROMPT,
         "temperature": 0.3,
@@ -122,9 +126,9 @@ async def execute_chat_attempt(
     if use_thinking and (tc := thinking_config_for_model(model_name)) is not None:
         kwargs["thinking_config"] = tc
     try:
-        budget.record_call()
+        ctx.budget.record_call()
         response = await asyncio.wait_for(
-            sdk_client.aio.models.generate_content(
+            ctx.sdk_client.aio.models.generate_content(
                 model=model_name, contents=user_prompt, config=types.GenerateContentConfig(**kwargs)
             ),
             timeout=min(7.0, remaining),
@@ -134,6 +138,6 @@ async def execute_chat_attempt(
         if not raw_text:
             raise ValueError("Empty Gemini chat output")
         return raw_text, "ok", use_thinking
-    except Exception as exc:
-        status, _, next_think = classify_attempt_exception(exc, model_name, False, use_thinking, record_failure)
+    except Exception as exc:  # google-genai + httpx raise heterogeneous transport/status exceptions
+        status, _, next_think = classify_attempt_exception(exc, model_name, False, use_thinking, ctx.record_failure)
         return None, ("abort" if status == "abort" else "retry" if status == "retry" else "fail"), next_think

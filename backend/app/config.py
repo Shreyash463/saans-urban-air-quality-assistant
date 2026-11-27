@@ -57,19 +57,18 @@ class Settings(BaseSettings):
 
     @property
     def is_production(self) -> bool:
-        """Returns True when running in production mode."""
         return self.environment == "production"
 
     @property
     def should_expose_docs(self) -> bool:
-        """Disables OpenAPI/Swagger UI in production unless explicitly enabled."""
+        """Disable OpenAPI/Swagger UI in production unless explicitly overridden."""
         if self.expose_api_docs is not None:
             return self.expose_api_docs
         return not self.is_production
 
     @property
     def parsed_allowed_origins(self) -> list[str]:
-        """Returns sanitized CORS origins, never permitting wildcard '*'."""
+        """Sanitized CORS allowlist; strips trailing slashes and forbids wildcard '*'."""
         origins = [
             origin.strip().rstrip("/")
             for origin in self.allowed_origins.split(",")
@@ -79,7 +78,6 @@ class Settings(BaseSettings):
 
     @property
     def effective_gemini_api_key(self) -> str | None:
-        """Returns the Gemini API key only when non-empty and not a placeholder."""
         if not self.gemini_api_key:
             return None
         cleaned = self.gemini_api_key.strip().strip('"').strip("'")
@@ -89,7 +87,6 @@ class Settings(BaseSettings):
 
     @property
     def effective_gemini_model(self) -> str | None:
-        """Returns configured model override when non-empty."""
         if not self.gemini_model:
             return None
         cleaned = self.gemini_model.strip()
@@ -97,7 +94,6 @@ class Settings(BaseSettings):
 
     @property
     def parsed_model_priority(self) -> list[str]:
-        """Returns configured Flash-Lite-first model priority order."""
         return [
             item.strip().removeprefix("models/")
             for item in self.gemini_model_priority.split(",")
@@ -107,5 +103,4 @@ class Settings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Cached Settings singleton."""
     return Settings()

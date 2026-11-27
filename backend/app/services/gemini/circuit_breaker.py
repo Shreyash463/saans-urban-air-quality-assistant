@@ -50,11 +50,9 @@ class ModelCircuitBreaker:
         return "open"
 
     def is_available(self, model_name: str) -> bool:
-        """True when closed or ready for a half-open probe after cooldown expiry."""
         return self.state_of(model_name) != "open"
 
     def record_success(self, model_name: str) -> None:
-        """Closes the circuit for `model_name` after a successful generation."""
         self._entries.pop(model_name, None)
 
     def record_failure(

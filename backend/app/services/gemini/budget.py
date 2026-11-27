@@ -44,11 +44,9 @@ class DailyCallBudget:
         return max(0, self._limit - self._calls_used)
 
     def can_spend(self) -> bool:
-        """Returns True when at least one upstream call remains in today's UTC budget."""
         return self.remaining > 0
 
     def record_call(self) -> None:
-        """Records one real upstream Gemini API call."""
         self._rollover_if_new_day()
         self._calls_used += 1
 

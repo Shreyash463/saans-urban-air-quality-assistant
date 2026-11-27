@@ -9,13 +9,18 @@ from collections.abc import Callable
 from typing import Any
 
 from google import genai
+from google.genai import errors as genai_errors
 from google.genai import types
 
 from app.config import Settings
 from app.prompts import build_chat_user_prompt, build_plan_user_prompt
 from app.schemas import AirQualityReading, ChatReply, FallbackReason, PlanResponse, UserProfile
 from app.services.gemini.assembler import assemble_gemini_plan
-from app.services.gemini.attempts import execute_chat_attempt, execute_plan_attempt
+from app.services.gemini.attempts import (
+    GeminiCallContext,
+    execute_chat_attempt,
+    execute_plan_attempt,
+)
 from app.services.gemini.budget import DailyCallBudget
 from app.services.gemini.circuit_breaker import FailureKind, ModelCircuitBreaker
 from app.services.gemini.model_selection import (
@@ -114,7 +119,7 @@ class GeminiClient:
                     self._model_chain = ranked[:6] + [m for m in _DEFAULT_FLASH_FALLBACKS if m not in ranked[:6]]
                     logger.info("Auto-selected Gemini flash model: %s", self._selected_model)
                     return
-            except Exception as exc:
+            except (genai_errors.APIError, TimeoutError, OSError, ValueError, RuntimeError, TypeError) as exc:
                 logger.warning("Gemini model list discovery failed (%s); falling back to default chain.", type(exc).__name__)
             self._model_chain = list(_DEFAULT_FLASH_FALLBACKS)
             self._selected_model = self._model_chain[0]
@@ -196,6 +201,14 @@ class GeminiClient:
         logger.warning("Gemini model=%s circuit opened (%s, code=%s, cooldown_s=%s).", model_name, failure_kind, getattr(exc, "code", None), cooldown)
         return failure_kind
 
+    def _call_context(self) -> GeminiCallContext:
+        return GeminiCallContext(
+            sdk_client=self._client,
+            budget=self._budget,
+            max_output_tokens=self._settings.gemini_max_output_tokens,
+            record_failure=self._record_api_failure,
+        )
+
     async def _call_plan_model_with_retry(
         self,
         model_name: str,
@@ -204,14 +217,14 @@ class GeminiClient:
     ) -> tuple[GeminiPlanDraft | None, str]:
         if self._client is None:
             return None, "abort"
+        ctx = self._call_context()
         drop_schema, use_thinking = False, True
         for attempt in range(2):
             remaining = deadline - self._clock()
             if remaining <= 1.0:
                 return None, "abort"
             draft, outcome, drop_schema, use_thinking = await execute_plan_attempt(
-                self._client, self._budget, model_name, user_prompt, remaining,
-                self._settings.gemini_max_output_tokens, attempt + 1, drop_schema, use_thinking, self._record_api_failure,
+                ctx, model_name, user_prompt, remaining, attempt + 1, drop_schema, use_thinking,
             )
             if outcome != "retry":
                 return draft, outcome
@@ -252,13 +265,14 @@ class GeminiClient:
     ) -> tuple[str | None, bool]:
         if self._client is None:
             return None, True
+        ctx = self._call_context()
         use_thinking = True
         for _attempt in range(2):
             remaining = deadline - self._clock()
             if remaining <= 1.0 or not self._budget.can_spend():
                 return None, True
             text, status, use_thinking = await execute_chat_attempt(
-                self._client, self._budget, model_name, user_prompt, max_tokens, remaining, use_thinking, self._record_api_failure,
+                ctx, model_name, user_prompt, max_tokens, remaining, use_thinking,
             )
             if status == "ok":
                 return text, False

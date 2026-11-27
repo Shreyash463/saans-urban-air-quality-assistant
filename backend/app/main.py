@@ -16,7 +16,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import PROJECT_ROOT, Settings, get_settings
-from app.exceptions import SaansError
+from app.exceptions import RateLimitExceededError, SaansError
 from app.middleware import MaxBodySizeMiddleware, SecurityHeadersMiddleware
 from app.routers import air_quality, chat, health, plan
 from app.schemas import AirQualityReading, PlanResponse
@@ -29,10 +29,23 @@ from app.static_spa import StaticAsset, build_static_index, serve_indexed_asset
 logger = logging.getLogger("saans")
 
 
+class _CoordsLogFilter(logging.Filter):
+    """Strips query strings containing coordinates from uvicorn access log records."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.args and isinstance(record.args, tuple):
+            record.args = tuple(
+                a.split("?", 1)[0] if isinstance(a, str) and ("lat=" in a or "lon=" in a) else a
+                for a in record.args
+            )
+        return True
+
+
 def _register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(SaansError)
     async def saans_error_handler(_request: Request, exc: SaansError) -> JSONResponse:
-        return JSONResponse(status_code=exc.status_code, content={"detail": exc.message, "code": exc.code})
+        headers = {"Retry-After": str(exc.retry_after_seconds)} if isinstance(exc, RateLimitExceededError) else None
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.message, "code": exc.code}, headers=headers)
 
     @app.exception_handler(HTTPException)
     async def http_exception_handler(_request: Request, exc: HTTPException) -> JSONResponse:
@@ -63,20 +76,8 @@ def _configure_logging(resolved_settings: Settings) -> None:
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
     uvicorn_access = logging.getLogger("uvicorn.access")
-    if any(getattr(f, "_saans_coords_filter", False) for f in uvicorn_access.filters):
+    if any(isinstance(f, _CoordsLogFilter) for f in uvicorn_access.filters):
         return
-
-    class _CoordsLogFilter(logging.Filter):
-        _saans_coords_filter = True
-
-        def filter(self, record: logging.LogRecord) -> bool:
-            if record.args and isinstance(record.args, tuple):
-                record.args = tuple(
-                    a.split("?", 1)[0] if isinstance(a, str) and ("lat=" in a or "lon=" in a) else a
-                    for a in record.args
-                )
-            return True
-
     uvicorn_access.addFilter(_CoordsLogFilter())
 
 
