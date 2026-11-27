@@ -16,7 +16,7 @@
 
 ## ADR-004: Self-Hosted Subsetted Fonts, Lazy Hindi, & Strict `style-src 'self'` CSP
 - **Context**: External Google Fonts requests downloaded a 120 KB Devanagari font even for English sessions and contributed to mobile CLS (`0.107`). Inline style allowances weakened CSP.
-- **Decision**: Bundle Latin WOFF2 subsets via `@fontsource` with `font-display: swap` + `<link rel="preload">`, lazy-load `@fontsource/noto-sans-devanagari` + `src/lib/i18n.hi.ts` only when Hindi is active, precompress assets with Brotli at Vite build time, and enforce `style-src 'self'; font-src 'self'`.
+- **Decision**: Bundle Latin WOFF2 subsets via `@fontsource` with `font-display: swap` + `<link rel="preload">`, lazy-load `@fontsource/noto-sans-devanagari` + `src/locales/hi.json` through `I18nLoader` (`src/lib/i18n.ts`) only when Hindi is active, precompress assets with Brotli at Vite build time, and enforce `style-src 'self'; font-src 'self'`.
 
 ## ADR-005: Ephemeral Opt-In Geolocation
 - **Context**: Users outside preset cities or unsure of neighborhood station names benefit from one-tap local AQI without surveillance.
@@ -32,4 +32,4 @@
 
 ## ADR-008: Single-Source Schema Codegen & Golden Cross-Language Vectors
 - **Context**: Manually duplicating CPCB breakpoints, Pydantic/TypeScript interfaces, and demo city tables across Python and TypeScript invited drift between frontend validation and backend serialization.
-- **Decision**: Generate `contract/api.schema.json`, `docs/openapi.json`, and `src/types/generated.ts` directly from Pydantic models (`backend/scripts/export_contract.py`), validate runtime browser payloads against `contract/api.schema.json` (`src/lib/contractValidator.ts`), share CPCB ranges and demo cities via `contract/*.json`, and assert parity in both Vitest and Pytest using `contract/golden-vectors.json` verified in CI (`--check`).
+- **Decision**: Generate `contract/api.schema.json`, `contract/limits.json`, `docs/openapi.json`, and `src/types/generated.ts` directly from Pydantic models (`backend/scripts/export_contract.py`), validate runtime browser payloads in `src/lib/validation.ts`, verify full JSON Schema + enum parity in `frontend/src/__tests__/contract.test.ts`, share CPCB ranges and demo cities via `contract/*.json`, and assert parity in both Vitest and Pytest using `contract/golden-vectors.json` verified in CI (`--check`).
