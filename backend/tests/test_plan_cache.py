@@ -52,7 +52,7 @@ def test_transient_fallback_plan_does_not_stick_in_cache(tmp_path: Path) -> None
     prof = make_profile_dict()
 
     with TestClient(app) as tc:
-        app.state.plan_cache = clock_cache
+        app.state.saans.plan_cache = clock_cache
         r1 = tc.post("/api/plan", json=prof).json()
         assert r1["generatedBy"] == "rules"
         assert r1["fallbackReason"] == "ai_busy"
@@ -70,7 +70,7 @@ def test_recovered_gemini_plan_caches_for_full_ttl(tmp_path: Path) -> None:
     prof = make_profile_dict()
 
     with TestClient(app) as tc:
-        app.state.plan_cache = clock_cache
+        app.state.saans.plan_cache = clock_cache
         assert tc.post("/api/plan", json=prof).json()["generatedBy"] == "rules"
 
         now_ref[0] = 143.0

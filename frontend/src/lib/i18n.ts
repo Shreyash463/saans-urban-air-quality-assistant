@@ -3,44 +3,70 @@ import type { LanguageCode } from '../types';
 
 export type TranslationKey = keyof typeof enTranslations;
 export type TranslationDictionary = Record<TranslationKey, string>;
+export type HindiBundleLoader = () => Promise<TranslationDictionary>;
 
-const ENGLISH_TRANSLATIONS: TranslationDictionary = enTranslations;
-
-let hindiDictionary: TranslationDictionary | null = null;
-let hindiLoadPromise: Promise<TranslationDictionary> | null = null;
-
-/**
- * Dynamically loads the Hindi locale JSON and Devanagari font subset only when
- * Hindi is selected (0 bytes loaded on English sessions).
- */
-export async function loadLanguageBundle(
-  language: LanguageCode
-): Promise<TranslationDictionary> {
-  if (language === 'en') {
-    return ENGLISH_TRANSLATIONS;
-  }
-  if (hindiDictionary !== null) {
-    return hindiDictionary;
-  }
-  if (hindiLoadPromise === null) {
-    hindiLoadPromise = Promise.all([
-      import('../locales/hi.json'),
-      import('../locales/hiFonts'),
-    ]).then(([jsonMod]) => {
-      hindiDictionary = jsonMod.default as TranslationDictionary;
-      return hindiDictionary;
-    });
-  }
-  return hindiLoadPromise;
+async function loadDefaultHindiBundle(): Promise<TranslationDictionary> {
+  const [jsonMod] = await Promise.all([
+    import('../locales/hi.json'),
+    import('../locales/hiFonts'),
+  ]);
+  return jsonMod.default as TranslationDictionary;
 }
 
 /**
- * Looks up a localized string for the active language ('en' or 'hi').
- * Falls back cleanly to English if the async Hindi chunk is still loading.
+ * Encapsulates translation dictionary state and lazy Hindi chunk loading so
+ * English sessions incur zero Hindi copy or Devanagari font downloads.
  */
-export function t(language: LanguageCode, key: TranslationKey): string {
-  if (language === 'hi' && hindiDictionary !== null) {
-    return hindiDictionary[key];
+export class I18nLoader {
+  private readonly enDictionary: TranslationDictionary;
+  private readonly loadHindi: HindiBundleLoader;
+  private hindiDictionary: TranslationDictionary | null = null;
+  private hindiLoadPromise: Promise<TranslationDictionary> | null = null;
+
+  constructor(
+    enDictionary: TranslationDictionary,
+    loadHindi: HindiBundleLoader = loadDefaultHindiBundle
+  ) {
+    this.enDictionary = enDictionary;
+    this.loadHindi = loadHindi;
   }
-  return ENGLISH_TRANSLATIONS[key];
+
+  get isHindiLoaded(): boolean {
+    return this.hindiDictionary !== null;
+  }
+
+  async loadLanguageBundle(language: LanguageCode): Promise<TranslationDictionary> {
+    if (language === 'en') {
+      return this.enDictionary;
+    }
+    if (this.hindiDictionary !== null) {
+      return this.hindiDictionary;
+    }
+    if (this.hindiLoadPromise === null) {
+      this.hindiLoadPromise = this.loadHindi().then((dict) => {
+        this.hindiDictionary = dict;
+        return dict;
+      });
+    }
+    return this.hindiLoadPromise;
+  }
+
+  t(language: LanguageCode, key: TranslationKey): string {
+    if (language === 'hi' && this.hindiDictionary !== null) {
+      return this.hindiDictionary[key];
+    }
+    return this.enDictionary[key];
+  }
+}
+
+const defaultLoader = new I18nLoader(enTranslations);
+
+export function loadLanguageBundle(
+  language: LanguageCode
+): Promise<TranslationDictionary> {
+  return defaultLoader.loadLanguageBundle(language);
+}
+
+export function t(language: LanguageCode, key: TranslationKey): string {
+  return defaultLoader.t(language, key);
 }

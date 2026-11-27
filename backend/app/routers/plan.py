@@ -11,16 +11,20 @@ from collections.abc import Callable
 from fastapi import APIRouter, Request, Response
 
 from app.dependencies import (
+    AirQualityServiceDep,
+    AppState,
+    AppStateDep,
+    GeminiClientDep,
+    HttpClientDep,
+    PlanCacheDep,
+    PlanLimiterDep,
     enforce_rate_limit,
-    get_air_quality_service,
-    get_gemini_client,
-    get_http_client,
-    get_plan_cache,
-    get_plan_limiter,
 )
 from app.exceptions import InvalidInputError, log_route_event
 from app.schemas import AirQualityReading, PlanRequest, PlanResponse, UserProfile
+from app.services.cache import TTLCache
 from app.services.fallback_plan import generate_fallback_plan
+from app.services.gemini import GeminiClient
 from app.services.impact import ProfileFacts, build_profile_facts
 
 logger = logging.getLogger("saans")
@@ -48,9 +52,8 @@ def _elapsed_ms(started: float, now: float) -> int:
     return max(0, round((now - started) * 1000))
 
 
-def _resolve_clock(request: Request) -> Callable[[], float]:
-    clock = getattr(request.app.state, "clock", None)
-    return clock if callable(clock) else time.monotonic
+def _resolve_clock(app_state: AppState) -> Callable[[], float]:
+    return app_state.clock if app_state.clock is not None else time.monotonic
 
 
 def _build_plan_cache_key(profile: UserProfile, aqi_source: str, aqi_val: int) -> str:
@@ -68,10 +71,9 @@ async def _generate_or_fallback_plan(
     aqi_reading: AirQualityReading,
     facts: ProfileFacts,
     cache_key: str,
-    request: Request,
+    plan_cache: TTLCache[PlanResponse],
+    gemini_client: GeminiClient,
 ) -> PlanResponse:
-    plan_cache = get_plan_cache(request)
-    gemini_client = get_gemini_client(request)
     plan, fallback_reason, retry_after = await gemini_client.generate_plan_with_status(
         profile, aqi_reading, facts=facts
     )
@@ -118,9 +120,15 @@ async def create_plan_endpoint(
     payload: PlanRequest,
     request: Request,
     response: Response,
+    app_state: AppStateDep,
+    limiter: PlanLimiterDep,
+    aq_service: AirQualityServiceDep,
+    http_client: HttpClientDep,
+    plan_cache: PlanCacheDep,
+    gemini_client: GeminiClientDep,
 ) -> PlanResponse:
     """Generates a personalized clean-air plan using live AQI, Gemini, safety checks, and fallback."""
-    clock = _resolve_clock(request)
+    clock = _resolve_clock(app_state)
     started = clock()
     response.headers["Cache-Control"] = "no-store"
 
@@ -130,26 +138,26 @@ async def create_plan_endpoint(
         )
 
     await enforce_rate_limit(
-        get_plan_limiter(request),
+        limiter,
         request,
         "Too many plan requests. Please try again shortly.",
     )
     profile = _to_user_profile(payload)
     coords = payload.coords if payload.prefer_coords is not False else None
-    aq_service = get_air_quality_service(request)
-    http_client = get_http_client(request)
     aqi_reading = await (
         aq_service.get_air_quality_by_coords(coords.lat, coords.lon, http_client)
         if coords is not None
         else aq_service.get_air_quality(profile.city, http_client)
     )
     cache_key = _build_plan_cache_key(profile, aqi_reading.source, aqi_reading.aqi)
-    cached_plan = await get_plan_cache(request).get(cache_key)
+    cached_plan = await plan_cache.get(cache_key)
     if cached_plan is not None:
         _log_plan_latency("hit", aqi_reading, cached_plan, started, clock)
         return cached_plan.model_copy(update={"aqi": aqi_reading})
 
     facts = build_profile_facts(profile)
-    plan = await _generate_or_fallback_plan(profile, aqi_reading, facts, cache_key, request)
+    plan = await _generate_or_fallback_plan(
+        profile, aqi_reading, facts, cache_key, plan_cache, gemini_client
+    )
     _log_plan_latency("miss", aqi_reading, plan, started, clock)
     return plan

@@ -31,7 +31,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `"${pythonExe}" -m uvicorn --app-dir ../backend app.main:app --host 127.0.0.1 --port 8124`,
+    command: `"${pythonExe}" -m uvicorn --factory --app-dir ../backend app.main:create_app --host 127.0.0.1 --port 8124`,
     url: 'http://127.0.0.1:8124/api/health',
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,

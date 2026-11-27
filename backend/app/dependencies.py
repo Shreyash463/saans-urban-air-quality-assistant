@@ -1,20 +1,82 @@
-"""Typed FastAPI application state accessors and trusted-proxy-aware client IP extraction."""
+"""Typed FastAPI application state container, Depends aliases, and proxy-safe IP extraction."""
 
 from __future__ import annotations
 
 import ipaddress
-from typing import cast
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Annotated, cast
 
 import httpx
-from fastapi import Request
+from fastapi import Depends, Request
 
 from app.config import Settings
 from app.exceptions import RateLimitExceededError
-from app.schemas import PlanResponse
+from app.schemas import AirQualityReading, PlanResponse
 from app.services.air_quality import AirQualityService
 from app.services.cache import TTLCache
 from app.services.gemini import GeminiClient
 from app.services.rate_limit import SlidingWindowRateLimiter
+
+
+@dataclass(slots=True)
+class AppState:
+    """Strongly typed container for application-scoped services and limiters."""
+
+    settings: Settings
+    http_client: httpx.AsyncClient
+    gemini_client: GeminiClient
+    air_quality_cache: TTLCache[AirQualityReading]
+    plan_cache: TTLCache[PlanResponse]
+    air_quality_service: AirQualityService
+    air_quality_limiter: SlidingWindowRateLimiter
+    plan_limiter: SlidingWindowRateLimiter
+    chat_limiter: SlidingWindowRateLimiter
+    clock: Callable[[], float] | None = None
+
+
+def get_app_state(request: Request) -> AppState:
+    return cast(AppState, request.app.state.saans)
+
+
+AppStateDep = Annotated[AppState, Depends(get_app_state)]
+
+
+def get_http_client(state: AppStateDep) -> httpx.AsyncClient:
+    return state.http_client
+
+
+def get_air_quality_service(state: AppStateDep) -> AirQualityService:
+    return state.air_quality_service
+
+
+def get_plan_cache(state: AppStateDep) -> TTLCache[PlanResponse]:
+    return state.plan_cache
+
+
+def get_gemini_client(state: AppStateDep) -> GeminiClient:
+    return state.gemini_client
+
+
+def get_air_quality_limiter(state: AppStateDep) -> SlidingWindowRateLimiter:
+    return state.air_quality_limiter
+
+
+def get_plan_limiter(state: AppStateDep) -> SlidingWindowRateLimiter:
+    return state.plan_limiter
+
+
+def get_chat_limiter(state: AppStateDep) -> SlidingWindowRateLimiter:
+    return state.chat_limiter
+
+
+HttpClientDep = Annotated[httpx.AsyncClient, Depends(get_http_client)]
+AirQualityServiceDep = Annotated[AirQualityService, Depends(get_air_quality_service)]
+PlanCacheDep = Annotated[TTLCache[PlanResponse], Depends(get_plan_cache)]
+GeminiClientDep = Annotated[GeminiClient, Depends(get_gemini_client)]
+AirQualityLimiterDep = Annotated[SlidingWindowRateLimiter, Depends(get_air_quality_limiter)]
+PlanLimiterDep = Annotated[SlidingWindowRateLimiter, Depends(get_plan_limiter)]
+ChatLimiterDep = Annotated[SlidingWindowRateLimiter, Depends(get_chat_limiter)]
 
 
 def _parse_ip_token(raw: str) -> str | None:
@@ -33,13 +95,8 @@ def _parse_ip_token(raw: str) -> str | None:
 
 
 def get_client_ip(request: Request) -> str:
-    """Extracts client IP safely.
-
-    When behind a trusted reverse proxy (`trust_proxy_headers=True`), uses the rightmost
-    valid entry before `trusted_proxy_hops` hops in `X-Forwarded-For` so a client cannot
-    spoof its rate-limit identity by prepending arbitrary left-hand addresses.
-    """
-    settings = get_settings_from_request(request)
+    """Extracts client IP safely using rightmost trusted-proxy X-Forwarded-For entry."""
+    settings = get_app_state(request).settings
     if settings.trust_proxy_headers:
         raw_xff = request.headers.get("x-forwarded-for", "")
         parsed = [
@@ -56,38 +113,6 @@ def get_client_ip(request: Request) -> str:
                 return real_ip
 
     return request.client.host if request.client else "unknown"
-
-
-def get_settings_from_request(request: Request) -> Settings:
-    return cast(Settings, request.app.state.settings)
-
-
-def get_http_client(request: Request) -> httpx.AsyncClient:
-    return cast(httpx.AsyncClient, request.app.state.http_client)
-
-
-def get_air_quality_service(request: Request) -> AirQualityService:
-    return cast(AirQualityService, request.app.state.air_quality_service)
-
-
-def get_plan_cache(request: Request) -> TTLCache[PlanResponse]:
-    return cast(TTLCache[PlanResponse], request.app.state.plan_cache)
-
-
-def get_gemini_client(request: Request) -> GeminiClient:
-    return cast(GeminiClient, request.app.state.gemini_client)
-
-
-def get_air_quality_limiter(request: Request) -> SlidingWindowRateLimiter:
-    return cast(SlidingWindowRateLimiter, request.app.state.air_quality_limiter)
-
-
-def get_plan_limiter(request: Request) -> SlidingWindowRateLimiter:
-    return cast(SlidingWindowRateLimiter, request.app.state.plan_limiter)
-
-
-def get_chat_limiter(request: Request) -> SlidingWindowRateLimiter:
-    return cast(SlidingWindowRateLimiter, request.app.state.chat_limiter)
 
 
 async def enforce_rate_limit(

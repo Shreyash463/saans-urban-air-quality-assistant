@@ -3,10 +3,10 @@
 from fastapi import APIRouter, Query, Request, Response
 
 from app.dependencies import (
+    AirQualityLimiterDep,
+    AirQualityServiceDep,
+    HttpClientDep,
     enforce_rate_limit,
-    get_air_quality_limiter,
-    get_air_quality_service,
-    get_http_client,
 )
 from app.exceptions import InvalidInputError
 from app.schemas import (
@@ -29,6 +29,9 @@ router = APIRouter(prefix="/api", tags=["air-quality"])
 async def get_air_quality_endpoint(
     request: Request,
     response: Response,
+    limiter: AirQualityLimiterDep,
+    service: AirQualityServiceDep,
+    http_client: HttpClientDep,
     city: str = Query(default="Delhi", min_length=1, max_length=CITY_MAX_LENGTH),
 ) -> AirQualityReading:
     """Returns live Open-Meteo CPCB-calibrated AQI for a city (never accepts query coordinates)."""
@@ -38,7 +41,7 @@ async def get_air_quality_endpoint(
         )
 
     await enforce_rate_limit(
-        get_air_quality_limiter(request),
+        limiter,
         request,
         "Rate limit exceeded. Please wait before requesting air quality again.",
     )
@@ -49,8 +52,6 @@ async def get_air_quality_endpoint(
             "Invalid city parameter. Use 1-60 letters, spaces, commas, periods, or hyphens."
         )
 
-    service = get_air_quality_service(request)
-    http_client = get_http_client(request)
     response.headers["Cache-Control"] = "public, max-age=180"
     return await service.get_air_quality(cleaned_city, http_client)
 
@@ -65,15 +66,16 @@ async def post_air_quality_coords_endpoint(
     coords: CoordinatesBody,
     request: Request,
     response: Response,
+    limiter: AirQualityLimiterDep,
+    service: AirQualityServiceDep,
+    http_client: HttpClientDep,
 ) -> AirQualityReading:
     """Returns live Open-Meteo AQI for ephemeral coordinates supplied via POST body only."""
     await enforce_rate_limit(
-        get_air_quality_limiter(request),
+        limiter,
         request,
         "Rate limit exceeded. Please wait before requesting air quality again.",
     )
 
-    service = get_air_quality_service(request)
-    http_client = get_http_client(request)
     response.headers["Cache-Control"] = "no-store"
     return await service.get_air_quality_by_coords(coords.lat, coords.lon, http_client)

@@ -66,6 +66,26 @@ describe('Shared cross-language contract fixtures and golden vectors', () => {
     expect(userProps.commuteKm.maximum).toBe(MAX_COMMUTE_KM);
     expect(userProps.city.maxLength).toBe(CITY_MAX_LENGTH);
     expect(chatProps.question.maxLength).toBe(CHAT_MAX_LENGTH);
+    expect(apiContract.models.AirQualityReading.properties.source.enum).toEqual([
+      'live',
+      'demo',
+    ]);
+    expect(apiContract.models.Alternative.properties.pm25ReductionPct.maximum).toBe(95);
+    expect(apiContract.models.CommunityAction.properties.who.enum).toEqual([
+      'rwa',
+      'school',
+      'workplace',
+      'neighbours',
+    ]);
+    expect(isPlanResponse({ ...samplePlan, generatedBy: 'invalid_source' })).toBe(
+      false
+    );
+    expect(
+      isPlanResponse({
+        ...samplePlan,
+        alternatives: [{ ...samplePlan.alternatives[0], pm25ReductionPct: 99 }],
+      })
+    ).toBe(false);
   });
 
   it('matches cross-language CPCB category and impact math golden vectors', () => {

@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator, Callable
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from pathlib import Path
-from typing import Any
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request, Response
@@ -16,6 +15,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import PROJECT_ROOT, Settings, get_settings
+from app.dependencies import AppState
 from app.exceptions import RateLimitExceededError, SaansError
 from app.middleware import MaxBodySizeMiddleware, SecurityHeadersMiddleware
 from app.routers import air_quality, chat, health, plan
@@ -80,24 +80,27 @@ def _populate_app_state(
     http_client: httpx.AsyncClient,
     gemini: GeminiClient,
 ) -> None:
-    application.state.settings = settings
-    application.state.http_client = http_client
-    application.state.gemini_client = gemini
-    application.state.air_quality_cache = TTLCache[AirQualityReading](
+    air_quality_cache = TTLCache[AirQualityReading](
         ttl_seconds=settings.cache_ttl_seconds,
         maxsize=settings.cache_maxsize,
     )
-    application.state.plan_cache = TTLCache[PlanResponse](
-        ttl_seconds=settings.cache_ttl_seconds,
-        maxsize=settings.cache_maxsize,
+    application.state.saans = AppState(
+        settings=settings,
+        http_client=http_client,
+        gemini_client=gemini,
+        air_quality_cache=air_quality_cache,
+        plan_cache=TTLCache[PlanResponse](
+            ttl_seconds=settings.cache_ttl_seconds,
+            maxsize=settings.cache_maxsize,
+        ),
+        air_quality_service=AirQualityService(
+            cache=air_quality_cache,
+            timeout_seconds=settings.air_quality_timeout_seconds,
+        ),
+        air_quality_limiter=SlidingWindowRateLimiter(max_requests=settings.air_quality_rate_limit),
+        plan_limiter=SlidingWindowRateLimiter(max_requests=settings.plan_rate_limit),
+        chat_limiter=SlidingWindowRateLimiter(max_requests=settings.chat_rate_limit),
     )
-    application.state.air_quality_service = AirQualityService(
-        cache=application.state.air_quality_cache,
-        timeout_seconds=settings.air_quality_timeout_seconds,
-    )
-    application.state.air_quality_limiter = SlidingWindowRateLimiter(max_requests=settings.air_quality_rate_limit)
-    application.state.plan_limiter = SlidingWindowRateLimiter(max_requests=settings.plan_rate_limit)
-    application.state.chat_limiter = SlidingWindowRateLimiter(max_requests=settings.chat_rate_limit)
 
 
 def _mount_spa_route(
@@ -125,7 +128,7 @@ def _make_lifespan(
     resolved_settings: Settings,
     gemini_client: GeminiClient | None,
     http_client: httpx.AsyncClient | None,
-) -> Any:
+) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         owns_http = http_client is None
@@ -186,6 +189,3 @@ def create_app(
         app.include_router(router)
     _mount_spa_route(app, build_static_index(resolved_dist), docs_enabled)
     return app
-
-
-app = create_app()

@@ -89,7 +89,7 @@ def test_plan_cache_miss_logs_post_generation_latency_with_injected_clock(
     app = make_test_app(tmp_path, settings=settings, gemini_client=GeminiClient(settings, sdk_client=sdk))
 
     with caplog.at_level("INFO", logger="saans"), TestClient(app) as tc:
-        app.state.clock = lambda: now
+        app.state.saans.clock = lambda: now
         resp = tc.post("/api/plan", json={**sample_profile_dict, "householdSize": 20, "commuteKm": 300})
     assert resp.status_code == 200
     miss_logs = [rec.getMessage() for rec in caplog.records if "route=/api/plan cache=miss" in rec.getMessage()]

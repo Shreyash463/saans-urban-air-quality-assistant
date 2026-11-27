@@ -24,7 +24,7 @@ Leave `GEMINI_API_KEY` empty in `.env` to test the deterministic rule-based back
 
 ### Running Locally
 
-- Terminal 1 (API): `python -m uvicorn --app-dir backend app.main:app --reload --port 8000`
+- Terminal 1 (API): `python -m uvicorn --factory --app-dir backend app.main:create_app --reload --port 8000`
 - Terminal 2 (Vite SPA): `cd frontend && npm run dev` (proxies `/api/*` -> `http://127.0.0.1:8000`)
 
 ## Quality & Verification Gates

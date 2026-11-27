@@ -7,7 +7,7 @@ import time
 
 from fastapi import APIRouter, Request, Response
 
-from app.dependencies import enforce_rate_limit, get_chat_limiter, get_gemini_client
+from app.dependencies import ChatLimiterDep, GeminiClientDep, enforce_rate_limit
 from app.exceptions import log_route_event
 from app.schemas import ChatReply, ChatRequest
 from app.services.fallback_chat import generate_fallback_chat_reply
@@ -26,18 +26,19 @@ async def chat_endpoint(
     body: ChatRequest,
     request: Request,
     response: Response,
+    limiter: ChatLimiterDep,
+    gemini_client: GeminiClientDep,
 ) -> ChatReply:
     """Answers follow-up questions grounded in household profile, active plan, and AQI."""
     started = time.monotonic()
     response.headers["Cache-Control"] = "no-store"
 
     await enforce_rate_limit(
-        get_chat_limiter(request),
+        limiter,
         request,
         "Too many chat requests. Please try again shortly.",
     )
 
-    gemini_client = get_gemini_client(request)
     reply = await gemini_client.generate_chat_reply(body.question, body.profile, body.plan)
     elapsed_ms = int((time.monotonic() - started) * 1000)
     if reply is not None:

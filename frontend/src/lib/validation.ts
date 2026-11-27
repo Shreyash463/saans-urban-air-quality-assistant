@@ -1,5 +1,4 @@
 import limitsContract from '../../../contract/limits.json';
-import { validateContractModel } from './contractValidator';
 import type { AirQualityReading, ChatReply, PlanResponse, UserProfile } from '../types';
 
 export const CITY_MAX_LENGTH = limitsContract.cityMaxLength;
@@ -12,6 +11,15 @@ export const MAX_COMMUTE_KM = limitsContract.commuteKmMax;
 // eslint-disable-next-line no-control-regex
 const CONTROL_CHAR_REGEX = /[\u0000-\u001F\u007F]/g;
 const ALLOWED_CITY_REGEX = /^[\p{L}\p{M}\s,.-]+$/u;
+const ROUTINE_SLOTS = new Set(['morning', 'midday', 'evening', 'night']);
+const COST_LEVELS = new Set(['free', 'low', 'medium', 'high']);
+const COMMUNITY_ACTORS = new Set(['rwa', 'school', 'workplace', 'neighbours']);
+const EFFORT_LEVELS = new Set(['low', 'medium', 'high']);
+const READING_SOURCES = new Set(['live', 'demo']);
+const GENERATED_BY_VALUES = new Set(['gemini', 'rules']);
+const FALLBACK_REASONS = new Set(['no_key', 'ai_busy', 'ai_error']);
+
+type JsonRecord = Record<string, unknown>;
 
 export interface ValidationResult {
   valid: boolean;
@@ -24,12 +32,10 @@ export interface ValidationResult {
     | 'errorChatTooLong';
 }
 
-/** Strips ASCII/Unicode control characters and collapses whitespace. */
 function stripControlChars(input: string): string {
   return input.replace(CONTROL_CHAR_REGEX, '').replace(/\s+/g, ' ').trim();
 }
 
-/** Sanitizes a city input string and truncates strictly to CITY_MAX_LENGTH (60). */
 export function sanitizeCity(rawCity: string): string {
   return stripControlChars(rawCity).slice(0, CITY_MAX_LENGTH);
 }
@@ -53,7 +59,6 @@ function validateBoundedText(
   return { valid: true, sanitized: cleaned };
 }
 
-/** Validates a city string (1-60 Unicode letters, spaces, commas, periods, hyphens). */
 export function validateCity(rawCity: string): ValidationResult {
   return validateBoundedText(
     rawCity,
@@ -65,12 +70,10 @@ export function validateCity(rawCity: string): ValidationResult {
   );
 }
 
-/** Sanitizes a follow-up chat question and limits length to CHAT_MAX_LENGTH (500). */
 export function sanitizeChatQuestion(rawQuestion: string): string {
   return stripControlChars(rawQuestion).slice(0, CHAT_MAX_LENGTH);
 }
 
-/** Validates a follow-up chat question for submission. */
 export function validateChatQuestion(rawQuestion: string): ValidationResult {
   return validateBoundedText(
     rawQuestion,
@@ -80,19 +83,16 @@ export function validateChatQuestion(rawQuestion: string): ValidationResult {
   );
 }
 
-/** Clamps household size into [MIN_HOUSEHOLD_SIZE, MAX_HOUSEHOLD_SIZE]. */
 export function clampHouseholdSize(size: number): number {
   if (!Number.isFinite(size)) return 3;
   return Math.min(MAX_HOUSEHOLD_SIZE, Math.max(MIN_HOUSEHOLD_SIZE, Math.round(size)));
 }
 
-/** Clamps daily commute distance (km) into [MIN_COMMUTE_KM, MAX_COMMUTE_KM]. */
 export function clampCommuteKm(km: number): number {
   if (!Number.isFinite(km)) return 0;
   return Math.min(MAX_COMMUTE_KM, Math.max(MIN_COMMUTE_KM, Math.round(km)));
 }
 
-/** Produces a sanitized copy of a UserProfile before API dispatch or storage. */
 export function sanitizeUserProfile(profile: UserProfile): UserProfile {
   return {
     ...profile,
@@ -103,23 +103,116 @@ export function sanitizeUserProfile(profile: UserProfile): UserProfile {
   };
 }
 
-/** Validates an external API payload against the generated AirQualityReading schema. */
-export function isAirQualityReading(value: unknown): value is AirQualityReading {
+function isRecord(value: unknown): value is JsonRecord {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function hasText(rec: JsonRecord, key: string): boolean {
+  const val = rec[key];
+  return typeof val === 'string' && val.length > 0;
+}
+
+function isBoundedInt(val: unknown, min: number, max: number): boolean {
+  return typeof val === 'number' && Number.isInteger(val) && val >= min && val <= max;
+}
+
+function isOptional(val: unknown, check: (v: unknown) => boolean): boolean {
+  return val === undefined || val === null || check(val);
+}
+
+function isRoutineItem(val: unknown): boolean {
   return (
-    validateContractModel('AirQualityReading', value) &&
-    (value as AirQualityReading).city.trim().length > 0
+    isRecord(val) &&
+    ROUTINE_SLOTS.has(String(val.timeSlot)) &&
+    hasText(val, 'title') &&
+    hasText(val, 'detail') &&
+    hasText(val, 'impactNote')
   );
 }
 
-/** Validates an external API payload against the generated PlanResponse schema. */
-export function isPlanResponse(value: unknown): value is PlanResponse {
-  return validateContractModel('PlanResponse', value);
+function isIndoorHack(val: unknown): boolean {
+  return (
+    isRecord(val) &&
+    hasText(val, 'title') &&
+    hasText(val, 'howTo') &&
+    hasText(val, 'estimatedBenefit') &&
+    COST_LEVELS.has(String(val.costLevel))
+  );
 }
 
-/** Validates an external API payload against the generated ChatReply schema. */
+function isAlternative(val: unknown): boolean {
+  return (
+    isRecord(val) &&
+    hasText(val, 'current') &&
+    hasText(val, 'swap') &&
+    hasText(val, 'why') &&
+    isBoundedInt(val.pm25ReductionPct, 0, 95) &&
+    isBoundedInt(val.co2SavedKgPerMonth, 0, 1000)
+  );
+}
+
+function isCommunityAction(val: unknown): boolean {
+  return (
+    isRecord(val) &&
+    hasText(val, 'title') &&
+    COMMUNITY_ACTORS.has(String(val.who)) &&
+    hasText(val, 'howTo') &&
+    hasText(val, 'estimatedImpact') &&
+    EFFORT_LEVELS.has(String(val.effort))
+  );
+}
+
+function isListOf(
+  val: unknown,
+  minLen: number,
+  check: (item: unknown) => boolean
+): boolean {
+  return Array.isArray(val) && val.length >= minLen && val.every(check);
+}
+
+/** Validates an external API payload against the AirQualityReading response contract. */
+export function isAirQualityReading(value: unknown): value is AirQualityReading {
+  if (!isRecord(value)) return false;
+  return (
+    hasText(value, 'city') &&
+    String(value.city).trim().length > 0 &&
+    isBoundedInt(value.aqi, 0, 500) &&
+    hasText(value, 'dominantPollutant') &&
+    typeof value.updatedAt === 'string' &&
+    READING_SOURCES.has(String(value.source)) &&
+    isOptional(value.sourceDetail, (v) => typeof v === 'string')
+  );
+}
+
+function hasValidPlanOptionals(value: JsonRecord): boolean {
+  return (
+    isOptional(value.communityActions, (v) => isListOf(v, 0, isCommunityAction)) &&
+    isOptional(value.generatedBy, (v) => GENERATED_BY_VALUES.has(String(v))) &&
+    isOptional(value.fallbackReason, (v) => FALLBACK_REASONS.has(String(v))) &&
+    isOptional(value.retryAfterSeconds, (v) => isBoundedInt(v, 0, 3600))
+  );
+}
+
+/** Validates an external API payload against the PlanResponse response contract. */
+export function isPlanResponse(value: unknown): value is PlanResponse {
+  if (!isRecord(value) || !isAirQualityReading(value.aqi)) return false;
+  return (
+    hasText(value, 'summary') &&
+    hasText(value, 'healthAdvisory') &&
+    hasText(value, 'maskGuidance') &&
+    hasText(value, 'disclaimer') &&
+    isListOf(value.routine, 4, isRoutineItem) &&
+    isListOf(value.indoorHacks, 1, isIndoorHack) &&
+    isListOf(value.alternatives, 1, isAlternative) &&
+    hasValidPlanOptionals(value)
+  );
+}
+
+/** Validates an external API payload against the ChatReply response contract. */
 export function isChatReply(value: unknown): value is ChatReply {
   return (
-    validateContractModel('ChatReply', value) &&
-    (value as ChatReply).answer.trim().length > 0
+    isRecord(value) &&
+    typeof value.answer === 'string' &&
+    value.answer.trim().length > 0
   );
 }

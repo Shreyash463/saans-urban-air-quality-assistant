@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from app.config import Settings
-from app.dependencies import _parse_ip_token, get_client_ip
+from app.dependencies import AppState, _parse_ip_token, get_client_ip
 from app.main import create_app
 from app.services.gemini.client import GeminiClient
 from fastapi.testclient import TestClient
@@ -87,11 +87,20 @@ def test_parse_ip_token_and_x_real_ip_fallback() -> None:
     assert _parse_ip_token("[2001:db8::1]:8080") == "2001:db8::1"
     assert _parse_ip_token("198.51.100.7:443") == "198.51.100.7"
 
-    state = SimpleNamespace(settings=SimpleNamespace(trust_proxy_headers=True, trusted_proxy_hops=1))
+    state = SimpleNamespace(saans=SimpleNamespace(settings=SimpleNamespace(trust_proxy_headers=True, trusted_proxy_hops=1)))
     req = Request({"type": "http", "method": "GET", "path": "/", "client": ("127.0.0.1", 1), "headers": [(b"x-forwarded-for", b"unknown, bad"), (b"x-real-ip", b"203.0.113.55:9000")], "app": SimpleNamespace(state=state)})
     assert get_client_ip(req) == "203.0.113.55"
     req_bad = Request({"type": "http", "method": "GET", "path": "/", "client": ("127.0.0.1", 1), "headers": [(b"x-real-ip", b"invalid")], "app": SimpleNamespace(state=state)})
     assert get_client_ip(req_bad) == "127.0.0.1"
+
+
+def test_app_uses_typed_state_and_factory_without_import_singleton(tmp_path: Path) -> None:
+    import app.main as main_mod
+
+    assert not hasattr(main_mod, "app")
+    app = create_app(settings=Settings(environment="production"), http_client=build_mock_http_client(), dist_dir=tmp_path)
+    with TestClient(app):
+        assert isinstance(app.state.saans, AppState)
 
 
 def test_docs_exposed_in_development_and_hidden_in_production(tmp_path: Path) -> None:
