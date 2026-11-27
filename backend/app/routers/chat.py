@@ -8,8 +8,9 @@ import time
 from fastapi import APIRouter, Request, Response
 
 from app.dependencies import enforce_rate_limit, get_chat_limiter, get_gemini_client
+from app.exceptions import log_route_event
 from app.schemas import ChatReply, ChatRequest
-from app.services.fallback_plan import generate_fallback_chat_reply
+from app.services.fallback_chat import generate_fallback_chat_reply
 
 logger = logging.getLogger("saans")
 router = APIRouter(prefix="/api", tags=["chat"])
@@ -38,9 +39,10 @@ async def chat_endpoint(
 
     gemini_client = get_gemini_client(request)
     reply = await gemini_client.generate_chat_reply(body.question, body.profile, body.plan)
+    elapsed_ms = int((time.monotonic() - started) * 1000)
     if reply is not None:
-        logger.info("route=/api/chat mode=gemini latency_ms=%d", int((time.monotonic() - started) * 1000))
+        log_route_event(logger, "/api/chat", mode="gemini", latency_ms=elapsed_ms)
         return reply
 
-    logger.info("route=/api/chat mode=rules latency_ms=%d", int((time.monotonic() - started) * 1000))
+    log_route_event(logger, "/api/chat", mode="rules", latency_ms=elapsed_ms)
     return generate_fallback_chat_reply(body.question, body.profile, body.plan)

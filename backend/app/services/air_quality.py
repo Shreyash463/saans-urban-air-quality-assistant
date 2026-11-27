@@ -10,18 +10,11 @@ import httpx
 
 from app.schemas import AirQualityReading, strip_control_chars
 from app.services.air_quality_parse import (
-    DEMO_SOURCE_DETAIL as DEMO_SOURCE_DETAIL,
-)
-from app.services.air_quality_parse import (
     DEVANAGARI_CITY_MAP,
+    LIVE_SOURCE_DETAIL,
+    get_demo_air_quality,
     parse_hourly_series,
     select_geocode_result,
-)
-from app.services.air_quality_parse import (
-    LIVE_SOURCE_DETAIL as LIVE_SOURCE_DETAIL,
-)
-from app.services.air_quality_parse import (
-    get_demo_air_quality as get_demo_air_quality,
 )
 from app.services.cache import TTLCache
 
@@ -41,7 +34,6 @@ class AirQualityService:
         self._in_flight: dict[str, asyncio.Task[AirQualityReading]] = {}
 
     async def get_air_quality(self, city: str, http_client: httpx.AsyncClient) -> AirQualityReading:
-        """Fetches live Open-Meteo AQI for city (cached & coalesced) or falls back to demo."""
         cleaned = strip_control_chars(city) or "Delhi"
         cache_key = f"city:{cleaned.lower()}"
         cached = await self._cache.get(cache_key)
@@ -59,7 +51,6 @@ class AirQualityService:
         lon: float,
         http_client: httpx.AsyncClient,
     ) -> AirQualityReading:
-        """Fetches live Open-Meteo AQI directly for coordinates without logging/storing coords."""
         try:
             reading = await self._fetch_aq_at_coords(lat, lon, APPROX_LOCATION_LABEL, http_client)
         except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:

@@ -6,7 +6,8 @@ from typing import Any
 
 import pytest
 from app.schemas import AirQualityReading, UserProfile
-from app.services.fallback_plan import generate_fallback_chat_reply, generate_fallback_plan
+from app.services.fallback_chat import generate_fallback_chat_reply
+from app.services.fallback_plan import generate_fallback_plan
 from fastapi.testclient import TestClient
 
 

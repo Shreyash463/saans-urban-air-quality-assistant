@@ -1,0 +1,125 @@
+{
+  "tiers": [
+    {
+      "minAqi": 401,
+      "en": "Air quality is Severe (AQI {aqi}), which affects healthy adults and poses serious risk to sensitive groups.",
+      "hi": "वायु गुणवत्ता गंभीर स्तर ({label}, AQI {aqi}) पर है, जो स्वस्थ लोगों और संवेदनशील वर्गों दोनों को प्रभावित करती है।"
+    },
+    {
+      "minAqi": 301,
+      "en": "Air quality is Very Poor (AQI {aqi}), increasing the risk of airway irritation and respiratory strain on prolonged exposure.",
+      "hi": "वायु गुणवत्ता बहुत खराब ({label}, AQI {aqi}) है, जिससे लंबे समय तक बाहर रहने पर श्वसन दबाव बढ़ सकता है।"
+    },
+    {
+      "minAqi": 201,
+      "en": "Air quality is Poor (AQI {aqi}); everyone should avoid prolonged outdoor exertion today.",
+      "hi": "वायु गुणवत्ता खराब ({label}, AQI {aqi}) है; आज सभी के लिए बाहरी व्यायाम से बचना आवश्यक है।"
+    },
+    {
+      "minAqi": 101,
+      "en": "Air quality is Moderate (AQI {aqi}), which can trigger breathing discomfort for sensitive households.",
+      "hi": "वायु गुणवत्ता मध्यम ({label}, AQI {aqi}) है; संवेदनशील लोगों को अतिरिक्त सावधानी बरतनी चाहिए।"
+    },
+    {
+      "minAqi": 0,
+      "en": "Air quality is {label} (AQI {aqi}), making normal daily routines comfortable for most people.",
+      "hi": "वायु गुणवत्ता {label} (AQI {aqi}) है और अधिकांश लोगों के लिए सामान्य दैनिक गतिविधियां आरामदायक हैं।"
+    }
+  ],
+  "children": [
+    {
+      "minAqi": 201,
+      "en": "For children: Keep playtime and school sports indoors today because young lungs absorb a higher PM2.5 dose per breath.",
+      "hi": "बच्चों के लिए: आज सुबह और शाम के बाहरी खेल रद्द करें और सभी खेलकूद घर के अंदर रखें।"
+    },
+    {
+      "minAqi": 101,
+      "en": "For children: Limit vigorous outdoor play and keep brief outdoor breaks to the cleaner 1–4 PM window away from busy roads.",
+      "hi": "बच्चों के लिए: भारी दौड़-भाग से बचें और केवल दोपहर 1–4 बजे की स्वच्छ अवधि में हल्की गतिविधि चुनें।"
+    },
+    {
+      "minAqi": 0,
+      "en": "For children: Regular outdoor play in parks away from heavy traffic is fine today.",
+      "hi": "बच्चों के लिए: सड़क से दूर पार्कों में सामान्य बाहरी खेल सुरक्षित है।"
+    }
+  ],
+  "elderly": [
+    {
+      "minAqi": 201,
+      "en": "For older adults (60+): Skip morning and evening walks, stay in a well-sealed indoor room, and stay well hydrated.",
+      "hi": "बुजुर्ग सदस्यों (60+) के लिए: सुबह की सैर टालें, घर के अंदर साफ हवा वाले कमरे में रहें और पर्याप्त पानी पिएं।"
+    },
+    {
+      "minAqi": 101,
+      "en": "For older adults (60+): Shift gentle walks to the midday daylight window and pause immediately if any fatigue or shortness of breath occurs.",
+      "hi": "बुजुर्ग सदस्यों (60+) के लिए: सैर को दोपहर की धूप वाले समय तक सीमित रखें और मुख्य ट्रैफ़िक से दूर रहें।"
+    },
+    {
+      "minAqi": 0,
+      "en": "For older adults (60+): Routine walks are comfortable today, though avoiding busy intersections remains helpful.",
+      "hi": "बुजुर्ग सदस्यों (60+) के लिए: हल्की सैर सामान्य रूप से सुरक्षित है, पर भारी ट्रैफ़िक क्षेत्रों से बचें।"
+    }
+  ],
+  "respiratory": [
+    {
+      "minAqi": 101,
+      "en": "For asthma or respiratory sensitivity: Keep prescribed reliever inhalers within reach, prioritize clean indoor air, and wear a properly fitted N95/FFP2 mask for any unavoidable outdoor trip.",
+      "hi": "दमा या श्वसन संवेदनशीलता के लिए: डॉक्टर द्वारा दी गई रिलीवर दवा या इन्हेलर हमेशा पास रखें, घर के अंदर की हवा साफ रखें, और बाहर जाना अनिवार्य हो तो फिटेड N95/FFP2 मास्क पहनें।"
+    },
+    {
+      "minAqi": 0,
+      "en": "For asthma or respiratory sensitivity: Keep prescribed medication handy and steer clear of localized smoke or construction dust.",
+      "hi": "दमा या श्वसन संवेदनशीलता के लिए: अपना निर्धारित इन्हेलर साथ रखें और धूल या धुएं वाले इलाकों से दूर रहें।"
+    }
+  ],
+  "advisoryNote": {
+    "en": "This guidance is not medical advice; consult a qualified doctor promptly if coughing, wheezing, or breathlessness develops.",
+    "hi": "यह सामान्य जानकारी है, चिकित्सीय सलाह नहीं—खांसी, घरघराहट या सांस फूलने पर तुरंत डॉक्टर से परामर्श करें।"
+  },
+  "maskGuidance": {
+    "highLead": {
+      "en": "At AQI {aqi}, avoid outdoor exertion and prolonged outdoor exercise entirely for everyone.",
+      "hi": "AQI {aqi} पर सभी के लिए बाहरी व्यायाम, दौड़ और लंबे समय तक बाहर रहने से पूरी तरह बचें।"
+    },
+    "highVulnerable": {
+      "en": "Keep children, older adults, and anyone with respiratory sensitivity indoors in clean air. For essential trips only, prefer the 1–4 PM window and wear a snugly fitted N95/FFP2 respirator (cloth and loose surgical masks do not block PM2.5).",
+      "hi": "बच्चों, बुजुर्गों और श्वसन संवेदनशील सदस्यों को घर के अंदर साफ हवा वाले कमरे में रखें। यदि बाहर निकलना अनिवार्य हो तो दोपहर 1–4 बजे का समय चुनें और बिना वाल्व वाला फिटेड N95/FFP2 मास्क पहनें।"
+    },
+    "highGeneral": {
+      "en": "Wear a snugly sealed N95 or FFP2 respirator for every commute or essential errand—cloth and loose surgical masks let fine PM2.5 leak past the edges.",
+      "hi": "ऑफिस यात्रा या आवश्यक काम के लिए बाहर निकलते हर बार नाक की क्लिप दबाकर फिटेड N95/FFP2 मास्क पहनें—कपड़े या सर्जिकल मास्क PM2.5 नहीं रोकते।"
+    },
+    "highTail": {
+      "en": "Not medical advice; consult a doctor if you have a respiratory or cardiac condition.",
+      "hi": "यह चिकित्सीय सलाह नहीं है; श्वसन लक्षणों के लिए डॉक्टर से मिलें।"
+    },
+    "moderateVulnerable": {
+      "en": "At AQI {aqi} (Moderate), because your household includes sensitive members, limit outdoor activity and move workouts indoors. Prefer the cleanest daylight window (1–4 PM), wear a fitted N95/FFP2 mask for essential trips near traffic, and keep indoor air clean. Not medical advice; consult a doctor for personalized guidance.",
+      "hi": "AQI {aqi} (मध्यम) पर चूंकि आपके परिवार में संवेदनशील सदस्य हैं, इसलिए बाहरी गतिविधि को सीमित रखें और भारी या मध्यम व्यायाम घर के अंदर करें। आवश्यक बाहर निकलने के लिए सबसे स्वच्छ दोपहर (1–4 बजे) का समय चुनें, फिटेड N95/FFP2 मास्क पहनें और घर के अंदर की हवा साफ रखें। यह चिकित्सीय सलाह नहीं है; आवश्यकता होने पर डॉक्टर से परामर्श लें।"
+    },
+    "moderateGeneral": {
+      "en": "At AQI {aqi} (Moderate), keep prolonged outdoor exertion light and shift workouts to the 1–4 PM window away from busy roads. Wearing a fitted N95/FFP2 mask during heavy-traffic commutes or near construction dust is recommended. Not medical advice.",
+      "hi": "AQI {aqi} (मध्यम) पर भारी बाहरी व्यायाम को कम रखें और व्यस्त सड़कों के बजाय दोपहर 1–4 बजे का समय चुनें। ट्रैफ़िक कम्यूट या निर्माण धूल के पास फिटेड N95/FFP2 मास्क पहनना सुरक्षित रहता है। यह चिकित्सीय सलाह नहीं है।"
+    },
+    "lowVulnerable": {
+      "en": "At AQI {aqi}, gentle outdoor activity away from busy roads is generally comfortable for sensitive household members. Keep an N95 handy near heavy traffic and consult a doctor if any symptoms appear.",
+      "hi": "AQI {aqi} पर संवेदनशील सदस्यों के लिए मुख्य सड़कों से दूर हल्की बाहरी गतिविधि आमतौर पर आरामदायक है। भारी ट्रैफ़िक के पास N95 मास्क साथ रखें और कोई लक्षण महसूस होने पर डॉक्टर से परामर्श लें।"
+    },
+    "lowGeneral": {
+      "en": "At AQI {aqi}, normal outdoor activity and exercise are fine. Masks are optional for routine trips, though wearing an N95 near heavy traffic or construction dust remains helpful. Not medical advice.",
+      "hi": "AQI {aqi} पर सामान्य बाहरी गतिविधि और व्यायाम सुरक्षित हैं। मास्क वैकल्पिक है, हालांकि भारी ट्रैफ़िक या धूल भरे क्षेत्रों में N95 उपयोगी रहता है। यह चिकित्सीय सलाह नहीं है।"
+    }
+  },
+  "disclaimer": {
+    "en": "Not medical advice. This plan offers general environmental and low-emission lifestyle guidance. Always consult a qualified physician for asthma, COPD, cardiovascular conditions, or acute respiratory symptoms.",
+    "hi": "अस्वीकरण: यह मार्गदर्शन सामान्य सूचना के लिए है और चिकित्सीय सलाह नहीं है। दमा, हृदय रोग या गंभीर सांस के लक्षणों के लिए योग्य डॉक्टर से परामर्श करें।"
+  },
+  "injectionRefusal": {
+    "en": "I can only help with urban air quality, winter smog, indoor air protection, masks, and low-emission household habits. Please ask an air-quality question for your household.",
+    "hi": "मैं केवल वायु गुणवत्ता, सर्दियों के स्मॉग, घर की हवा, मास्क और कम-उत्सर्जन आदतों से जुड़े सवालों में मदद कर सकता हूँ। कृपया अपने शहर या घर की हवा के बारे में पूछें।"
+  },
+  "emergencyCare": {
+    "en": "Urgent health guidance: Severe breathlessness, chest pain, bluish lips, or fainting requires immediate emergency medical care—call 108/emergency services or visit the nearest ER right away. Saans is not medical care. Stay indoors with windows shut in {city} (AQI {aqi}) while seeking help.",
+    "hi": "आपातकालीन स्वास्थ्य सलाह: सीने में तेज दर्द, गंभीर सांस फूलना, बेहोशी या नीले होंठ दिखने पर तुरंत नजदीकी आपातकालीन अस्पताल जाएं या 108 पर कॉल करें। सांस चिकित्सीय सेवा का विकल्प नहीं है। मदद मिलने तक {city} (AQI {aqi}) में शांत रहें और खिड़कियां बंद रखें।"
+  }
+}

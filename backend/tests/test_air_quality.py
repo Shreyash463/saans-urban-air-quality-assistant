@@ -5,7 +5,8 @@ from __future__ import annotations
 import httpx
 import pytest
 from app.schemas import AirQualityReading
-from app.services.air_quality import DEMO_SOURCE_DETAIL, LIVE_SOURCE_DETAIL, AirQualityService
+from app.services.air_quality import AirQualityService
+from app.services.air_quality_parse import DEMO_SOURCE_DETAIL, LIVE_SOURCE_DETAIL
 from app.services.cache import TTLCache
 from tests.conftest import build_mock_http_client
 

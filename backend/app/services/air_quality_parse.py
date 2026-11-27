@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta, timezone
+from functools import lru_cache
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 from app.config import PROJECT_ROOT
@@ -14,41 +16,41 @@ from app.services.cpcb import compute_cpcb_aqi_from_hourly
 LIVE_SOURCE_DETAIL = "Open-Meteo, PM-based CPCB estimate"
 DEMO_SOURCE_DETAIL = "Sample reading"
 
-DEVANAGARI_CITY_MAP: dict[str, str] = {
-    "दिल्ली": "Delhi",
-    "नई दिल्ली": "New Delhi",
-    "लखनऊ": "Lucknow",
-    "कोलकाता": "Kolkata",
-    "मुंबई": "Mumbai",
-    "पुणे": "Pune",
-    "नोएडा": "Noida",
-    "गुरुग्राम": "Gurugram",
-    "पटना": "Patna",
-    "बेंगलुरु": "Bengaluru",
-    "चेन्नई": "Chennai",
-}
+DEVANAGARI_CITY_MAP: MappingProxyType[str, str] = MappingProxyType(
+    {
+        "दिल्ली": "Delhi",
+        "नई दिल्ली": "New Delhi",
+        "लखनऊ": "Lucknow",
+        "कोलकाता": "Kolkata",
+        "मुंबई": "Mumbai",
+        "पुणे": "Pune",
+        "नोएडा": "Noida",
+        "गुरुग्राम": "Gurugram",
+        "पटना": "Patna",
+        "बेंगलुरु": "Bengaluru",
+        "चेन्नई": "Chennai",
+    }
+)
 
 
-def _load_demo_cities() -> tuple[dict[str, tuple[str, int, str]], int]:
+@lru_cache(maxsize=1)
+def _demo_cities() -> tuple[MappingProxyType[str, tuple[str, int, str]], int]:
     raw = json.loads((Path(PROJECT_ROOT) / "contract" / "demo-cities.json").read_text(encoding="utf-8"))
     table = {
         key: (str(val["displayName"]), int(val["aqi"]), str(val["dominantPollutant"]))
         for key, val in raw["cities"].items()
     }
-    return table, int(raw["unknownCityAqi"])
-
-
-DEMO_CITY_TABLE, UNKNOWN_CITY_AQI = _load_demo_cities()
+    return MappingProxyType(table), int(raw["unknownCityAqi"])
 
 
 def get_demo_air_quality(city: str) -> AirQualityReading:
-    """Returns deterministic demo AQI reading matching contract/demo-cities.json."""
+    table, unknown_aqi = _demo_cities()
     cleaned = strip_control_chars(city) or "Delhi"
-    entry = DEMO_CITY_TABLE.get(cleaned.lower())
+    entry = table.get(cleaned.lower())
     if entry is not None:
         display_name, aqi, dominant = entry
     else:
-        display_name, aqi, dominant = cleaned, UNKNOWN_CITY_AQI, "PM2.5"
+        display_name, aqi, dominant = cleaned, unknown_aqi, "PM2.5"
     return AirQualityReading(
         city=display_name,
         aqi=aqi,

@@ -1,0 +1,609 @@
+{
+  "summary": {
+    "sourceLive": { "en": "live AQI", "hi": "लाइव AQI" },
+    "sourceDemo": { "en": "sample demo AQI", "hi": "डेमो AQI" },
+    "budgetLow": {
+      "en": "free and low-cost indoor protection",
+      "hi": "कम-खर्च इनडोर उपायों"
+    },
+    "budgetOther": {
+      "en": "effective indoor air cleaning",
+      "hi": "प्रभावी इनडोर फ़िल्ट्रेशन"
+    },
+    "template": {
+      "en": "{city} shows a {sourceLabel} of {aqi} ({category}), driven primarily by {pollutant}. Built for your {householdSize}-person household, this plan prioritizes avoiding morning and evening winter inversion, {budgetNote}, and practical low-emission swaps.",
+      "hi": "{city} के लिए {sourceLabel} {aqi} ({category}) है, जिसमें {pollutant} मुख्य प्रदूषक है। आपके {householdSize} सदस्यों के परिवार के लिए यह योजना पीक स्मॉग से बचाव, {budgetNote} और कम-उत्सर्जन आदतों पर केंद्रित है।"
+    }
+  },
+  "morning": {
+    "car": {
+      "title": {
+        "en": "Set car AC to recirculate and keep home windows shut (6–10 AM)",
+        "hi": "कार AC को रीसर्कुलेशन मोड पर रखें और सुबह 6–10 बजे खिड़कियां बंद रखें"
+      },
+      "detailTemplate": {
+        "en": "Switch your car cabin AC to recirculation mode in traffic so tailpipe fumes stay outside. {extra}",
+        "hi": "सुबह की यात्रा में कार AC को रीसर्कुलेशन मोड पर रखें ताकि ट्रैफ़िक का धुआं केबिन में न घुसे। {extra}"
+      },
+      "extraVulnerable": {
+        "en": "Move school drop-offs indoors-to-car and skip morning outdoor walks for sensitive family members.",
+        "hi": "संवेदनशील सदस्यों की सुबह की सैर टालें।"
+      },
+      "extraGeneral": {
+        "en": "Keep home windows closed until midday sunlight lifts the winter inversion layer.",
+        "hi": "दोपहर तक घर की खिड़कियां बंद रखें।"
+      },
+      "impactNote": {
+        "en": "Cuts in-cabin exhaust spikes by ~40% and keeps morning inversion smog out of your home.",
+        "hi": "कार केबिन में बाहरी धुएं का प्रवेश ~40% घटता है और घर में सुबह का स्मॉग रुकता है।"
+      }
+    },
+    "byMode": {
+      "two_wheeler": {
+        "title": {
+          "en": "Wear a sealed N95/FFP2 under your helmet and keep windows closed (6–10 AM)",
+          "hi": "सुबह की दोपहिया यात्रा में फिटेड N95 पहनें और खिड़कियां बंद रखें"
+        },
+        "detail": {
+          "en": "Winter thermal inversion traps exhaust near street level between 6–10 AM in {city}. Wear a snug nose-clip N95 under your helmet, avoid idling behind diesel buses, and keep home windows closed.",
+          "hi": "सुबह 6–10 बजे सर्दियों के थर्मल इनवर्ज़न के कारण {city} में PM2.5 सबसे अधिक रहता है। हेलमेट के नीचे नाक-क्लिप वाला N95 पहनें, डीज़ल बसों के पीछे न रुकें और घर की खिड़कियां बंद रखें।"
+        },
+        "impactNote": {
+          "en": "Cuts inhaled roadside PM2.5 by ~35–50% during your ride and blocks morning inversion smog indoors.",
+          "hi": "सड़क के स्तर पर सांस के साथ जाने वाले PM2.5 को ~35–50% कम करता है और सुबह का स्मॉग घर में आने से रोकता है।"
+        }
+      },
+      "walk_cycle": {
+        "title": {
+          "en": "Pace morning walks/rides gently with an N95 and keep windows shut (6–10 AM)",
+          "hi": "सुबह की पैदल/साइकिल यात्रा धीमी रखें, N95 पहनें और घर बंद रखें"
+        },
+        "detail": {
+          "en": "Between 6–10 AM in {city}, winter inversion keeps exhaust at breathing height. Use quieter side streets with a fitted N95, avoid heavy morning cardio, and keep home windows sealed.",
+          "hi": "सुबह 6–10 बजे {city} में थर्मल इनवर्ज़न सड़क पर धुआं रोके रखता है। शांत गलियां चुनें, फिटेड N95 पहनें और तीव्र व्यायाम दोपहर या घर के अंदर करें।"
+        },
+        "impactNote": {
+          "en": "Lowers deep-breathing PM2.5 intake while maintaining your zero-tailpipe commute.",
+          "hi": "गहरी सांस से होने वाला PM2.5 प्रवेश कम होता है और आप शून्य वाहन उत्सर्जन के साथ सुरक्षित रहते हैं।"
+        }
+      },
+      "work_from_home": {
+        "title": {
+          "en": "Keep windows shut until 10 AM and wet-mop your home workspace",
+          "hi": "सुबह 10 बजे तक खिड़कियां बंद रखें और गीले पोंछे से सफाई करें"
+        },
+        "detail": {
+          "en": "Keep balcony doors and windows sealed until 10 AM while winter inversion holds smog low. Use damp mopping instead of dry jhadu sweeping so settled dust is not kicked back into your workspace.",
+          "hi": "घर से काम करते समय सुबह 10 बजे तक बालकनी और खिड़कियां बंद रखें। सूखी झाड़ू के बजाय गीले पोंछे से सफाई करें ताकि धूल दोबारा हवा में न उड़े।"
+        },
+        "impactNote": {
+          "en": "Prevents indoor dust resuspension and blocks ~25% of morning smog infiltration.",
+          "hi": "घर के अंदर धूल के दोबारा उड़ने और सुबह के स्मॉग रिसाव को ~25% कम करता है।"
+        }
+      },
+      "public_transport": {
+        "title": {
+          "en": "Wear an N95 on your metro/bus walk and keep home windows shut (6–10 AM)",
+          "hi": "मेट्रो/बस स्टॉप की पैदल दूरी पर N95 पहनें और घर की खिड़कियां बंद रखें"
+        },
+        "detail": {
+          "en": "Wear a snugly fitted N95/FFP2 mask on your walk to the metro or bus stop where roadside exhaust spikes, and keep home windows closed during the 6–10 AM winter inversion.",
+          "hi": "मेट्रो या बस स्टॉप तक पैदल चलते समय फिटेड N95 मास्क पहनें और सुबह 6–10 बजे के इनवर्ज़न के दौरान घर की खिड़कियां बंद रखें।"
+        },
+        "impactNote": {
+          "en": "Protects you from last-mile roadside PM2.5 spikes while keeping morning smog out of your home.",
+          "hi": "लास्ट-माइल यात्रा में सड़क के PM2.5 से बचाता है और घर में सुबह का स्मॉग आने से रोकता है।"
+        }
+      }
+    }
+  },
+  "midday": {
+    "title": {
+      "en": "Ventilate your home for 20 minutes during the 1–4 PM AQI dip",
+      "hi": "दोपहर 1–4 बजे 20 मिनट क्रॉस-वेंटिलेशन करें"
+    },
+    "apartmentDetail": {
+      "en": "Afternoon warmth lifts the inversion layer, making 1–4 PM the cleanest window of the day. Open opposite apartment windows for 15–20 minutes to flush trapped indoor CO2 and kitchen fumes.",
+      "hi": "दोपहर में धूप से हवा ऊपर उठती है और AQI दिन का सबसे निचला स्तर छूता है। फ्लैट के विपरीत किनारों की खिड़कियां 15–20 मिनट खोलकर अंदर जमा CO2 और रसोई का धुआं बाहर निकालें।"
+    },
+    "houseDetail": {
+      "en": "Between 1–4 PM, open courtyard or upper-floor windows away from the main street for 15–20 minutes to refresh stale indoor air without pulling in ground-level road dust.",
+      "hi": "दोपहर 1–4 बजे ऊपरी मंजिल या आंगन की ओर वाली खिड़कियां 15–20 मिनट खोलें ताकि सड़क की धूल लाए बिना घर की बासी हवा बाहर निकल सके।"
+    },
+    "impactNote": {
+      "en": "Flushes trapped indoor CO2 and cooking aerosols during the lowest-AQI window of the day.",
+      "hi": "सुबह-शाम का स्मॉग लाए बिना घर में फंसी बासी हवा और रसोई के धुएं को बाहर निकालता है।"
+    }
+  },
+  "evening": {
+    "title": {
+      "en": "Seal windows by 5:30 PM and minimize evening indoor smoke",
+      "hi": "शाम 5:30 बजे तक खिड़कियां सील करें और रसोई का धुआं नियंत्रित रखें"
+    },
+    "biomassDetail": {
+      "en": "As evening temperatures drop, winter inversion returns and traffic plus seasonal stubble smoke sinks back down. Keep solid-fuel cooking strictly ventilated outdoors or under a hood.",
+      "hi": "सूर्यास्त के बाद पराली और ट्रैफ़िक का धुआं फिर ज़मीन के पास जमता है। खाना बनाते समय पूरी निकासी रखें और लकड़ी/कोयले का धुआं कमरे में न भरने दें।"
+    },
+    "cleanDetail": {
+      "en": "As evening temperatures drop, winter inversion returns and traffic plus stubble smoke sinks to breathing height. Shut windows, run your kitchen exhaust during tadka/frying, and skip indoor incense or mosquito coils.",
+      "hi": "सूर्यास्त के बाद तापमान गिरते ही स्मॉग फिर ज़मीन के पास जमने लगता है। खिड़कियां बंद करें, तड़के के समय एग्जॉस्ट फैन चलाएं और अगरबत्ती/मच्छर कॉइल से बचें।"
+    },
+    "impactNote": {
+      "en": "Prevents sharp indoor PM2.5 spikes from evening inversion, tadka smoke, and incense.",
+      "hi": "शाम के पीक स्मॉग और रसोई/अगरबत्ती से होने वाले PM2.5 उछाल को रोकता है।"
+    }
+  },
+  "night": {
+    "purifier": {
+      "title": {
+        "en": "Run your existing HEPA purifier in a closed bedroom all night",
+        "hi": "बेडरूम का दरवाज़ा बंद कर अपना HEPA प्यूरीफायर रात भर चलाएं"
+      },
+      "detail": {
+        "en": "Run your purifier on high 30 minutes before bedtime to clear bedroom PM2.5, then keep it on sleep/medium overnight with doors shut. Vacuum the mesh pre-filter every 2 weeks.",
+        "hi": "सोने से 30 मिनट पहले प्यूरीफायर को हाई स्पीड पर चलाएं, फिर रात भर स्लीप/मीडियम मोड पर रखें। हर 14 दिन में प्री-फ़िल्टर वैक्यूम या गीले कपड़े से साफ करें।"
+      },
+      "impactNote": {
+        "en": "8 hours of clean sleep air cuts total 24-hour personal PM2.5 exposure by ~42%.",
+        "hi": "8 घंटे की नींद में साफ हवा मिलने से पूरे 24 घंटे का PM2.5 संपर्क ~42% तक घटता है।"
+      }
+    },
+    "sealedZone": {
+      "title": {
+        "en": "Create a sealed low-smog sleep zone in the bedroom",
+        "hi": "बेडरूम के दरवाज़े के नीचे ड्राफ्ट स्टॉपर लगाकर स्वच्छ स्लीप ज़ोन बनाएं"
+      },
+      "detail": {
+        "en": "Close bedroom doors tightly and block under-door slits with a rolled towel or foam weather-strip. Wet-wipe surfaces before bed.{extra}",
+        "hi": "बेडरूम के दरवाज़े की दरार को मुड़े हुए तौलिये या ड्राफ्ट स्टॉपर से बंद करें और सोने से पहले गीला पोंछा लगाएं।{extra}"
+      },
+      "highSmogExtra": {
+        "en": " On Poor or worse nights, run a DIY box-fan + HEPA filter in the bedroom.",
+        "hi": " उच्च AQI वाली रातों में DIY बॉक्स-फैन + HEPA फ़िल्टर चलाएं।"
+      },
+      "impactNote": {
+        "en": "Reduces overnight outdoor smog seepage into your sleeping space by ~15–20%.",
+        "hi": "रात भर बाहर से आने वाले धुएं का रिसाव ~15–20% तक कम होता है।"
+      }
+    }
+  },
+  "indoorHacks": {
+    "sealTitleApartment": {
+      "en": "Weather-strip balcony sliding doors and entrance gaps",
+      "hi": "बालकनी स्लाइडिंग डोर और मेन डोर की दरारें सील करें"
+    },
+    "sealTitleHouse": {
+      "en": "Add door sweeps and window seals on road-facing rooms",
+      "hi": "बाहरी दरवाज़ों पर ड्राफ्ट स्टॉपर और खिड़कियों पर सील लगाएं"
+    },
+    "base": [
+      {
+        "cost": "free",
+        "title": {
+          "en": "Switch from dry sweeping to wet mopping",
+          "hi": "सूखी झाड़ू के बजाय गीला पोंछा (Wet Mopping)"
+        },
+        "howTo": {
+          "en": "Replace dry jhadu sweeping and dry dusting with a damp microfiber mop or cloth once daily, especially near entryways.",
+          "hi": "सुबह और शाम सूखी झाड़ू या डस्टिंग न करें—हल्के गीले माइक्रोफाइबर कपड़े या पोंछे से फर्श साफ करें।"
+        },
+        "benefit": {
+          "en": "~20–30% less resuspended indoor dust (PM10/PM2.5)",
+          "hi": "~20–30% कम उड़ती धूल (PM10/PM2.5)"
+        }
+      },
+      {
+        "cost": "free",
+        "title": {
+          "en": "Skip incense sticks, dhoop, and mosquito coils indoors",
+          "hi": "घर में अगरबत्ती, धूप और मच्छर कॉइल से बचें"
+        },
+        "howTo": {
+          "en": "Burning incense or mosquito coils in closed winter rooms spikes indoor PM2.5 above outdoor smog. Use mosquito nets and run exhaust if lighting diyas.",
+          "hi": "बंद सर्दियों के कमरों में अगरबत्ती और कॉइल भारी PM2.5 छोड़ते हैं। मच्छरदानी या लिक्विड वेपोराइज़र चुनें और दीया जलाते समय एग्जॉस्ट चालू रखें।"
+        },
+        "benefit": {
+          "en": "Eliminates sharp indoor smoke spikes (often 200–500 µg/m³)",
+          "hi": "घर के भीतर के सबसे तेज़ PM2.5 उछाल से बचाव"
+        }
+      },
+      {
+        "cost": "low",
+        "useSealTitle": true,
+        "howTo": {
+          "en": "Apply inexpensive self-adhesive EPDM foam weather-stripping around loose window sashes and attach an under-door brush sweep.",
+          "hi": "हार्डवेयर की दुकान से ₹200–₹400 की EPDM फोम टेप लगाकर दरवाज़ों और खिड़कियों की दरारें बंद करें।"
+        },
+        "benefit": {
+          "en": "~15% lower outdoor smog seepage; doubles filtration efficiency",
+          "hi": "~15% कम बाहरी स्मॉग रिसाव"
+        }
+      },
+      {
+        "cost": "free",
+        "title": {
+          "en": "Don't rely on indoor plants for PM2.5 — use real filtration",
+          "hi": "इंडोर पौधों पर भरोसा न करें — वास्तविक फ़िल्ट्रेशन चुनें"
+        },
+        "howTo": {
+          "en": "Houseplants like snake plant and areca palm remove negligible PM2.5 during severe urban smog. Prioritize airtight sealing and mechanical HEPA filtration.",
+          "hi": "अरेका पाम या स्नेक प्लांट अच्छे दिखते हैं, पर वैज्ञानिक परीक्षण बताते हैं कि वे कमरे का PM2.5 नाममात्र ही घटाते हैं। सीलिंग, गीले पोंछे और HEPA फ़िल्टर पर ध्यान दें।"
+        },
+        "benefit": {
+          "en": "Prevents false confidence so your budget goes to real PM2.5 cuts",
+          "hi": "झूठी सुरक्षा से बचाव और सही उपायों पर बजट खर्च"
+        }
+      },
+      {
+        "cost": "free",
+        "title": {
+          "en": "Run kitchen exhaust and keep the kitchen door closed while cooking",
+          "hi": "तड़के और तलने के समय किचन एग्जॉस्ट फैन चलाएं"
+        },
+        "howTo": {
+          "en": "Close the kitchen door and run an exhaust fan or chimney during tadka and frying so cooking aerosols do not drift into bedrooms.",
+          "hi": "खाना पकाते समय रसोई का दरवाज़ा बंद रखें और एग्जॉस्ट फैन या चिमनी चलाकर तेल का धुआं बाहर निकालें।"
+        },
+        "benefit": {
+          "en": "Prevents kitchen oil aerosols from spreading into living and sleeping rooms",
+          "hi": "लिविंग रूम और बेडरूम में रसोई का PM2.5 फैलना रुकता है"
+        }
+      }
+    ],
+    "purifierOwnerExtras": [
+      {
+        "cost": "free",
+        "title": {
+          "en": "Optimize existing purifier placement & clean pre-filter fortnightly",
+          "hi": "प्यूरीफायर की सही जगह और हर 14 दिन में प्री-फ़िल्टर सफाई"
+        },
+        "howTo": {
+          "en": "Place your existing purifier 30 cm away from walls in a closed bedroom (not an open hall) and vacuum the mesh pre-filter every 2 weeks; never wash paper HEPA.",
+          "hi": "अपने प्यूरीफायर को दीवार से 30 सेमी दूर एक बंद बेडरूम में चलाएं (खुले हॉल में नहीं), और जालीदार प्री-फ़िल्टर को हर 14 दिन में साफ करें।"
+        },
+        "benefit": {
+          "en": "Maintains 25–35% higher clean-air delivery (CADR) during winter peaks",
+          "hi": "एयरफ्लो (CADR) 25–35% बेहतर बना रहता है"
+        }
+      },
+      {
+        "cost": "medium",
+        "title": {
+          "en": "Spot hidden window drafts with a compact PM2.5 sensor",
+          "hi": "पोर्टेबल लेज़र PM2.5 मॉनिटर से रिसाव जांचें"
+        },
+        "howTo": {
+          "en": "Track indoor PM2.5 across rooms to detect leaky window frames and verify when indoor air drops below 35 µg/m³.",
+          "hi": "बेडरूम और रसोई में PM2.5 जांचकर समझें कि किस खिड़की से धुंध आ रही है और वेंटिलेशन कब सुरक्षित है।"
+        },
+        "benefit": {
+          "en": "Verifies clean indoor air (<35 µg/m³) and eliminates guesswork",
+          "hi": "सटीक वेंटिलेशन समय और बिजली की बचत"
+        }
+      }
+    ],
+    "noPurifierExtras": [
+      {
+        "cost": "low",
+        "title": {
+          "en": "Build a DIY box-fan + HEPA filter (budget air cleaner)",
+          "hi": "DIY बॉक्स-फैन + HEPA फ़िल्टर बनाएं (कम खर्च)"
+        },
+        "howTo": {
+          "en": "Seal a standard replacement True HEPA filter (₹1,200–₹2,000) snugly to the intake side of an existing box or table fan using cardboard shrouding.",
+          "hi": "एक टेबल या बॉक्स फैन के पीछे ₹1,200–₹2,000 का रिप्लेसमेंट True HEPA फ़िल्टर कार्डबोर्ड और डक्ट टेप से सील करके लगाएं।"
+        },
+        "benefit": {
+          "en": "~50–70% bedroom PM2.5 drop at a quarter of retail cost",
+          "hi": "बंद बेडरूम में PM2.5 में ~50–70% कमी"
+        }
+      },
+      {
+        "cost": "high",
+        "title": {
+          "en": "Add an ozone-free True HEPA H13 purifier for the main bedroom",
+          "hi": "मुख्य बेडरूम के लिए True HEPA H13 प्यूरीफायर चुनें"
+        },
+        "howTo": {
+          "en": "Choose an ozone-free True HEPA H13 unit sized to your bedroom (CADR 250–350 m³/hr) with affordable replacement filters.",
+          "hi": "बिना आयनाइज़र वाला True HEPA H13 मॉडल चुनें जिसका CADR आपके कमरे के अनुसार 250–350 m³/hr हो।"
+        },
+        "benefit": {
+          "en": "Reduces overnight bedroom PM2.5 by ~70–85% with doors shut",
+          "hi": "रात भर बंद कमरे में PM2.5 में ~70–85% कमी"
+        }
+      }
+    ]
+  },
+  "alternatives": {
+    "commute": {
+      "car": {
+        "preset": "commute_car_to_transit",
+        "current": {
+          "en": "Solo private car commute ({km} km/day)",
+          "hi": "रोज़ाना {km} किमी अकेले कार चलाना"
+        },
+        "swap": {
+          "en": "Take metro/bus or carpool 3 days/week + stay current on PUC checks",
+          "hi": "सप्ताह में 3 दिन मेट्रो/बस या कारपूल + नियमित PUC जांच"
+        },
+        "why": {
+          "en": "Idling urban cars emit heavy NO2 and fine exhaust particles per passenger; shifting to transit or carpooling cuts corridor emissions and fuel costs.",
+          "hi": "सर्दियों के जाम में कारें प्रति यात्री सबसे अधिक NO2 और PM2.5 छोड़ती हैं; शेयरिंग से तुरंत उत्सर्जन और ईंधन खर्च घटता है।"
+        }
+      },
+      "two_wheeler": {
+        "preset": "commute_two_wheeler_to_transit",
+        "current": {
+          "en": "Daily petrol two-wheeler ride ({km} km/day)",
+          "hi": "रोज़ाना {km} किमी पेट्रोल दोपहिया यात्रा"
+        },
+        "swap": {
+          "en": "Switch to metro/AC bus on Poor+ AQI days or plan an EV two-wheeler upgrade",
+          "hi": "खराब AQI के दिनों में मेट्रो/AC बस चुनें या EV स्कूटर पर शिफ्ट की योजना बनाएं"
+        },
+        "why": {
+          "en": "Two-wheeler riders breathe directly at tailpipe height; shifting high-smog commutes to metro or AC bus protects your lungs and cuts urban emissions.",
+          "hi": "दोपहिया सवार सीधे बसों और कारों के एग्जॉस्ट की ऊंचाई पर सांस लेते हैं। मेट्रो/AC बस से संपर्क और उत्सर्जन दोनों घटते हैं।"
+        }
+      },
+      "other": {
+        "preset": "fitted_n95_mask",
+        "current": {
+          "en": "Wearing cloth or loose surgical masks on outdoor walks and transit legs",
+          "hi": "बाहरी काम या लास्ट-माइल यात्रा में कपड़े/सर्जिकल मास्क पहनना"
+        },
+        "swap": {
+          "en": "Switch to a snugly fitted N95/FFP2 respirator on Poor+ days",
+          "hi": "Poor+ दिनों में नाक की क्लिप वाला फिटेड N95/FFP2 मास्क पहनें"
+        },
+        "why": {
+          "en": "Your commute already avoids private tailpipe emissions; a snug N95/FFP2 blocks >90% of fine PM2.5 during walking and transit legs.",
+          "hi": "आप पहले से कम-उत्सर्जन यात्रा अपना रहे हैं; फिटेड N95 लास्ट-माइल सड़क धूल के 90% से अधिक PM2.5 को रोक देता है।"
+        }
+      }
+    },
+    "cooking": {
+      "biomass_wood": {
+        "preset": "cooking_biomass_to_clean",
+        "current": {
+          "en": "Cooking on wood, biomass, or coal chulha",
+          "hi": "लकड़ी, उपले या कोयले के चूल्हे पर खाना बनाना"
+        },
+        "swap": {
+          "en": "Transition to LPG (Ujjwala/domestic) or a single-burner induction cooktop",
+          "hi": "LPG सिलेंडर (उज्ज्वला/सब्सिडी) या इंडक्शन कुकटॉप पर शिफ्ट करें"
+        },
+        "why": {
+          "en": "Indoor biomass smoke produces PM2.5 levels far higher than outdoor winter smog; switching to LPG or induction is the single largest health win.",
+          "hi": "घर के अंदर बायोमास का धुआं बाहरी स्मॉग से कई गुना अधिक PM2.5 पैदा करता है—यह परिवार के लिए सबसे बड़ा स्वास्थ्य लाभ है।"
+        }
+      },
+      "gas": {
+        "preset": "cooking_gas_to_induction",
+        "current": {
+          "en": "Using gas burners for boiling water, tea, and long simmering",
+          "hi": "चाय, पानी उबालने और धीमी आंच के काम गैस बर्नर पर करना"
+        },
+        "swap": {
+          "en": "Use an electric kettle or induction burner for boiling + keep lids on & run exhaust",
+          "hi": "उबालने के लिए इलेक्ट्रिक केतली/इंडक्शन और ढक्कन + एग्जॉस्ट का उपयोग करें"
+        },
+        "why": {
+          "en": "Open gas flames add indoor NO2 and ultrafine particles in sealed winter kitchens; electric boiling cleans kitchen air and saves fuel.",
+          "hi": "बंद सर्दियों की रसोई में खुली लौ NO2 और बारीक कण बढ़ाती है; केतली/इंडक्शन से हवा साफ रहती है और गैस बचती है।"
+        }
+      },
+      "clean": {
+        "preset": "cooking_ventilation_only",
+        "current": {
+          "en": "High-heat oil frying without kitchen ventilation",
+          "hi": "बिना एग्जॉस्ट फैन चलाए तेज़ आंच पर तड़का या तलना"
+        },
+        "swap": {
+          "en": "Run kitchen exhaust during tadka/frying and favor steaming or pressure cooking",
+          "hi": "इंडक्शन पर पकाते समय एग्जॉस्ट चलाएं और भाप/प्रेशर कुकिंग अपनाएं"
+        },
+        "why": {
+          "en": "Your induction setup already eliminates combustion fumes; running exhaust during tadka keeps cooking oil aerosols near baseline.",
+          "hi": "आप पहले से स्वच्छ इलेक्ट्रिक इंडक्शन उपयोग कर रहे हैं; एग्जॉस्ट चलाने से खाना पकाने के तेल का धुआं भी कमरे में नहीं जमता।"
+        }
+      }
+    },
+    "sleep": {
+      "noPurifier": {
+        "preset": "bedroom_purifier",
+        "current": {
+          "en": "Sleeping 8 hours in an unfiltered bedroom during winter smog",
+          "hi": "रात भर बिना फ़िल्ट्रेशन वाले कमरे में सोना"
+        },
+        "swap": {
+          "en": "Run a DIY box-fan + True HEPA filter (or HEPA H13 unit) in a closed bedroom overnight",
+          "hi": "बंद बेडरूम में DIY बॉक्स-फैन + HEPA फ़िल्टर या True HEPA प्यूरीफायर चलाएं"
+        },
+        "why": {
+          "en": "Eight hours of filtered sleep air gives lungs overnight recovery and sharply reduces your 24-hour personal PM2.5 dose.",
+          "hi": "8 घंटे साफ हवा में सोने से पूरे 24 घंटे में सांस के साथ जाने वाला PM2.5 लगभग आधा हो जाता है।"
+        }
+      },
+      "hasPurifier": {
+        "preset": "seal_door_gaps",
+        "current": {
+          "en": "Running your air purifier in rooms with unsealed door and window gaps",
+          "hi": "खुली दरारों वाले कमरों में एयर प्यूरीफायर चलाना"
+        },
+        "swap": {
+          "en": "Seal door and window gaps with EPDM weather-stripping and under-door sweeps",
+          "hi": "दरवाज़ों और खिड़कियों पर EPDM फोम टेप व ड्राफ्ट स्टॉपर लगाएं"
+        },
+        "why": {
+          "en": "Since you already own a purifier, sealing leaky frames blocks incoming haze and helps your purifier clean faster with less filter wear.",
+          "hi": "आपका मौजूदा प्यूरीफायर तभी सबसे अच्छा काम करता है जब बाहर का स्मॉग दरारों से अंदर न घुसे।"
+        }
+      }
+    },
+    "waste": {
+      "preset": "stop_waste_burning",
+      "current": {
+        "en": "Burning dry garden leaves/waste or bursting firecrackers in winter",
+        "hi": "सर्दियों में सूखे पत्ते/कचरा जलाना या दिवाली पर पटाखे फोड़ना"
+      },
+      "swap": {
+        "en": "Compost dry leaves, encourage RWA electric heaters over bonfires, and celebrate with diyas/LEDs",
+        "hi": "पत्तों की खाद बनाएं, RWA के साथ खुले अलाव रोकें और दीयों/लाइट्स से उत्सव मनाएं"
+      },
+      "why": {
+        "en": "On still winter nights, even a single neighborhood leaf or trash fire spikes PM2.5 across an entire residential block for hours.",
+        "hi": "ठंडी शांत रात में एक छोटा-सा कचरे का ढेर भी पूरे मोहल्ले का AQI कई घंटे तक बढ़ा देता है।"
+      }
+    }
+  },
+  "community": {
+    "rwa": {
+      "who": "rwa",
+      "effort": "low",
+      "title": {
+        "en": "Replace winter watchman bonfires with shared RWA electric heaters & leaf composting",
+        "hi": "RWA में अलाव की जगह गार्डों के लिए इलेक्ट्रिक हीटर और पत्तों की खाद"
+      },
+      "howTo": {
+        "en": "Propose that your RWA/apartment association place low-watt electric heaters in security cabins and set up a leaf-compost pit so staff stop burning garden waste at night in {city}.",
+        "hi": "{city} की RWA/सोसाइटी बैठक में गार्ड केबिन के लिए ₹1,500–₹2,500 का रूम हीटर और बगीचे के पत्तों के लिए खाद गड्ढा रखने का प्रस्ताव दें ताकि रात में आग न जलाई जाए।"
+      },
+      "impact": {
+        "en": "Cuts stagnant night-time block PM2.5 spikes (~16% local cut) and avoids ~1,400 kg CO2/mo across 50 homes.",
+        "hi": "~16% मोहल्ला-स्तरीय PM2.5 कमी और 50 घरों में ~1,400 किग्रा CO2/माह बचाव"
+      }
+    },
+    "neighbours": {
+      "who": "neighbours",
+      "effort": "low",
+      "title": {
+        "en": "Start a lane WhatsApp alert for wet construction cover and zero waste burning",
+        "hi": "पड़ोसियों के साथ 'नो-बर्निंग' अलर्ट और निर्माण धूल नियंत्रण ग्रुप"
+      },
+      "howTo": {
+        "en": "Coordinate 20–50 neighboring households to report open trash fires cleanly, water-sprinkle dusty lanes instead of dry sweeping, and ask local builders to tarp sand/cement.",
+        "hi": "आस-पास के 20–50 घरों के साथ कचरा न जलाने, सुबह सड़क पर हल्का पानी छिड़कने और निर्माण सामग्री को हरे कपड़े से ढकने की साझा सहमति बनाएं।"
+      },
+      "impact": {
+        "en": "Prevents sudden neighborhood PM10/PM2.5 spikes within your immediate residential lane.",
+        "hi": "आस-पास की धूल और स्थानीय धुएं में तुरंत कमी"
+      }
+    },
+    "school": {
+      "who": "school",
+      "effort": "medium",
+      "title": {
+        "en": "Request an AQI-triggered indoor recess & anti-idling carpool zone at local schools",
+        "hi": "स्कूलों में उच्च AQI पर इनडोर खेल और कारपूल ड्रॉप-ऑफ नियम"
+      },
+      "howTo": {
+        "en": "Encourage your PTA/school group to shift assemblies and sports indoors whenever CPCB AQI exceeds 200 and adopt engine-off + shared carpool pick-up lanes.",
+        "hi": "अभिभावक समूह के माध्यम से स्कूल को AQI >= 201 होने पर सुबह की असेंबली व खेल हॉल के अंदर करने और गेट के बाहर इंजन बंद रखने की सलाह दें।"
+      },
+      "impact": {
+        "en": "Shields students from 6–10 AM peak inversion fumes and cuts school-gate tailpipe exhaust.",
+        "hi": "बच्चों के पीक-आवर PM2.5 संपर्क में भारी कमी"
+      }
+    },
+    "workplace": {
+      "who": "workplace",
+      "effort": "medium",
+      "title": {
+        "en": "Organize a workplace smog-day WFH policy and route carpool board",
+        "hi": "दफ़्तर में हाइब्रिड स्मॉग डेज़ और सहकर्मी कारपूल बोर्ड"
+      },
+      "howTo": {
+        "en": "Ask your workplace HR/team to allow flexible WFH during Severe AQI episodes and maintain a corridor carpool/metro-buddy sheet in {city}.",
+        "hi": "AQI {aqi}+ जैसे खराब दिनों में वैकल्पिक वर्क-फ्रॉम-होम और एक ही रूट के साथियों की साप्ताहिक कारपूल शीट शुरू करें।"
+      },
+      "impact": {
+        "en": "Saves ~34–62 kg CO2/month per participating commuter while trimming peak rush-hour emissions.",
+        "hi": "प्रत्येक भागीदार से प्रति माह ~34–62 किग्रा CO2 बचाव"
+      }
+    }
+  },
+  "chatReplies": {
+    "demo": {
+      "en": "Live AQI for {city} is currently unavailable (active plan uses a demo reading). As general protection, keep windows shut during 6–10 AM/PM peak smog, wear a fitted N95 outdoors if needed, and tap Try again to fetch live data.",
+      "hi": "{city} के लिए लाइव AQI अभी उपलब्ध नहीं है (सक्रिय योजना डेमो रीडिंग पर आधारित है)। सामान्य सुरक्षा के लिए पीक स्मॉग घंटों (सुबह/शाम 6–10 बजे) में खिड़कियां बंद रखें, बाहर निकलने पर फिटेड N95 पहनें और लाइव रीडिंग के लिए पुनः प्रयास करें।"
+    },
+    "greeting": {
+      "en": "Hello! {city} is currently at AQI {aqi} ({category})—ask me anything about masks, kids playing outside, ventilation windows, or indoor air hacks.",
+      "hi": "नमस्ते! {city} में अभी AQI {aqi} ({category}) है—मास्क, बच्चों के बाहर खेलने, वेंटिलेशन या घर की हवा के बारे में कुछ भी पूछें।"
+    },
+    "symptoms": {
+      "en": "Important health note: If anyone has coughing, wheezing, chest tightness, or breathlessness, please consult a qualified doctor promptly—Saans is not a substitute for medical care. Stay indoors in {city} (AQI {aqi}) with windows closed and prescribed medication handy.",
+      "hi": "महत्वपूर्ण स्वास्थ्य नोट: यदि किसी को खांसी, घरघराहट, सीने में जकड़न या सांस लेने में दिक्कत है, तो तुरंत योग्य डॉक्टर से सलाह लें—सांस चिकित्सीय सलाह नहीं देता। अभी {city} (AQI {aqi}) में घर के अंदर रहें और निर्धारित दवा पास रखें।"
+    },
+    "plants": {
+      "en": "Honest answer: Houseplants like snake plant and areca palm remove negligible PM2.5 during real urban smog—you would need hundreds per room to match one small filter. For real relief in {city} (AQI {aqi}), seal gaps during peak smog, wet-mop daily, and use a True HEPA or DIY box-fan filter.",
+      "hi": "ईमानदार जवाब: स्नेक प्लांट या अरेका पाम अच्छे दिखते हैं, पर वास्तविक शहरी स्मॉग में वे कमरे का PM2.5 लगभग नहीं घटा पाते। असली असर के लिए पीक घंटों में खिड़कियां बंद रखें, गीला पोंछा लगाएं और True HEPA या DIY बॉक्स-फैन फ़िल्टर उपयोग करें।"
+    },
+    "cheapest_indoor": {
+      "en": "The 4 cheapest high-impact indoor fixes for {city} (AQI {aqi}): (1) Free: shut windows 6–10 AM and 6–10 PM, cross-ventilate 20 min between 1–4 PM. (2) Free: wet-mop instead of dry sweeping and skip incense/coils. (3) ~₹300: add EPDM foam door seals. (4) ~₹1,500: build a DIY box-fan + HEPA cleaner.",
+      "hi": "{city} (AQI {aqi}) में सस्ते असरदार उपाय: (1) मुफ्त: सुबह 6–10 और शाम 6–10 खिड़कियां बंद रखें, दोपहर 1–4 बजे 20 मिनट खोलें। (2) मुफ्त: गीला पोंछा लगाएं और अगरबत्ती न जलाएं। (3) ~₹300: दरवाज़ों पर फोम टेप लगाएं। (4) ~₹1,500: DIY बॉक्स-फैन HEPA बनाएं।"
+    },
+    "ventilation": {
+      "en": "Winter thermal inversion traps smog low between 6–10 AM and 6–10 PM—keep windows shut then. Open opposite windows for 15–20 minutes between 1–4 PM when afternoon warmth lifts the smog layer.",
+      "hi": "सर्दियों में सुबह 6–10 और शाम 6–10 बजे इनवर्ज़न के कारण प्रदूषण ज़मीन के पास फंसा रहता है—इन घंटों में खिड़कियां बंद रखें और दोपहर 1–4 बजे 15–20 मिनट विपरीत खिड़कियां खोलें।"
+    },
+    "fallback": {
+      "en": "About your question (\"{snippet}\"): for {city} at AQI {aqi} ({category}), review your low-emission routine and indoor hacks above, or test swaps in the Impact Simulator. Feel free to ask specifically about kids playing outside, N95 masks, ventilation windows, cooking smoke, or budget indoor fixes.",
+      "hi": "आपके सवाल (\"{snippet}\") के लिए: {city} में वर्तमान AQI {aqi} ({category}) के अनुसार अपनी दिनचर्या और इनडोर उपाय देखें। आप बच्चों के बाहर खेलने, N95 मास्क, वेंटिलेशन समय या सस्ते घरेलू उपायों के बारे में भी पूछ सकते हैं।"
+    },
+    "outdoorPlayHigh": {
+      "en": "At AQI {aqi} ({category}) in {city}, outdoor play and exertion should be avoided for everyone—especially children and sensitive family members. Move play indoors today; for essential trips, prefer 1–4 PM with a fitted N95/FFP2 mask. (Not medical advice.)",
+      "hi": "{city} में अभी AQI {aqi} ({category}) है। इस स्तर पर बच्चों का बाहर खेलना या किसी का भी बाहरी व्यायाम सुरक्षित नहीं है—खेलकूद घर के अंदर रखें। अनिवार्य बाहर निकलने पर दोपहर 1–4 बजे चुनें और फिटेड N95 पहनें।"
+    },
+    "outdoorPlaySensitive": {
+      "en": "At AQI {aqi} ({category}) in {city}, because your household includes sensitive members, skip vigorous outdoor play or running. Keep outdoor time brief and gentle between 1–4 PM away from busy roads, and use a fitted N95 near traffic. (Not medical advice.)",
+      "hi": "{city} में AQI {aqi} ({category}) है और आपके घर में संवेदनशील सदस्य हैं। भारी खेलकूद या दौड़ टालें; केवल दोपहर 1–4 बजे सड़क से दूर हल्की गतिविधि रखें और ट्रैफ़िक में N95 पहनें।"
+    },
+    "outdoorPlayNormal": {
+      "en": "At AQI {aqi} ({category}) in {city}, normal outdoor play and light exercise in parks away from busy roads are comfortable—especially in the afternoon. Head indoors if anyone notices throat or eye irritation.",
+      "hi": "{city} में AQI {aqi} ({category}) है। मुख्य सड़क से दूर पार्क में दोपहर के समय हल्का खेलना आरामदायक है, पर आंखों या गले में जलन लगे तो अंदर आ जाएं।"
+    },
+    "mask": {
+      "en": "For {city} (AQI {aqi}, {category}), cloth and loose surgical masks leak fine PM2.5. Choose an unvalved certified N95 or FFP2 respirator, press the nose clip snugly so glasses don't fog, and {extra}",
+      "hi": "{city} (AQI {aqi}) के लिए कपड़ा या ढीला सर्जिकल मास्क PM2.5 नहीं रोकता। बिना वाल्व वाला फिटेड N95/FFP2 मास्क पहनें, नाक की क्लिप दबाएं और {extra}"
+    },
+    "maskChildExtra": {
+      "en": "use a properly sized child KN95/N95 for kids.",
+      "hi": "बच्चों के लिए सही छोटे साइज का किड्स KN95/N95 चुनें।"
+    },
+    "maskAdultExtra": {
+      "en": "replace the respirator once straps loosen (roughly 30–40 hours of wear).",
+      "hi": "30–40 घंटे उपयोग के बाद मास्क बदल दें।"
+    },
+    "purifierOwner": {
+      "en": "Since you already own an air purifier: run it in one closed bedroom (not an open hall) 30 cm from walls, run on high 30 minutes before bed, and vacuum the mesh pre-filter every 2 weeks.",
+      "hi": "चूंकि आपके पास पहले से एयर प्यूरीफायर है: इसे दीवार से 30 सेमी दूर एक बंद बेडरूम में चलाएं, सोने से 30 मिनट पहले हाई मोड पर चलाएं और हर 14 दिन में प्री-फ़िल्टर साफ करें।"
+    },
+    "purifierBuy": {
+      "en": "For your {budget} budget: sealing a replacement True HEPA filter (₹1,200–₹2,000) onto the intake of a box or table fan with cardboard creates a high-value DIY bedroom cleaner. If buying retail, pick an ozone-free True HEPA H13 unit.",
+      "hi": "आपके {budget} बजट के लिए: ₹1,200–₹2,000 के True HEPA फ़िल्टर को बॉक्स या टेबल फैन के पीछे कार्डबोर्ड और टेप से सील करके असरदार DIY बेडरूम प्यूरीफायर बनाया जा सकता है।"
+    },
+    "cookingBiomass": {
+      "en": "Indoor wood or biomass smoke creates far more PM2.5 than outdoor smog. Cook with maximum ventilation or outdoors under cover immediately, and prioritize transitioning to LPG or induction.",
+      "hi": "लकड़ी/बायोमास का धुआं बाहरी स्मॉग से भी अधिक PM2.5 पैदा करता है। खाना बनाते समय पूरी क्रॉस-वेंटिलेशन या खुली जगह चुनें और LPG/इंडक्शन पर शिफ्ट को प्राथमिकता दें।"
+    },
+    "cookingClean": {
+      "en": "Run your kitchen exhaust fan during tadka and frying with the kitchen door closed so smoke stays out of bedrooms, and use an electric kettle or induction burner for boiling water or tea.",
+      "hi": "तड़का या तलने के समय किचन एग्जॉस्ट फैन चलाएं, रसोई का दरवाज़ा बंद रखें और चाय/उबालने के लिए इलेक्ट्रिक केतली या इंडक्शन का उपयोग करें।"
+    },
+    "commuteWfh": {
+      "en": "Working from home already avoids daily rush-hour exhaust. Simply batch outdoor errands into one 1–4 PM trip instead of peak evening smog in {city}.",
+      "hi": "आप पहले से घर से काम कर रहे हैं! बस शाम के ट्रैफ़िक पीक के बजाय ज़रूरी काम दोपहर 1–4 बजे एक साथ निपटाएं।"
+    },
+    "commuteCar": {
+      "en": "For your {commuteKm} km drive in {city} (AQI {aqi}), keep cabin AC on recirculation in traffic, stay current on PUC checks, and shift 3 days/week to metro or carpooling.",
+      "hi": "{city} (AQI {aqi}) में {commuteKm} किमी यात्रा के लिए कार AC रीसर्कुलेशन मोड पर रखें, PUC अपडेट रखें और सप्ताह में 3 दिन मेट्रो/कारपूल आज़माएं।"
+    },
+    "commuteTransit": {
+      "en": "For your {commuteKm} km commute in {city} (AQI {aqi}), metro or AC buses cut roadside exposure; wear a fitted N95 during open-air walking or two-wheeler legs.",
+      "hi": "{city} (AQI {aqi}) में {commuteKm} किमी यात्रा के लिए मेट्रो/AC बस सबसे सुरक्षित हैं; पैदल या दोपहिया चरण में फिटेड N95 पहनें।"
+    }
+  }
+}

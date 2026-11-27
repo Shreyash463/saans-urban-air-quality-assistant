@@ -4,22 +4,13 @@ from __future__ import annotations
 
 import json
 import math
+from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 from app.schemas import Alternative, UserProfile
-from app.services.impact_grounding import (
-    ProfileFacts as ProfileFacts,
-)
-from app.services.impact_grounding import (
-    collect_already_doing as collect_already_doing,
-)
-from app.services.impact_grounding import (
-    collect_vulnerabilities as collect_vulnerabilities,
-)
-from app.services.impact_grounding import (
-    is_emission_relevant_swap as is_emission_relevant_swap,
-)
 
 _CANDIDATE_CONTRACT_PATHS = (
     Path(__file__).resolve().parents[3] / "contract" / "impact-factors.json",
@@ -27,41 +18,111 @@ _CANDIDATE_CONTRACT_PATHS = (
     Path("/app/contract/impact-factors.json"),
 )
 
+COMMUTE_SCALED_IDS = frozenset({"commute_transit", "carpool_three_days"})
 
-def _load_contract_data() -> dict[str, Any]:
+_EMISSION_KEYWORDS = (
+    "metro", "bus", "transit", "carpool", "ride", "ev ", "electric scooter",
+    "electric vehicle", "puc", "induction", "lpg", "piped gas", "png", "chulha",
+    "biomass", "wood", "leaf", "leaves", "waste", "compost", "bonfire",
+    "firecracker", "दीये", "खाद", "कचरा", "पत्त", "पराली", "मेट्रो", "कारपूल",
+    "इंडक्शन", "एलपीजी",
+)
+
+
+@dataclass(frozen=True, slots=True)
+class ProfileFacts:
+    """Deterministic facts passed to Gemini and fallback generators."""
+
+    already_doing: list[str]
+    recommended_actions: list[str]
+    swap_targets: list[tuple[str, int, int]]
+    vulnerabilities: list[str]
+
+
+@dataclass(frozen=True, slots=True)
+class _ImpactContract:
+    max_pm25_reduction_pct: int
+    min_residual_exposure_pct: int
+    max_air_friendly_score: int
+    top_recommended_count: int
+    reference_daily_commute_km: float
+    min_commute_scale: float
+    max_commute_scale: float
+    actions: tuple[dict[str, Any], ...]
+    action_map: MappingProxyType[str, dict[str, Any]]
+    alternative_numbers: MappingProxyType[str, dict[str, Any]]
+
+
+@lru_cache(maxsize=1)
+def _load_contract() -> _ImpactContract:
     for path in _CANDIDATE_CONTRACT_PATHS:
         if path.is_file():
-            with path.open("r", encoding="utf-8") as fh:
-                return dict(json.load(fh))
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            consts = raw["constants"]
+            actions = tuple(raw["actions"])
+            return _ImpactContract(
+                max_pm25_reduction_pct=int(consts["MAX_PM25_REDUCTION_PCT"]),
+                min_residual_exposure_pct=int(consts["MIN_RESIDUAL_EXPOSURE_PCT"]),
+                max_air_friendly_score=int(consts["MAX_AIR_FRIENDLY_SCORE"]),
+                top_recommended_count=int(consts["TOP_RECOMMENDED_COUNT"]),
+                reference_daily_commute_km=float(consts["REFERENCE_DAILY_COMMUTE_KM"]),
+                min_commute_scale=float(consts["MIN_COMMUTE_SCALE"]),
+                max_commute_scale=float(consts["MAX_COMMUTE_SCALE"]),
+                actions=actions,
+                action_map=MappingProxyType({a["id"]: a for a in actions}),
+                alternative_numbers=MappingProxyType(raw["alternativeNumbers"]),
+            )
     raise FileNotFoundError("Could not locate contract/impact-factors.json")
 
 
-_CONTRACT_DATA = _load_contract_data()
-_CONSTANTS: dict[str, float] = _CONTRACT_DATA["constants"]
-_ACTIONS: list[dict[str, Any]] = _CONTRACT_DATA["actions"]
-_ACTION_MAP: dict[str, dict[str, Any]] = {a["id"]: a for a in _ACTIONS}
-_ALTERNATIVE_NUMBERS: dict[str, dict[str, Any]] = _CONTRACT_DATA["alternativeNumbers"]
+MAX_PM25_REDUCTION_PCT = _load_contract().max_pm25_reduction_pct
 
-MAX_PM25_REDUCTION_PCT = int(_CONSTANTS["MAX_PM25_REDUCTION_PCT"])
-MIN_RESIDUAL_EXPOSURE_PCT = int(_CONSTANTS["MIN_RESIDUAL_EXPOSURE_PCT"])
-MAX_AIR_FRIENDLY_SCORE = int(_CONSTANTS["MAX_AIR_FRIENDLY_SCORE"])
-TOP_RECOMMENDED_COUNT = int(_CONSTANTS["TOP_RECOMMENDED_COUNT"])
-REFERENCE_DAILY_COMMUTE_KM = float(_CONSTANTS["REFERENCE_DAILY_COMMUTE_KM"])
-MIN_COMMUTE_SCALE = float(_CONSTANTS["MIN_COMMUTE_SCALE"])
-MAX_COMMUTE_SCALE = float(_CONSTANTS["MAX_COMMUTE_SCALE"])
 
-COMMUTE_SCALED_IDS = frozenset({"commute_transit", "carpool_three_days"})
+def collect_already_doing(profile: UserProfile) -> list[str]:
+    done: list[str] = []
+    commute_labels = {
+        "public_transport": "Already uses low-emission metro/bus public transport",
+        "walk_cycle": "Already commutes zero-tailpipe by walking or cycling",
+        "work_from_home": "Already works from home with zero daily commute tailpipe emissions",
+    }
+    if profile.commute_mode in commute_labels:
+        done.append(commute_labels[profile.commute_mode])
+    if profile.cooking_fuel == "induction_electric":
+        done.append("Already cooks with clean electric induction")
+    elif profile.cooking_fuel == "piped_gas":
+        done.append("Already uses cleaner piped natural gas (PNG)")
+    if profile.has_air_purifier:
+        done.append("Already owns an indoor air purifier")
+    return done
+
+
+def collect_vulnerabilities(profile: UserProfile) -> list[str]:
+    vulnerabilities: list[str] = []
+    if profile.has_children:
+        vulnerabilities.append("children under 14")
+    if profile.has_elderly:
+        vulnerabilities.append("older adults (60+)")
+    if profile.has_respiratory_condition:
+        vulnerabilities.append("asthma/COPD or respiratory sensitivity")
+    return vulnerabilities
+
+
+def is_emission_relevant_swap(alt: Alternative) -> bool:
+    """Only combustion, transport, or open-burning changes reduce CO2; barriers report 0."""
+    combined = f"{alt.current} {alt.swap} {alt.why}".lower()
+    return any(kw in combined for kw in _EMISSION_KEYWORDS)
 
 
 def get_commute_scale_factor(commute_km: float | None) -> float:
-    """Computes bounded commute distance multiplier relative to 16 km/day."""
+    contract = _load_contract()
     if commute_km is None or not math.isfinite(commute_km) or commute_km <= 0:
         return 1.0
-    return min(MAX_COMMUTE_SCALE, max(MIN_COMMUTE_SCALE, commute_km / REFERENCE_DAILY_COMMUTE_KM))
+    ratio = commute_km / contract.reference_daily_commute_km
+    return min(contract.max_commute_scale, max(contract.min_commute_scale, ratio))
 
 
 def calculate_multiplicative_pm25_reduction(fractions: list[float]) -> int:
-    """Computes 1 - prod(1 - r_i), rounded and clamped to [0, MAX_PM25_REDUCTION_PCT]."""
+    """Computes 1 - prod(1 - r_i), rounded and capped at MAX_PM25_REDUCTION_PCT."""
     remaining = 1.0
     for raw in fractions:
         if math.isfinite(raw) and raw > 0:
@@ -88,7 +149,7 @@ def get_inapplicable_ids(profile: UserProfile) -> set[str]:
 
 
 def get_scaled_co2(action_id: str, commute_km: int) -> int | None:
-    action = _ACTION_MAP.get(action_id)
+    action = _load_contract().action_map.get(action_id)
     if action is None or action.get("co2SavedKgPerMonth") is None:
         return None
     base_co2 = float(action["co2SavedKgPerMonth"])
@@ -97,7 +158,7 @@ def get_scaled_co2(action_id: str, commute_km: int) -> int | None:
 
 
 def get_alternative_numbers(preset_key: str, commute_km: int) -> tuple[int, int]:
-    spec = _ALTERNATIVE_NUMBERS[preset_key]
+    spec = _load_contract().alternative_numbers[preset_key]
     pm25_pct = min(MAX_PM25_REDUCTION_PCT, max(0, int(spec["pm25ReductionPct"])))
     if not spec.get("emissionRelevant", False):
         return pm25_pct, 0
@@ -107,12 +168,13 @@ def get_alternative_numbers(preset_key: str, commute_km: int) -> tuple[int, int]
 
 
 def _compute_exposure_stats(done_ids: set[str], valid_selected: list[str]) -> tuple[int, int, int, int]:
-    done_fracs = [float(_ACTION_MAP[aid]["pm25ReductionFraction"]) for aid in done_ids]
-    selected_fracs = [float(_ACTION_MAP[aid]["pm25ReductionFraction"]) for aid in valid_selected]
+    contract = _load_contract()
+    done_fracs = [float(contract.action_map[aid]["pm25ReductionFraction"]) for aid in done_ids]
+    selected_fracs = [float(contract.action_map[aid]["pm25ReductionFraction"]) for aid in valid_selected]
     before_cut = calculate_multiplicative_pm25_reduction(done_fracs)
-    before_pct = max(MIN_RESIDUAL_EXPOSURE_PCT, 100 - before_cut) if done_ids else 100
+    before_pct = max(contract.min_residual_exposure_pct, 100 - before_cut) if done_ids else 100
     total_cut = calculate_multiplicative_pm25_reduction([*done_fracs, *selected_fracs])
-    after_pct = max(MIN_RESIDUAL_EXPOSURE_PCT, min(before_pct, 100 - total_cut))
+    after_pct = max(contract.min_residual_exposure_pct, min(before_pct, 100 - total_cut))
     add_cut = (
         min(MAX_PM25_REDUCTION_PCT, max(0, int(round(((before_pct - after_pct) / before_pct) * 100.0))))
         if before_pct > 0
@@ -122,12 +184,13 @@ def _compute_exposure_stats(done_ids: set[str], valid_selected: list[str]) -> tu
 
 
 def calculate_profile_impact(profile: UserProfile, selected_ids: list[str]) -> dict[str, int]:
-    """Python mirror of frontend calculateImpact() for verification and grounding."""
+    """Python mirror of frontend calculateImpact() for golden-vector verification and grounding."""
+    contract = _load_contract()
     done_ids = get_already_doing_ids(profile)
     inapplicable_ids = get_inapplicable_ids(profile)
     valid_selected = [
         aid for aid in dict.fromkeys(selected_ids)
-        if aid in _ACTION_MAP and aid not in done_ids and aid not in inapplicable_ids
+        if aid in contract.action_map and aid not in done_ids and aid not in inapplicable_ids
     ]
     before_pct, after_pct, add_cut, total_cut = _compute_exposure_stats(done_ids, valid_selected)
     co2_total = sum(
@@ -139,17 +202,18 @@ def calculate_profile_impact(profile: UserProfile, selected_ids: list[str]) -> d
         "after_exposure_pct": after_pct,
         "additional_exposure_cut_pct": add_cut,
         "total_exposure_cut_pct": total_cut,
-        "baseline_score": min(MAX_AIR_FRIENDLY_SCORE, max(0, 100 - before_pct)),
-        "air_friendly_score": min(MAX_AIR_FRIENDLY_SCORE, max(0, 100 - after_pct)),
+        "baseline_score": min(contract.max_air_friendly_score, max(0, 100 - before_pct)),
+        "air_friendly_score": min(contract.max_air_friendly_score, max(0, 100 - after_pct)),
         "co2_saved_kg_per_month": co2_total,
     }
 
 
 def _select_recommended_actions(profile: UserProfile) -> list[str]:
+    contract = _load_contract()
     done_ids = get_already_doing_ids(profile)
     inapplicable_ids = get_inapplicable_ids(profile)
     scored: list[tuple[float, str]] = []
-    for action in _ACTIONS:
+    for action in contract.actions:
         aid = action["id"]
         if aid in done_ids or aid in inapplicable_ids:
             continue
@@ -157,7 +221,7 @@ def _select_recommended_actions(profile: UserProfile) -> list[str]:
         co2_val = get_scaled_co2(aid, profile.commute_km)
         scored.append((pm_score + (float(co2_val) * 0.15 if co2_val is not None else 0.0), aid))
     scored.sort(reverse=True)
-    return [aid for _, aid in scored[:TOP_RECOMMENDED_COUNT]]
+    return [aid for _, aid in scored[: contract.top_recommended_count]]
 
 
 def _select_swap_keys(profile: UserProfile) -> list[str]:
@@ -172,7 +236,6 @@ def _select_swap_keys(profile: UserProfile) -> list[str]:
 
 
 def build_profile_facts(profile: UserProfile) -> ProfileFacts:
-    """Computes grounded household facts, existing habits, and deterministic swap numbers."""
     swap_targets = [(key, *get_alternative_numbers(key, profile.commute_km)) for key in _select_swap_keys(profile)]
     return ProfileFacts(
         already_doing=collect_already_doing(profile),
@@ -183,7 +246,7 @@ def build_profile_facts(profile: UserProfile) -> ProfileFacts:
 
 
 def ground_alternatives_numbers(alternatives: list[Alternative], profile: UserProfile) -> list[Alternative]:
-    """Overwrites/clamps LLM-returned alternative numbers using deterministic factors."""
+    """Replaces LLM-returned alternative metrics with bounded contract-backed numbers."""
     facts = build_profile_facts(profile)
     grounded: list[Alternative] = []
     used_pm: set[int] = set()

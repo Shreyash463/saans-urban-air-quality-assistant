@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -12,7 +13,7 @@ from app.config import PROJECT_ROOT
 MIN_VALID_HOURS = 12
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class AqiCategoryMeta:
     """CPCB category descriptor for English and Hindi prompts and safety tiers."""
 
@@ -23,33 +24,34 @@ class AqiCategoryMeta:
     max_aqi: int
 
 
-def _load_aqi_contract() -> dict[str, Any]:
-    path = Path(PROJECT_ROOT) / "contract" / "aqi-categories.json"
-    return dict(json.loads(path.read_text(encoding="utf-8")))
+@dataclass(frozen=True, slots=True)
+class _CpcbTables:
+    pm25_breakpoints: tuple[tuple[float, float, float, float], ...]
+    pm10_breakpoints: tuple[tuple[float, float, float, float], ...]
+    categories: tuple[AqiCategoryMeta, ...]
 
 
 def _parse_breakpoints(raw: list[list[float]]) -> tuple[tuple[float, float, float, float], ...]:
     return tuple((float(row[0]), float(row[1]), float(row[2]), float(row[3])) for row in raw)
 
 
-_CONTRACT = _load_aqi_contract()
-
-PM25_BREAKPOINTS: tuple[tuple[float, float, float, float], ...] = _parse_breakpoints(
-    _CONTRACT["pm25Breakpoints"]
-)
-PM10_BREAKPOINTS: tuple[tuple[float, float, float, float], ...] = _parse_breakpoints(
-    _CONTRACT["pm10Breakpoints"]
-)
-CPCB_CATEGORIES: tuple[AqiCategoryMeta, ...] = tuple(
-    AqiCategoryMeta(
-        key=str(item["key"]),
-        label_en=str(item["label"]["en"]),
-        label_hi=str(item["label"]["hi"]),
-        min_aqi=int(item["min"]),
-        max_aqi=int(item["max"]),
+@lru_cache(maxsize=1)
+def _tables() -> _CpcbTables:
+    raw: dict[str, Any] = json.loads((Path(PROJECT_ROOT) / "contract" / "aqi-categories.json").read_text(encoding="utf-8"))
+    return _CpcbTables(
+        pm25_breakpoints=_parse_breakpoints(raw["pm25Breakpoints"]),
+        pm10_breakpoints=_parse_breakpoints(raw["pm10Breakpoints"]),
+        categories=tuple(
+            AqiCategoryMeta(
+                key=str(item["key"]),
+                label_en=str(item["label"]["en"]),
+                label_hi=str(item["label"]["hi"]),
+                min_aqi=int(item["min"]),
+                max_aqi=int(item["max"]),
+            )
+            for item in raw["categories"]
+        ),
     )
-    for item in _CONTRACT["categories"]
-)
 
 
 def compute_sub_index(
@@ -70,13 +72,11 @@ def compute_sub_index(
 
 
 def compute_pm25_sub_index(pm25: float) -> float:
-    """Computes CPCB sub-index for 24-hour mean PM2.5 (ug/m3)."""
-    return compute_sub_index(pm25, PM25_BREAKPOINTS)
+    return compute_sub_index(pm25, _tables().pm25_breakpoints)
 
 
 def compute_pm10_sub_index(pm10: float) -> float:
-    """Computes CPCB sub-index for 24-hour mean PM10 (ug/m3)."""
-    return compute_sub_index(pm10, PM10_BREAKPOINTS)
+    return compute_sub_index(pm10, _tables().pm10_breakpoints)
 
 
 def compute_cpcb_aqi_from_means(pm25_mean: float | None, pm10_mean: float | None) -> tuple[int, str]:
@@ -135,9 +135,9 @@ def _clean_recent_values(values: list[float | None]) -> list[float]:
 
 
 def get_aqi_category(aqi: int) -> AqiCategoryMeta:
-    """Maps a numeric AQI [0, 500] to its CPCB category descriptor."""
+    categories = _tables().categories
     clamped = min(500, max(0, int(round(aqi))))
-    for cat in CPCB_CATEGORIES:
+    for cat in categories:
         if cat.min_aqi <= clamped <= cat.max_aqi:
             return cat
-    return CPCB_CATEGORIES[-1]
+    return categories[-1]
