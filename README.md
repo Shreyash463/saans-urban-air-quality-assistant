@@ -291,7 +291,7 @@ Response (`ChatReply`):
 
 ## Tests, Linting, Typechecking, and Build
 
-See [`docs/TESTING.md`](docs/TESTING.md) for full test layers, coverage reports (**95.98%** frontend lines, **95.43%** backend line+branch), flake-free seed runs, and mutation testing summary.
+See [`docs/TESTING.md`](docs/TESTING.md) for full test layers, coverage reports (**95.93%** frontend lines, **95.34%** backend line+branch), randomized-order runs, and AST mutation summary.
 
 ```bash
 # Frontend checks (inside frontend/)
@@ -306,8 +306,10 @@ npm audit --omit=dev
 # Backend checks (inside backend/)
 ruff check app tests scripts
 mypy app
-pyright --project pyproject.toml
-pytest --cov=app --cov-branch --cov-report=term-missing
+python scripts/export_contract.py --check
+radon cc app -n C
+vulture app --min-confidence 80
+pytest -m "not live" --cov=app --cov-branch --cov-report=term-missing
 pip-audit -r requirements.txt
 ```
 

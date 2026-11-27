@@ -12,7 +12,7 @@ flowchart LR
     B -->|"GET /api/air-quality?city or POST /api/air-quality (coords)"| AQ["AirQualityService\n(In-Flight Coalescing + 10m TTL Cache)"]
     AQ -->|"India-Preferred Geocode + 24h PM2.5/PM10"| OM["Open-Meteo APIs"]
     AQ -->|"Piecewise Interpolation"| CPCB["Indian CPCB AQI Engine"]
-    B -->|"POST /api/plan & /api/chat (no-store)"| PLAN["Plan & Chat Routers\n(asyncio.gather + SHA-256 Plan Cache)"]
+    B -->|"POST /api/plan & /api/chat (no-store)"| PLAN["Plan & Chat Routers\n(Grounded Facts + SHA-256 Plan Cache)"]
     PLAN --> IMP["Grounded Impact Engine\n(contract/impact-factors.json)"]
     PLAN --> GEM["GeminiClient\n(Flash-Lite Priority + Daily Budget + Breaker)"]
     GEM -->|"Validated Narrative + Deterministic Numbers"| SAF["Safety & Medical Boundary Layer"]
@@ -32,12 +32,10 @@ sequenceDiagram
     participant G as Google Gemini API
     participant S as Safety & Grounding
 
-    U->>API: POST /api/plan (+ optional ?lat&lon)
-    par Concurrent Prep & AQI
-        API->>AQ: get_air_quality (cache -> coalesced -> Open-Meteo)
-        API->>API: build_profile_facts(profile)
-    end
+    U->>API: POST /api/plan (+ optional JSON body coords)
+    API->>AQ: get_air_quality (cache -> coalesced -> Open-Meteo)
     AQ-->>API: AirQualityReading (CPCB AQI)
+    API->>API: build_profile_facts(profile)
     API->>API: Lookup SHA-256 plan_cache(profile, aqiBucket)
     alt Cache Miss
         API->>CB: filter_candidates(model_chain)
@@ -46,11 +44,11 @@ sequenceDiagram
             G-->>API: narrative JSON + usage_metadata tokens
             API->>CB: record_success(model)
             API->>S: inject deterministic healthAdvisory, maskGuidance & contract numbers
+            API->>API: Store Gemini plan in TTL plan_cache
         else All Open / Error
             API->>CB: record_failure(429/503/404)
             API->>S: generate_fallback_plan(profile, aqi)
         end
-        API->>API: Store in TTL plan_cache
     end
     API-->>U: PlanResponse (Cache-Control: no-store)
 ```
@@ -58,5 +56,5 @@ sequenceDiagram
 ## Module Boundaries
 
 - **Shared Grounding & Codegen Contract**: [`contract/api.schema.json`](../contract/api.schema.json), [`contract/aqi-categories.json`](../contract/aqi-categories.json), [`contract/impact-factors.json`](../contract/impact-factors.json), [`contract/demo-cities.json`](../contract/demo-cities.json), and [`contract/golden-vectors.json`](../contract/golden-vectors.json) act as the single source of truth across FastAPI (`backend/scripts/export_contract.py`) and React TypeScript (`frontend/src/types/generated.ts`, `frontend/src/lib/contractValidator.ts`).
-- **Gemini Isolation**: `backend/app/services/gemini/` isolates daily call budgeting (`budget.py`), circuit breaking (`circuit_breaker.py`), model ranking & `ThinkingConfig` (`model_selection.py`), compact output schema (`schema.py`), single-attempt execution (`attempts.py`), and async failover (`client.py`).
+- **Gemini Isolation**: `backend/app/services/gemini/` isolates daily call budgeting (`budget.py`), circuit breaking (`circuit_breaker.py`), model ranking & `ThinkingConfig` (`model_selection.py`), compact output schema (`schema.py`), plan response assembly (`assembler.py`), single-attempt execution (`attempts.py`), and async failover (`client.py`).
 - **Single Network Boundary**: All browser `fetch` calls live strictly in `frontend/src/services/api.ts`, with localized copy separated into lazy JSON locales (`frontend/src/locales/en.json`, `frontend/src/locales/hi.json`).

@@ -46,8 +46,9 @@ npm run test:e2e
 ```bash
 ruff check app tests scripts
 mypy app
-npx pyright app
-pytest --cov=app --cov-report=term-missing
+radon cc app -n C
+vulture app --min-confidence 80
+pytest --cov=app --cov-branch --cov-report=term-missing
 pip-audit -r requirements.txt
 ```
 

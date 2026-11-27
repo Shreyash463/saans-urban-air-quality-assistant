@@ -16,7 +16,7 @@ All notable changes to **Saans — Urban Air Quality Assistant** are documented 
 ### Problem Statement & Community Features (P2)
 - Added `CommunityAction` schema (`rwa`, `school`, `workplace`, `neighbours`) and the **"Make it a community effort"** section in the plan dashboard and exports.
 - Added the **"Scale it to your community"** multiplier slider (`10–500` households) in the Impact Simulator.
-- Added opt-in **"Use my location"** browser geolocation paired with ephemeral `?lat=...&lon=...` Open-Meteo lookups labeled `"Your location (approx.)"` with zero logging or `localStorage` persistence.
+- Added opt-in **"Use my location"** browser geolocation paired with ephemeral POST JSON body `coords` Open-Meteo lookups labeled `"Your location (approx.)"` with zero logging or `localStorage` persistence.
 
 ### Testing, Security & Hygiene (P3–P5)
 - Added `Vitest` v8 coverage enforcement (`>= 80%`), Playwright end-to-end tests (`tests/e2e/saans.spec.ts`) covering Light/Dark/Hindi `axe-core` audits, keyboard navigation, downloads, and geolocation.
