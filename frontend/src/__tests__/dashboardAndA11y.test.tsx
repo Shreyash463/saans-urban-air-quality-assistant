@@ -115,14 +115,7 @@ describe('Dashboard loading stages, export actions, and axe accessibility across
   it('passes automated axe checks on Hero, ProfileForm, Simulator, Chat, and Footer', async () => {
     const plan = buildSamplePlan();
 
-    const heroRender = render(
-      <Hero
-        language="en"
-        previewReading={plan.aqi}
-        reducedMotion={true}
-        isDark={false}
-      />
-    );
+    const heroRender = render(<Hero language="en" previewReading={plan.aqi} />);
     await expectNoA11yViolations(heroRender.container);
     cleanup();
 

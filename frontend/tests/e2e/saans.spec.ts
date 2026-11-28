@@ -10,7 +10,11 @@ async function runAxeAudit(page: Page) {
   await page.evaluate(async () => {
     const finiteAnims = document
       .getAnimations()
-      .filter((anim) => anim.effect?.getComputedTiming().iterations !== Infinity);
+      .filter(
+        (anim) =>
+          anim.timeline === document.timeline &&
+          anim.effect?.getComputedTiming().iterations !== Infinity
+      );
     await Promise.all(finiteAnims.map((anim) => anim.finished.catch(() => undefined)));
   });
   await page.evaluate(axeSource);

@@ -1,17 +1,12 @@
 import { ArrowRight, RefreshCw, ShieldCheck } from 'lucide-react';
-import { lazy, Suspense, useEffect, useState } from 'react';
 import { AqiGauge } from '../components/AqiGauge';
 import { DemoReadingInfo } from '../components/DemoReadingInfo';
 import { t } from '../lib/i18n';
 import { formatAqiSourceLabel, formatAqiTimestampIst } from '../lib/planExport';
 import type { AirQualityReading, LanguageCode } from '../types';
 
-const SmogCanvas = lazy(() => import('../components/SmogCanvas'));
-
 interface HeroProps {
   language: LanguageCode;
-  isDark: boolean;
-  reducedMotion: boolean;
   previewReading: AirQualityReading | null;
   aqiLoading?: boolean;
   aqiError?: boolean;
@@ -125,7 +120,6 @@ function HeroLiveReadingBody({
         language={language}
         size="hero"
         caption={caption}
-        animateOnMount
       />
       <div className="mt-4 pt-4 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2 text-sm text-slate-600 dark:text-slate-300">
         <HeroSourceBadge language={language} reading={reading} />
@@ -211,32 +205,17 @@ function HeroAqiPanel(
   );
 }
 
-function useDeferredCanvas(reducedMotion: boolean): boolean {
-  const [ready, setReady] = useState(false);
-  useEffect(() => {
-    if (reducedMotion || typeof window === 'undefined') {
-      setReady(false);
-      return;
-    }
-    const id = window.setTimeout(() => setReady(true), 120);
-    return () => window.clearTimeout(id);
-  }, [reducedMotion]);
-  return ready;
-}
-
 export function Hero(props: HeroProps) {
-  const canvasReady = useDeferredCanvas(props.reducedMotion);
   return (
     <section
       id="hero"
       aria-labelledby="hero-heading"
       className="relative overflow-hidden py-12 sm:py-16 lg:py-20 border-b border-slate-200/80 dark:border-slate-800/80"
     >
-      {canvasReady && !props.reducedMotion ? (
-        <Suspense fallback={null}>
-          <SmogCanvas reducedMotion={props.reducedMotion} isDark={props.isDark} />
-        </Suspense>
-      ) : null}
+      <div
+        aria-hidden="true"
+        className="saans-hero-haze pointer-events-none absolute inset-0"
+      />
       <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
         <HeroLeftColumn language={props.language} onGetStarted={props.onGetStarted} />
         <HeroAqiPanel

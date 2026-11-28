@@ -57,130 +57,57 @@
   scroll-margin-top: calc(var(--header-h) + 16px);
 }
 
-/* ==========================================================================
-   Scroll-linked "The Air Clears As You Scroll" atmospheric background
-   Scoped to #saans-smog-backdrop using small compositor-promoted layers
-   ========================================================================== */
-.saans-atmosphere-shell {
-  position: relative;
-  isolation: isolate;
+/* Static CSS-only atmospheric haze gradient for the Hero backdrop (no JS/canvas loop) */
+.saans-hero-haze {
+  background:
+    radial-gradient(
+      ellipse 72% 58% at 18% 24%,
+      rgba(13, 148, 136, 0.1),
+      transparent 68%
+    ),
+    radial-gradient(
+      ellipse 68% 54% at 82% 72%,
+      rgba(245, 158, 11, 0.08),
+      transparent 66%
+    );
 }
 
-.saans-smog-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  overflow: hidden;
-  contain: strict;
+.dark .saans-hero-haze {
+  background:
+    radial-gradient(
+      ellipse 72% 58% at 18% 24%,
+      rgba(45, 212, 191, 0.09),
+      transparent 68%
+    ),
+    radial-gradient(
+      ellipse 68% 54% at 82% 72%,
+      rgba(251, 191, 36, 0.06),
+      transparent 66%
+    );
 }
 
-.saans-haze-layer-smog {
-  position: absolute;
-  top: -10%;
-  left: -5%;
-  width: 110%;
-  height: 70%;
-  background: radial-gradient(
-    ellipse 70% 60% at 65% 20%,
-    rgba(100, 116, 139, 0.16),
-    transparent 70%
-  );
-  opacity: calc(1 - var(--scroll, 0) * 0.85);
-  transform: translate3d(0, calc(var(--scroll, 0) * -28px), 0);
-  will-change: transform, opacity;
-}
-
-.dark .saans-haze-layer-smog {
-  background: radial-gradient(
-    ellipse 70% 60% at 65% 20%,
-    rgba(71, 85, 105, 0.28),
-    transparent 70%
-  );
-}
-
-.saans-haze-layer-clear {
-  position: absolute;
-  bottom: -10%;
-  right: -5%;
-  width: 110%;
-  height: 70%;
-  background: radial-gradient(
-    ellipse 65% 55% at 75% 75%,
-    rgba(13, 148, 136, 0.12),
-    transparent 68%
-  );
-  opacity: calc(0.25 + var(--scroll, 0) * 0.75);
-  transform: translate3d(0, calc(var(--scroll, 0) * -16px), 0);
-  will-change: transform, opacity;
-}
-
-.dark .saans-haze-layer-clear {
-  background: radial-gradient(
-    ellipse 65% 55% at 75% 75%,
-    rgba(20, 184, 166, 0.14),
-    transparent 68%
-  );
-}
-
-/* Top scroll progress bar (transform driven directly in useScrollProgress) */
+/* Top scroll progress bar (progressive CSS scroll-timeline enhancement; static fallback) */
 .saans-scroll-progress {
   transform: scaleX(0);
   transform-origin: left center;
 }
 
-/* ==========================================================================
-   Hero word reveal (compositor opacity/transform only — no expensive blur)
-   ========================================================================== */
-@keyframes saans-word-reveal {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 12px, 0);
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: scroll()) {
+    @keyframes saans-scroll-fill {
+      from {
+        transform: scaleX(0);
+      }
+      to {
+        transform: scaleX(1);
+      }
+    }
+
+    html:not(.reduce-motion) .saans-scroll-progress {
+      animation: saans-scroll-fill linear both;
+      animation-timeline: scroll(root);
+    }
   }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-.saans-hero-word {
-  display: inline-block;
-  animation: saans-word-reveal 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: var(--word-delay, 0ms);
-}
-
-/* Subtle static CTA halo without continuous background repaints */
-.saans-cta-glow {
-  position: relative;
-}
-
-/* ==========================================================================
-   Progressive-enhancement section reveals (visible if JS fails)
-   ========================================================================== */
-html.js-anim [data-reveal] {
-  opacity: 0;
-  transform: translate3d(0, 16px, 0);
-  transition:
-    opacity 450ms cubic-bezier(0.22, 1, 0.36, 1) var(--reveal-delay, 0ms),
-    transform 450ms cubic-bezier(0.22, 1, 0.36, 1) var(--reveal-delay, 0ms);
-}
-
-html.js-anim [data-reveal].is-revealed {
-  opacity: 1;
-  transform: translate3d(0, 0, 0);
-}
-
-/* ==========================================================================
-   Section-specific motion (connector draw, timeline draw, hover lift)
-   ========================================================================== */
-.saans-how-line {
-  stroke-dasharray: 1000;
-  stroke-dashoffset: calc(1000 * (1 - var(--how-progress, 1)));
-}
-
-.saans-timeline-line-fill {
-  transform: scaleY(var(--timeline-progress, 1));
-  transform-origin: top center;
 }
 
 @media (hover: hover) {
@@ -313,16 +240,6 @@ input[type='range'].saans-slider {
     scroll-behavior: auto !important;
   }
 
-  .saans-hero-word {
-    opacity: 1 !important;
-    transform: none !important;
-  }
-
-  .saans-haze-layer-smog,
-  .saans-haze-layer-clear {
-    transform: none !important;
-  }
-
   .saans-skeleton::after,
   .saans-active-segment::after {
     animation: none !important;
@@ -343,25 +260,10 @@ html.reduce-motion *::after {
   scroll-behavior: auto !important;
 }
 
-html.reduce-motion .saans-hero-word {
-  opacity: 1 !important;
-  transform: none !important;
-}
-
-html.reduce-motion .saans-haze-layer-smog,
-html.reduce-motion .saans-haze-layer-clear {
-  transform: none !important;
-}
-
 html.reduce-motion .saans-skeleton::after,
 html.reduce-motion .saans-active-segment::after {
   animation: none !important;
   opacity: 0 !important;
-}
-
-html.reduce-motion [data-reveal] {
-  opacity: 1 !important;
-  transform: none !important;
 }
 
 /* ==========================================================================
@@ -390,15 +292,9 @@ html.reduce-motion [data-reveal] {
     padding: 0 !important;
   }
 
-  .saans-atmosphere-shell {
-    display: block !important;
-    min-height: 0 !important;
-  }
-
   header,
   footer,
-  canvas,
-  .saans-smog-backdrop,
+  .saans-hero-haze,
   .saans-scroll-progress-wrap,
   .no-print,
   #hero,

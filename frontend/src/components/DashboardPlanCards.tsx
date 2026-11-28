@@ -85,7 +85,7 @@ export function RoutineTimelineCard({
           aria-hidden="true"
           className="no-print absolute left-2.5 sm:left-3 top-2 bottom-2 w-0.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden"
         >
-          <div className="saans-timeline-line-fill w-full h-full bg-teal-600 dark:bg-teal-400" />
+          <div className="w-full h-full bg-teal-600 dark:bg-teal-400" />
         </div>
         <ol data-reveal-group className="space-y-5">
           {routine.map((item) => (

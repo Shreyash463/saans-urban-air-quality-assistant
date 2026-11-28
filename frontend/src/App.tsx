@@ -2,11 +2,8 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { Header } from './components/Header';
 import { ScrollProgress } from './components/ScrollProgress';
 import { useReducedMotionControl } from './hooks/useReducedMotion';
-import { useReveal } from './hooks/useReveal';
 import { useSaansAppState } from './hooks/useSaansAppState';
-import { useScrollProgress } from './hooks/useScrollProgress';
 import { useScrollSpy } from './hooks/useScrollSpy';
-import { useSmoothScroll } from './hooks/useSmoothScroll';
 import { loadLanguageBundle, t } from './lib/i18n';
 import { Footer } from './sections/Footer';
 import { Hero } from './sections/Hero';
@@ -16,6 +13,12 @@ import { ProfileForm } from './sections/ProfileForm';
 const Dashboard = lazy(() => import('./sections/Dashboard'));
 const Simulator = lazy(() => import('./sections/Simulator'));
 const Chat = lazy(() => import('./sections/Chat'));
+
+function scrollToSection(target: string | HTMLElement, reducedMotion: boolean): void {
+  const el =
+    typeof target === 'string' ? document.querySelector<HTMLElement>(target) : target;
+  el?.scrollIntoView?.({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+}
 
 function DeferredSections({ state }: { state: ReturnType<typeof useSaansAppState> }) {
   return (
@@ -43,19 +46,15 @@ function DeferredSections({ state }: { state: ReturnType<typeof useSaansAppState
 
 function MainSections({
   state,
-  reducedMotion,
   onGetStarted,
 }: {
   state: ReturnType<typeof useSaansAppState>;
-  reducedMotion: boolean;
   onGetStarted: () => void;
 }) {
   return (
     <main id="main-content" className="relative z-10 flex-1">
       <Hero
         language={state.profile.language}
-        isDark={state.theme === 'dark'}
-        reducedMotion={reducedMotion}
         previewReading={state.previewReading}
         aqiLoading={state.aqiLoading}
         aqiError={state.aqiError}
@@ -99,24 +98,18 @@ function useLanguageBundleEffect(language: 'en' | 'hi') {
 
 export default function App() {
   const { reducedMotion, toggleReducedMotion } = useReducedMotionControl();
-  const { scrollToElement } = useSmoothScroll(reducedMotion);
-  const state = useSaansAppState(scrollToElement);
+  const scrollTo = (target: string | HTMLElement) =>
+    scrollToSection(target, reducedMotion);
+  const state = useSaansAppState(scrollTo);
   const hasPlan = Boolean(state.plan || state.isGeneratingPlan || state.planError);
   const refreshKey = `${state.profile.language}-${hasPlan}`;
 
   useLanguageBundleEffect(state.profile.language);
-  useScrollProgress(reducedMotion);
-  useReveal(reducedMotion, refreshKey);
   const activeSection = useScrollSpy(refreshKey);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 dark:bg-[#0B1220] dark:text-slate-100 transition-colors">
       <ScrollProgress />
-      <div
-        id="saans-smog-backdrop"
-        aria-hidden="true"
-        className="no-print fixed inset-0 pointer-events-none z-0 opacity-70"
-      />
       <Header
         language={state.profile.language}
         onToggleLanguage={state.toggleLanguage}
@@ -130,11 +123,7 @@ export default function App() {
       <div className="sr-only" role="status" aria-live="polite">
         {state.statusMessage}
       </div>
-      <MainSections
-        state={state}
-        reducedMotion={reducedMotion}
-        onGetStarted={() => scrollToElement('#profile')}
-      />
+      <MainSections state={state} onGetStarted={() => scrollTo('#profile')} />
       <Footer
         language={state.profile.language}
         reducedMotion={reducedMotion}

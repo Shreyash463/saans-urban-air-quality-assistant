@@ -64,8 +64,6 @@ describe('AI busy retry countdown banner and Hero live/demo provenance labels', 
           updatedAt: '2026-11-26T10:00:00+05:30',
           source: 'demo',
         }}
-        reducedMotion={true}
-        isDark={false}
       />
     );
     expect(screen.getByText('Sample reading for demo')).toBeInTheDocument();
@@ -81,8 +79,6 @@ describe('AI busy retry countdown banner and Hero live/demo provenance labels', 
           source: 'live',
           sourceDetail: 'Open-Meteo',
         }}
-        reducedMotion={true}
-        isDark={false}
       />
     );
     expect(screen.queryByText('Sample reading for demo')).toBeNull();
