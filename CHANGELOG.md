@@ -2,6 +2,13 @@
 
 All notable changes to **Saans — Urban Air Quality Assistant** are documented in this file.
 
+## [1.3.0] - 2026-11-28
+
+### Performance & Architecture Simplification
+- Inlined `HowItWorks`, `Footer`, and `DemoReadingInfo` out of lazy `<Suspense>` waterfalls and stabilized `HeroAqiPanel` height (`min-h-[428px]`), cutting Desktop CLS from `0.0313` to `0.0168`.
+- Replaced imperative `SmogCanvas`, `smogEngine`, `useSmoothScroll`, `useScrollProgress`, and `useReveal` modules with static CSS `.saans-hero-haze` gradients, native CSS `scroll-behavior: smooth`, and progressive `@supports (animation-timeline: scroll())` scroll tracking (ADR-009), trimming frontend source from `62` to `54` files.
+- Unified router request-timing helpers (`resolve_clock`, `elapsed_ms`) between `POST /api/plan` and `POST /api/chat`, named `GeminiClient` failover constants, removed stale DOM attributes and inline font overrides in favor of `@theme` `font-mono`, and simplified `Header`/`ProfileForm` prop contracts.
+
 ## [1.2.0] - 2026-11-27
 
 ### API & Validation

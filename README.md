@@ -55,10 +55,10 @@ For Vite HMR frontend development alongside FastAPI (`:8000`), run `cd frontend 
 
 | Layer            | Command (inside `frontend/` or `backend/`)                             | Current Status                                                |
 | ---------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------- |
-| **Frontend CI**  | `npm run format:check && npm run lint && npm run test:coverage`        | **76** Vitest tests (**97.60%** line coverage), **0** dup/unused |
-| **Bundle Build** | `npm run build && npm audit --omit=dev`                                | `index-*.js`: **`292.21 kB`** (`91.16 kB` gzip), **0** vulns  |
+| **Frontend CI**  | `npm run format:check && npm run lint && npm run test:coverage`        | **70** Vitest tests (**96.89%** line coverage), **0** dup/unused |
+| **Bundle Build** | `npm run build && npm audit --omit=dev`                                | `index-*.js`: **`300.45 kB`** (`93.10 kB` gzip), **0** vulns  |
 | **Playwright**   | `npm run test:e2e`                                                     | **8** E2E workflows (EN/HI, geolocation, 429/503, `axe-core`) |
-| **Backend CI**   | `ruff check app tests scripts && mypy app && pytest --cov=app --cov-branch` | **215** offline tests (**95.36%** line+branch coverage)      |
+| **Backend CI**   | `ruff check app tests scripts && mypy app && pytest --cov=app --cov-branch` | **215** offline tests (**95.38%** line+branch coverage)      |
 | **Contract**     | `python scripts/export_contract.py --check`                            | Schema, OpenAPI & TypeScript types synchronized               |
 
 ## Documentation & Cloud Deploy

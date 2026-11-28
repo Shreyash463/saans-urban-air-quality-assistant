@@ -12,12 +12,12 @@ Saans validates behavior across four layers—pure contract math, React/TypeScri
 
 2. **Frontend Unit & Component Accessibility (`Vitest` + `axe-core`)**
    - Location: `frontend/src/__tests__/` (focused per-unit test files using [`frontend/tests/fixtures/samplePlan.ts`](../frontend/tests/fixtures/samplePlan.ts) backed by `contract/plan.sample.json`)
-   - Coverage threshold: `lines: 90` enforced in `frontend/vitest.config.ts` (current measured: **97.60% lines** overall, **98.08% lines** across `frontend/src/hooks/` across **19** test files / **76** tests).
-   - Covers API timeouts/abort/errors, CPCB mapping, impact math, locale parity & `I18nLoader`, contract validation, all custom hooks, plan export formatting, smog canvas engine, and automated `axe-core` sweeps on all sections.
+   - Coverage threshold: `lines: 90` enforced in `frontend/vitest.config.ts` (current measured: **96.89% lines** overall, **97.38% lines** across `frontend/src/hooks/` across **18** test files / **70** tests).
+   - Covers API timeouts/abort/errors, CPCB mapping, impact math, locale parity & `I18nLoader`, contract validation, custom hooks, plan export formatting, and automated `axe-core` sweeps on all sections.
 
 3. **Backend Unit, Integration & Property Tests (`Pytest` + `Hypothesis`)**
    - Location: `backend/tests/` (`test_*.py` organized per module/concern, every test function `<= 40` lines with shared builders in `backend/tests/helpers.py`)
-   - Coverage threshold: `fail_under = 94` with `--cov-branch` enforced in `backend/pyproject.toml` (current measured: **95.36% combined line + branch coverage** across **215** offline tests; 1 deselected `@pytest.mark.live` test run with `RUN_LIVE_TESTS=1`).
+   - Coverage threshold: `fail_under = 94` with `--cov-branch` enforced in `backend/pyproject.toml` (current measured: **95.38% combined line + branch coverage** across **215** offline tests; 1 deselected `@pytest.mark.live` test run with `RUN_LIVE_TESTS=1`).
    - Random order verification: `pytest-randomly` runs the offline test suite in randomized order on every local and CI run.
    - Historical AST mutation sweep across `cpcb.py`, `impact.py`, and `safety.py` killed **44/56** sampled mutants (`cpcb.py`: 12/16, `impact.py`: 15/20, `safety.py`: 17/20), with remaining 12 documented as mathematically equivalent boundary conditions (`<=` vs `<` at continuous piecewise breakpoints/zero).
    - Covers `AirQualityService` caching & in-flight coalescing, CPCB property invariants, Pydantic strictness (`extra="forbid"`), prompt-injection/secret-leak guards, rate limiting & proxy-header spoofing defense, `/.well-known/security.txt`, circuit breaker & plan cache non-stickiness, typed `AppState` DI, and offline fallback endpoints.
