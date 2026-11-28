@@ -57,7 +57,7 @@ export const AqiGauge = memo(function AqiGauge({
       <div className="mt-2 flex flex-col items-center gap-1.5 text-center">
         <AqiCategoryBadge aqi={clamped} language={language} />
         {caption ? (
-          <p className="text-sm text-slate-600 dark:text-slate-300 max-w-[300px] text-balance">
+          <p className="text-sm text-slate-600 dark:text-slate-300 max-w-[300px] min-h-[2.75rem] flex items-center justify-center text-balance">
             {caption}
           </p>
         ) : null}

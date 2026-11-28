@@ -1,14 +1,12 @@
 import { ArrowRight, RefreshCw, ShieldCheck } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { AqiGauge } from '../components/AqiGauge';
+import { DemoReadingInfo } from '../components/DemoReadingInfo';
 import { t } from '../lib/i18n';
 import { formatAqiSourceLabel, formatAqiTimestampIst } from '../lib/planExport';
 import type { AirQualityReading, LanguageCode } from '../types';
 
 const SmogCanvas = lazy(() => import('../components/SmogCanvas'));
-const DemoReadingInfo = lazy(() =>
-  import('../components/DemoReadingInfo').then((m) => ({ default: m.DemoReadingInfo }))
-);
 
 interface HeroProps {
   language: LanguageCode;
@@ -103,17 +101,7 @@ function HeroSourceBadge({
       </span>
     );
   }
-  return (
-    <Suspense
-      fallback={
-        <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
-          {t(language, 'sampleReadingForDemo')}
-        </span>
-      }
-    >
-      <DemoReadingInfo language={language} />
-    </Suspense>
-  );
+  return <DemoReadingInfo language={language} />;
 }
 
 function HeroLiveReadingBody({
@@ -204,7 +192,7 @@ function HeroAqiPanel(
 ) {
   return (
     <div className="lg:col-span-5 flex justify-center lg:justify-end">
-      <div className="saans-theme-surface w-full max-w-sm rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-[#131C2E]/95 p-6 sm:p-7 shadow-[0_18px_48px_-24px_rgba(15,23,42,0.18)]">
+      <div className="saans-theme-surface w-full max-w-sm min-h-[428px] flex flex-col justify-center rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-[#131C2E]/95 p-6 sm:p-7 shadow-[0_18px_48px_-24px_rgba(15,23,42,0.18)]">
         {props.previewReading ? (
           <HeroLiveReadingBody
             language={props.language}
@@ -249,7 +237,7 @@ export function Hero(props: HeroProps) {
           <SmogCanvas reducedMotion={props.reducedMotion} isDark={props.isDark} />
         </Suspense>
       ) : null}
-      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
         <HeroLeftColumn language={props.language} onGetStarted={props.onGetStarted} />
         <HeroAqiPanel
           language={props.language}

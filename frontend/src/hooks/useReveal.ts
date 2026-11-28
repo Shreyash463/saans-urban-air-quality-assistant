@@ -43,14 +43,18 @@ function createRevealObserver(): IntersectionObserver {
 
 function observePendingTargets(observer: IntersectionObserver): void {
   const viewportLimit = window.innerHeight * 1.05;
-  for (const el of assignStaggerDelays()) {
-    if (el.classList.contains('is-revealed')) continue;
-    if (el.getBoundingClientRect().top < viewportLimit) {
+  const targets = assignStaggerDelays().filter(
+    (el) => !el.classList.contains('is-revealed')
+  );
+  // Batch layout reads before classList/style writes to avoid forced synchronous reflow loops
+  const rects = targets.map((el) => el.getBoundingClientRect().top);
+  targets.forEach((el, idx) => {
+    if (rects[idx] < viewportLimit) {
       el.classList.add('is-revealed');
     } else {
       observer.observe(el);
     }
-  }
+  });
 }
 
 export function useReveal(reducedMotion: boolean, refreshKey: string): void {

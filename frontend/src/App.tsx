@@ -8,18 +8,14 @@ import { useScrollProgress } from './hooks/useScrollProgress';
 import { useScrollSpy } from './hooks/useScrollSpy';
 import { useSmoothScroll } from './hooks/useSmoothScroll';
 import { loadLanguageBundle, t } from './lib/i18n';
+import { Footer } from './sections/Footer';
 import { Hero } from './sections/Hero';
+import { HowItWorks } from './sections/HowItWorks';
 import { ProfileForm } from './sections/ProfileForm';
 
-const HowItWorks = lazy(() =>
-  import('./sections/HowItWorks').then((m) => ({ default: m.HowItWorks }))
-);
 const Dashboard = lazy(() => import('./sections/Dashboard'));
 const Simulator = lazy(() => import('./sections/Simulator'));
 const Chat = lazy(() => import('./sections/Chat'));
-const Footer = lazy(() =>
-  import('./sections/Footer').then((m) => ({ default: m.Footer }))
-);
 
 function DeferredSections({ state }: { state: ReturnType<typeof useSaansAppState> }) {
   return (
@@ -66,13 +62,7 @@ function MainSections({
         onRetryAqi={state.reloadHeroAqi}
         onGetStarted={onGetStarted}
       />
-      <Suspense
-        fallback={
-          <section id="how-it-works" className="py-12 sm:py-16 min-h-[280px]" />
-        }
-      >
-        <HowItWorks language={state.profile.language} />
-      </Suspense>
+      <HowItWorks language={state.profile.language} />
       <ProfileForm
         profile={state.profile}
         onChangeProfile={state.updateProfile}
@@ -145,13 +135,11 @@ export default function App() {
         reducedMotion={reducedMotion}
         onGetStarted={() => scrollToElement('#profile')}
       />
-      <Suspense fallback={<footer className="mt-8 min-h-[260px]" aria-hidden="true" />}>
-        <Footer
-          language={state.profile.language}
-          reducedMotion={reducedMotion}
-          onToggleReducedMotion={toggleReducedMotion}
-        />
-      </Suspense>
+      <Footer
+        language={state.profile.language}
+        reducedMotion={reducedMotion}
+        onToggleReducedMotion={toggleReducedMotion}
+      />
     </div>
   );
 }
