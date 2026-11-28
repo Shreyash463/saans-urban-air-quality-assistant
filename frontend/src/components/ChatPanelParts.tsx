@@ -107,8 +107,7 @@ function ChatInputLabelRow({
       </label>
       <span
         id="saans-chat-counter"
-        className={`text-sm tabular-nums ${tone}`}
-        style={{ fontFamily: 'var(--font-mono)' }}
+        className={`font-mono text-sm tabular-nums ${tone}`}
       >
         {length} / {CHAT_MAX_LENGTH}
       </span>

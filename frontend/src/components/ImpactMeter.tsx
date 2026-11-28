@@ -28,8 +28,7 @@ function ExposureProgressRow({
       <div className="flex items-baseline justify-between gap-2 text-sm">
         <span className={labelClass}>{label}</span>
         <span
-          className={`font-semibold tabular-nums ${valueClass}`}
-          style={{ fontFamily: 'var(--font-mono)' }}
+          className={`font-mono font-semibold tabular-nums ${valueClass}`}
           data-testid={testId}
         >
           <CountUp
@@ -79,8 +78,7 @@ function MetricStatRow({
         {label}
       </dt>
       <dd
-        className={`text-2xl font-semibold tabular-nums ${valueClass}`}
-        style={{ fontFamily: 'var(--font-mono)' }}
+        className={`font-mono text-2xl font-semibold tabular-nums ${valueClass}`}
         data-testid={testId}
       >
         <CountUp

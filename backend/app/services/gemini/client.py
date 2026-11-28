@@ -41,6 +41,12 @@ from app.services.safety import (
 
 logger = logging.getLogger(__name__)
 
+_MAX_MODEL_CANDIDATES = 6
+_DEFAULT_RETRY_AFTER_S = 60
+_QUOTA_COOLDOWN_S = 1800.0
+_CHAT_MAX_TOKENS_CAP = 384
+_CHAT_MAX_TIMEOUT_S = 18.0
+
 
 class GeminiClient:
     """Async Gemini client with Flash-Lite-first discovery, budget guard, and circuit breaker."""
@@ -116,7 +122,8 @@ class GeminiClient:
                 ranked = select_best_flash_models(discovered, priority=self._settings.parsed_model_priority)
                 if ranked:
                     self._selected_model = ranked[0]
-                    self._model_chain = ranked[:6] + [m for m in _DEFAULT_FLASH_FALLBACKS if m not in ranked[:6]]
+                    top_ranked = ranked[:_MAX_MODEL_CANDIDATES]
+                    self._model_chain = top_ranked + [m for m in _DEFAULT_FLASH_FALLBACKS if m not in top_ranked]
                     logger.info("Auto-selected Gemini flash model: %s", self._selected_model)
                     return
             except (genai_errors.APIError, TimeoutError, OSError, ValueError, RuntimeError, TypeError) as exc:
@@ -158,9 +165,10 @@ class GeminiClient:
             return None, "ai_busy", self._budget.seconds_until_reset()
         if not self._model_chain:
             await self.initialize_models()
-        candidates = self._breaker.filter_candidates(self._model_chain[:6])
+        candidates = self._breaker.filter_candidates(self._model_chain[:_MAX_MODEL_CANDIDATES])
         if not candidates:
-            return None, "ai_busy", self._breaker.min_retry_after_seconds(self._model_chain[:6]) or 60
+            retry_s = self._breaker.min_retry_after_seconds(self._model_chain[:_MAX_MODEL_CANDIDATES])
+            return None, "ai_busy", retry_s or _DEFAULT_RETRY_AFTER_S
         user_prompt = build_plan_user_prompt(profile, aqi_reading.aqi, aqi_reading.dominant_pollutant, facts or build_profile_facts(profile))
         deadline = self._clock() + self._settings.gemini_timeout_seconds
         return await self._try_plan_candidates(candidates, user_prompt, profile, aqi_reading, deadline)
@@ -182,21 +190,25 @@ class GeminiClient:
             if draft is None:
                 saw_busy = saw_busy or outcome in {"rate_limit", "unavailable"}
                 if outcome == "abort":
-                    return None, "ai_error", 60
+                    return None, "ai_error", _DEFAULT_RETRY_AFTER_S
                 self._demote_failing_model(model_name)
                 continue
             assembled = assemble_gemini_plan(draft, profile, aqi_reading)
             if assembled is not None:
                 self._promote_working_model(model_name)
                 return assembled, None, None
-        retry_after = self._breaker.min_retry_after_seconds(self._model_chain[:6])
-        return None, ("ai_busy" if saw_busy else "ai_error"), (retry_after if retry_after is not None else 60)
+        retry_after = self._breaker.min_retry_after_seconds(self._model_chain[:_MAX_MODEL_CANDIDATES])
+        return None, ("ai_busy" if saw_busy else "ai_error"), (retry_after if retry_after is not None else _DEFAULT_RETRY_AFTER_S)
 
     def _record_api_failure(self, model_name: str, exc: Exception) -> FailureKind | None:
         failure_kind = classify_api_failure(exc)
         if failure_kind is None:
             return None
-        cooldown = (1800.0 if is_daily_quota_exhausted(exc) else extract_retry_after_seconds(exc)) if failure_kind == "rate_limit" else None
+        cooldown = (
+            (_QUOTA_COOLDOWN_S if is_daily_quota_exhausted(exc) else extract_retry_after_seconds(exc))
+            if failure_kind == "rate_limit"
+            else None
+        )
         self._breaker.record_failure(model_name, failure_kind, cooldown_seconds=cooldown)
         logger.warning("Gemini model=%s circuit opened (%s, code=%s, cooldown_s=%s).", model_name, failure_kind, getattr(exc, "code", None), cooldown)
         return failure_kind
@@ -240,12 +252,12 @@ class GeminiClient:
             return None
         if not self._model_chain:
             await self.initialize_models()
-        candidates = self._breaker.filter_candidates(self._model_chain[:6])
+        candidates = self._breaker.filter_candidates(self._model_chain[:_MAX_MODEL_CANDIDATES])
         if not candidates:
             return None
         user_prompt = build_chat_user_prompt(safe_q, profile, plan)
-        max_tokens = min(384, self._settings.gemini_max_output_tokens)
-        deadline = self._clock() + min(18.0, self._settings.gemini_timeout_seconds)
+        max_tokens = min(_CHAT_MAX_TOKENS_CAP, self._settings.gemini_max_output_tokens)
+        deadline = self._clock() + min(_CHAT_MAX_TIMEOUT_S, self._settings.gemini_timeout_seconds)
         for model_name in candidates:
             reply_text, abort_all = await self._call_chat_model(model_name, user_prompt, max_tokens, deadline)
             if abort_all:

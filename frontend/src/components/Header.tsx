@@ -171,7 +171,14 @@ export function Header(props: HeaderProps) {
           hasPlan={props.hasPlan}
           activeSection={props.activeSection}
         />
-        <HeaderControls {...props} />
+        <HeaderControls
+          language={props.language}
+          onToggleLanguage={props.onToggleLanguage}
+          theme={props.theme}
+          onToggleTheme={props.onToggleTheme}
+          reducedMotion={props.reducedMotion}
+          onToggleReducedMotion={props.onToggleReducedMotion}
+        />
       </div>
     </header>
   );

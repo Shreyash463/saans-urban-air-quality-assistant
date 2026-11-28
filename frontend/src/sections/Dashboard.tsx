@@ -44,7 +44,7 @@ function DashboardMetaHeader({
       : t(language, 'generatedByRules');
 
   return (
-    <div className="flex flex-wrap items-start justify-between gap-4" data-reveal>
+    <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <h2
@@ -117,14 +117,8 @@ function DashboardTopOverview({
   language: LanguageCode;
 }) {
   return (
-    <div
-      className="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch"
-      data-reveal-group
-    >
-      <div
-        data-reveal
-        className="saans-theme-surface print-card lg:col-span-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C2E] p-6 flex flex-col items-center justify-center"
-      >
+    <div className="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+      <div className="saans-theme-surface print-card lg:col-span-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C2E] p-6 flex flex-col items-center justify-center">
         <AqiGauge
           aqi={plan.aqi.aqi}
           city={plan.aqi.city}
@@ -133,7 +127,7 @@ function DashboardTopOverview({
           caption={`${t(language, 'dominantPollutantLabel')}: ${plan.aqi.dominantPollutant}`}
         />
       </div>
-      <div data-reveal className="lg:col-span-8 flex flex-col gap-5">
+      <div className="lg:col-span-8 flex flex-col gap-5">
         <AdvisoryCard
           title={t(language, 'healthAdvisoryHeading')}
           body={plan.healthAdvisory}

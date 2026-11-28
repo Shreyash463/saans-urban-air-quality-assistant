@@ -5,20 +5,20 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import time
 from collections.abc import Callable
 
 from fastapi import APIRouter, Request, Response
 
 from app.dependencies import (
     AirQualityServiceDep,
-    AppState,
     AppStateDep,
     GeminiClientDep,
     HttpClientDep,
     PlanCacheDep,
     PlanLimiterDep,
+    elapsed_ms,
     enforce_rate_limit,
+    resolve_clock,
 )
 from app.exceptions import InvalidInputError, log_route_event
 from app.schemas import AirQualityReading, PlanRequest, PlanResponse, UserProfile
@@ -46,14 +46,6 @@ def _to_user_profile(payload: PlanRequest) -> UserProfile:
         budget=payload.budget,
         language=payload.language,
     )
-
-
-def _elapsed_ms(started: float, now: float) -> int:
-    return max(0, round((now - started) * 1000))
-
-
-def _resolve_clock(app_state: AppState) -> Callable[[], float]:
-    return app_state.clock if app_state.clock is not None else time.monotonic
 
 
 def _build_plan_cache_key(profile: UserProfile, aqi_source: str, aqi_val: int) -> str:
@@ -106,7 +98,7 @@ def _log_plan_latency(
         cache=cache_state,
         aqi_source=aqi_reading.source,
         generated_by=plan.generated_by,
-        latency_ms=_elapsed_ms(started, clock()),
+        latency_ms=elapsed_ms(started, clock()),
     )
 
 
@@ -128,7 +120,7 @@ async def create_plan_endpoint(
     gemini_client: GeminiClientDep,
 ) -> PlanResponse:
     """Generates a personalized clean-air plan using live AQI, Gemini, safety checks, and fallback."""
-    clock = _resolve_clock(app_state)
+    clock = resolve_clock(app_state)
     started = clock()
     response.headers["Cache-Control"] = "no-store"
 

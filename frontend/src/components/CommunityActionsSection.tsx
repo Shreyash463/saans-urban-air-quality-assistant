@@ -48,10 +48,7 @@ function CommunityActionCard({
 }) {
   const ActorIcon = ACTOR_ICON_MAP[action.who];
   return (
-    <div
-      data-reveal
-      className="saans-card-lift rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/80 dark:bg-[#0B1220]/80 p-5 flex flex-col justify-between gap-4"
-    >
+    <div className="saans-card-lift rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/80 dark:bg-[#0B1220]/80 p-5 flex flex-col justify-between gap-4">
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <Badge tone="teal" className="py-1">
@@ -107,10 +104,7 @@ export function CommunityActionsSection({
           {t(language, 'communitySubtitle')}
         </p>
       </div>
-      <div
-        data-reveal-group
-        className="print-two-col mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
-      >
+      <div className="print-two-col mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {actions.map((action) => (
           <CommunityActionCard
             key={`${action.who}-${action.title}`}

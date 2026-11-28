@@ -13,7 +13,7 @@ const STARTER_QUESTION_KEYS: TranslationKey[] = [
 
 function ChatSectionHeader({ language }: { language: LanguageCode }) {
   return (
-    <div data-reveal>
+    <div>
       <div className="inline-flex items-center gap-2 text-sm font-semibold text-teal-800 dark:text-teal-300">
         <MessageSquare className="w-4 h-4 shrink-0" aria-hidden="true" />
         <span>{t(language, 'navChat')}</span>
@@ -86,10 +86,7 @@ export default function Chat({ profile, plan }: ChatProps) {
     >
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
         <ChatSectionHeader language={language} />
-        <div
-          data-reveal
-          className="saans-theme-surface mt-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C2E] p-4 sm:p-6 flex flex-col gap-5"
-        >
+        <div className="saans-theme-surface mt-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C2E] p-4 sm:p-6 flex flex-col gap-5">
           <div>
             <ChatStarterChips
               language={language}

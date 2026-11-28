@@ -32,18 +32,12 @@ function RoutineTimelineItem({
   language: LanguageCode;
 }) {
   return (
-    <li
-      data-reveal
-      className="relative saans-card-lift rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/80 dark:bg-[#0B1220]/80 p-5"
-    >
+    <li className="relative saans-card-lift rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/80 dark:bg-[#0B1220]/80 p-5">
       <span
         aria-hidden="true"
         className="no-print absolute -left-[25px] sm:-left-[31px] top-6 w-3.5 h-3.5 rounded-full bg-teal-600 dark:bg-teal-400 ring-4 ring-white dark:ring-[#131C2E]"
       />
-      <span
-        className="text-sm font-semibold text-teal-800 dark:text-teal-300"
-        style={{ fontFamily: 'var(--font-mono)' }}
-      >
+      <span className="font-mono text-sm font-semibold text-teal-800 dark:text-teal-300">
         {t(language, SLOT_LABEL_MAP[item.timeSlot])}
       </span>
       <h4 className="mt-1.5 text-base font-semibold text-slate-900 dark:text-slate-50 leading-snug">
@@ -87,7 +81,7 @@ export function RoutineTimelineCard({
         >
           <div className="w-full h-full bg-teal-600 dark:bg-teal-400" />
         </div>
-        <ol data-reveal-group className="space-y-5">
+        <ol className="space-y-5">
           {routine.map((item) => (
             <RoutineTimelineItem key={item.timeSlot} item={item} language={language} />
           ))}
@@ -105,10 +99,7 @@ function IndoorHackItem({
   language: LanguageCode;
 }) {
   return (
-    <div
-      data-reveal
-      className="saans-card-lift rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/80 dark:bg-[#0B1220]/80 p-5 flex flex-col justify-between gap-4"
-    >
+    <div className="saans-card-lift rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/80 dark:bg-[#0B1220]/80 p-5 flex flex-col justify-between gap-4">
       <div>
         <div className="flex items-start justify-between gap-2">
           <h4 className="text-base font-semibold text-slate-900 dark:text-slate-50 leading-snug">
@@ -158,10 +149,7 @@ export function IndoorHacksCard({
           {t(language, 'indoorHacksSubtitle')}
         </p>
       </div>
-      <div
-        data-reveal-group
-        className="print-two-col mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
-      >
+      <div className="print-two-col mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {hacks.map((hack) => (
           <IndoorHackItem key={hack.title} hack={hack} language={language} />
         ))}
@@ -183,10 +171,7 @@ function AlternativeMetricsRow({
         <dt className="text-slate-600 dark:text-slate-300">
           {t(language, 'pm25DropLabel')}
         </dt>
-        <dd
-          className="mt-0.5 text-base font-semibold text-teal-800 dark:text-teal-300 tabular-nums"
-          style={{ fontFamily: 'var(--font-mono)' }}
-        >
+        <dd className="font-mono mt-0.5 text-base font-semibold text-teal-800 dark:text-teal-300 tabular-nums">
           ~{alt.pm25ReductionPct}%
         </dd>
       </div>
@@ -194,10 +179,7 @@ function AlternativeMetricsRow({
         <dt className="text-slate-600 dark:text-slate-300">
           {t(language, 'co2SavedLabel')}
         </dt>
-        <dd
-          className="mt-0.5 text-base font-semibold text-slate-900 dark:text-slate-100 tabular-nums"
-          style={{ fontFamily: 'var(--font-mono)' }}
-        >
+        <dd className="font-mono mt-0.5 text-base font-semibold text-slate-900 dark:text-slate-100 tabular-nums">
           {alt.co2SavedKgPerMonth > 0
             ? `~${alt.co2SavedKgPerMonth} kg`
             : `— (${t(language, 'co2Pm25Only')})`}
@@ -215,10 +197,7 @@ function AlternativeSwapCard({
   language: LanguageCode;
 }) {
   return (
-    <div
-      data-reveal
-      className="saans-card-lift rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/80 dark:bg-[#0B1220]/80 p-5 flex flex-col justify-between gap-4"
-    >
+    <div className="saans-card-lift rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/80 dark:bg-[#0B1220]/80 p-5 flex flex-col justify-between gap-4">
       <div className="space-y-3">
         <div>
           <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
@@ -265,10 +244,7 @@ export function AlternativesCard({
           {t(language, 'alternativesSubtitle')}
         </p>
       </div>
-      <div
-        data-reveal-group
-        className="print-two-col mt-6 grid grid-cols-1 lg:grid-cols-3 gap-5"
-      >
+      <div className="print-two-col mt-6 grid grid-cols-1 lg:grid-cols-3 gap-5">
         {alternatives.map((alt) => (
           <AlternativeSwapCard key={alt.swap} alt={alt} language={language} />
         ))}

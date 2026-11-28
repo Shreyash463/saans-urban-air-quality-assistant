@@ -44,13 +44,7 @@ function DeferredSections({ state }: { state: ReturnType<typeof useSaansAppState
   );
 }
 
-function MainSections({
-  state,
-  onGetStarted,
-}: {
-  state: ReturnType<typeof useSaansAppState>;
-  onGetStarted: () => void;
-}) {
+function MainSections({ state }: { state: ReturnType<typeof useSaansAppState> }) {
   return (
     <main id="main-content" className="relative z-10 flex-1">
       <Hero
@@ -59,7 +53,6 @@ function MainSections({
         aqiLoading={state.aqiLoading}
         aqiError={state.aqiError}
         onRetryAqi={state.reloadHeroAqi}
-        onGetStarted={onGetStarted}
       />
       <HowItWorks language={state.profile.language} />
       <ProfileForm
@@ -123,7 +116,7 @@ export default function App() {
       <div className="sr-only" role="status" aria-live="polite">
         {state.statusMessage}
       </div>
-      <MainSections state={state} onGetStarted={() => scrollTo('#profile')} />
+      <MainSections state={state} />
       <Footer
         language={state.profile.language}
         reducedMotion={reducedMotion}

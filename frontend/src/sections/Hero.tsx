@@ -11,28 +11,13 @@ interface HeroProps {
   aqiLoading?: boolean;
   aqiError?: boolean;
   onRetryAqi?: () => void;
-  onGetStarted?: () => void;
 }
 
-function HeroCtaButtons({
-  language,
-  onGetStarted,
-}: {
-  language: LanguageCode;
-  onGetStarted?: () => void;
-}) {
+function HeroCtaButtons({ language }: { language: LanguageCode }) {
   return (
     <div className="flex flex-wrap items-center gap-3.5 pt-1">
       <a
         href="#profile"
-        onClick={
-          onGetStarted
-            ? (e) => {
-                e.preventDefault();
-                onGetStarted();
-              }
-            : undefined
-        }
         className="min-h-[48px] px-6 py-3 rounded-xl bg-teal-700 hover:bg-teal-800 dark:bg-teal-400 dark:hover:bg-teal-300 text-white dark:text-slate-950 font-semibold text-base inline-flex items-center gap-2 active:scale-[0.98] transition-transform"
       >
         <span>{t(language, 'heroPrimaryCta')}</span>
@@ -48,13 +33,7 @@ function HeroCtaButtons({
   );
 }
 
-function HeroLeftColumn({
-  language,
-  onGetStarted,
-}: {
-  language: LanguageCode;
-  onGetStarted?: () => void;
-}) {
+function HeroLeftColumn({ language }: { language: LanguageCode }) {
   return (
     <div className="lg:col-span-7 space-y-6">
       <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-teal-600/30 dark:border-teal-400/30 bg-teal-50/90 dark:bg-teal-950/50 text-teal-900 dark:text-teal-200 text-sm font-medium">
@@ -73,7 +52,7 @@ function HeroLeftColumn({
       <p className="max-w-xl text-lg text-slate-700 dark:text-slate-200 leading-relaxed">
         {t(language, 'heroDescription')}
       </p>
-      <HeroCtaButtons language={language} onGetStarted={onGetStarted} />
+      <HeroCtaButtons language={language} />
     </div>
   );
 }
@@ -217,7 +196,7 @@ export function Hero(props: HeroProps) {
         className="saans-hero-haze pointer-events-none absolute inset-0"
       />
       <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-        <HeroLeftColumn language={props.language} onGetStarted={props.onGetStarted} />
+        <HeroLeftColumn language={props.language} />
         <HeroAqiPanel
           language={props.language}
           previewReading={props.previewReading}

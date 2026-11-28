@@ -18,21 +18,16 @@ export function HowItWorks({ language }: { language: LanguageCode }) {
         <h2
           id="how-it-works-heading"
           className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50"
-          data-reveal
         >
           {t(language, 'howItWorksHeading')}
         </h2>
-        <div data-reveal-group className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
           {STEPS.map((step) => (
             <article
               key={step.num}
-              data-reveal
               className="saans-theme-surface saans-card-lift rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C2E] p-6 space-y-2.5"
             >
-              <span
-                className="inline-block text-sm font-bold text-teal-700 dark:text-teal-300 tabular-nums"
-                style={{ fontFamily: 'var(--font-mono)' }}
-              >
+              <span className="font-mono inline-block text-sm font-bold text-teal-700 dark:text-teal-300 tabular-nums">
                 {step.num}
               </span>
               <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50">

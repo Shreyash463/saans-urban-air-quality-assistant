@@ -381,11 +381,6 @@ html.reduce-motion .saans-active-segment::after {
     gap: 6pt !important;
   }
 
-  #dashboard [data-reveal] {
-    opacity: 1 !important;
-    transform: none !important;
-  }
-
   .print-card * {
     color: #000000 !important;
   }

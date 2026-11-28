@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ipaddress
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Annotated, cast
@@ -113,6 +114,16 @@ def get_client_ip(request: Request) -> str:
                 return real_ip
 
     return request.client.host if request.client else "unknown"
+
+
+def resolve_clock(app_state: AppState) -> Callable[[], float]:
+    """Returns injected deterministic clock for tests or monotonic wall clock."""
+    return app_state.clock if app_state.clock is not None else time.monotonic
+
+
+def elapsed_ms(started: float, now: float) -> int:
+    """Computes non-negative rounded millisecond elapsed time."""
+    return max(0, round((now - started) * 1000))
 
 
 async def enforce_rate_limit(

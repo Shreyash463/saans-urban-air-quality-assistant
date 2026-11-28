@@ -99,7 +99,7 @@ function SensitivitySwitches({
   const toggleFlag = (key: 'hasChildren' | 'hasElderly' | 'hasRespiratoryCondition') =>
     onChangeProfile((prev) => ({ ...prev, [key]: !prev[key] }));
   return (
-    <fieldset data-reveal>
+    <fieldset>
       <legend className="text-base font-semibold text-slate-900 dark:text-slate-100">
         {t(language, 'sensitivityLegend')}
       </legend>
@@ -165,41 +165,38 @@ function ProfileSubmitActions({
   );
 }
 
-function ProfileCityRow({
-  props,
-  cityErrorKey,
-  onCityErrorChange,
-}: {
-  props: ProfileFormProps;
+type ProfileCityRowProps = Pick<
+  ProfileFormProps,
+  | 'profile'
+  | 'onChangeProfile'
+  | 'onPreviewReadingChange'
+  | 'onLocationChange'
+  | 'hasActiveLocation'
+> & {
   cityErrorKey: CityErrorKey | null;
   onCityErrorChange: (err: CityErrorKey | null) => void;
-}) {
-  const {
-    profile,
-    onChangeProfile,
-    onPreviewReadingChange,
-    onLocationChange,
-    hasActiveLocation,
-  } = props;
+};
+
+function ProfileCityRow(p: ProfileCityRowProps) {
   return (
-    <div data-reveal className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
       <CityLocationField
-        city={profile.city}
-        language={profile.language}
-        cityErrorKey={cityErrorKey}
-        hasActiveLocation={hasActiveLocation}
+        city={p.profile.city}
+        language={p.profile.language}
+        cityErrorKey={p.cityErrorKey}
+        hasActiveLocation={p.hasActiveLocation}
         onCityValueChange={(nextCity, nextErr) => {
-          onChangeProfile((prev) => ({ ...prev, city: nextCity }));
-          onCityErrorChange(nextErr);
+          p.onChangeProfile((prev) => ({ ...prev, city: nextCity }));
+          p.onCityErrorChange(nextErr);
         }}
-        onPreviewReadingChange={onPreviewReadingChange}
-        onLocationChange={onLocationChange}
+        onPreviewReadingChange={p.onPreviewReadingChange}
+        onLocationChange={p.onLocationChange}
       />
       <HouseholdSizeStepper
-        householdSize={profile.householdSize}
-        language={profile.language}
+        householdSize={p.profile.householdSize}
+        language={p.profile.language}
         onChangeSize={(delta) =>
-          onChangeProfile((prev) => ({
+          p.onChangeProfile((prev) => ({
             ...prev,
             householdSize: clampHouseholdSize(prev.householdSize + delta),
           }))
@@ -209,46 +206,41 @@ function ProfileCityRow({
   );
 }
 
-function ProfileFormCard({
-  props,
-  cityErrorKey,
-  onCityErrorChange,
-  onSubmit,
-}: {
-  props: ProfileFormProps;
+type ProfileCardProps = Omit<ProfileFormProps, 'onSubmitProfile'> & {
   cityErrorKey: CityErrorKey | null;
   onCityErrorChange: (err: CityErrorKey | null) => void;
   onSubmit: (e: FormEvent) => void;
-}) {
-  const { profile, onChangeProfile, isSubmitting, onClearData } = props;
+};
+
+function ProfileFormCard(p: ProfileCardProps) {
   return (
     <form
-      onSubmit={onSubmit}
+      onSubmit={p.onSubmit}
       noValidate
-      data-reveal-group
       className="saans-theme-surface mt-8 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C2E] p-5 sm:p-8 space-y-8"
     >
       <ProfileCityRow
-        props={props}
-        cityErrorKey={cityErrorKey}
-        onCityErrorChange={onCityErrorChange}
+        profile={p.profile}
+        onChangeProfile={p.onChangeProfile}
+        onPreviewReadingChange={p.onPreviewReadingChange}
+        onLocationChange={p.onLocationChange}
+        hasActiveLocation={p.hasActiveLocation}
+        cityErrorKey={p.cityErrorKey}
+        onCityErrorChange={p.onCityErrorChange}
       />
       <hr className="border-slate-200/80 dark:border-slate-800" />
-      <SensitivitySwitches profile={profile} onChangeProfile={onChangeProfile} />
+      <SensitivitySwitches profile={p.profile} onChangeProfile={p.onChangeProfile} />
       <hr className="border-slate-200/80 dark:border-slate-800" />
-      <CommuteSelectorRow profile={profile} onChangeProfile={onChangeProfile} />
+      <CommuteSelectorRow profile={p.profile} onChangeProfile={p.onChangeProfile} />
       <hr className="border-slate-200/80 dark:border-slate-800" />
-      <HomeEnvironmentRow profile={profile} onChangeProfile={onChangeProfile} />
+      <HomeEnvironmentRow profile={p.profile} onChangeProfile={p.onChangeProfile} />
       <hr className="border-slate-200/80 dark:border-slate-800" />
-      <div
-        data-reveal
-        className="flex flex-col lg:flex-row lg:items-end justify-between gap-6"
-      >
-        <BudgetSelectorField profile={profile} onChangeProfile={onChangeProfile} />
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+        <BudgetSelectorField profile={p.profile} onChangeProfile={p.onChangeProfile} />
         <ProfileSubmitActions
-          language={profile.language}
-          isSubmitting={isSubmitting}
-          onClearData={onClearData}
+          language={p.profile.language}
+          isSubmitting={p.isSubmitting}
+          onClearData={p.onClearData}
         />
       </div>
     </form>
@@ -279,7 +271,7 @@ export function ProfileForm(props: ProfileFormProps) {
       className="saans-section-anchor py-12 sm:py-16 border-t border-slate-200/80 dark:border-slate-800/80"
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="max-w-2xl" data-reveal>
+        <div className="max-w-2xl">
           <h2
             id="profile-heading"
             className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50"
@@ -291,7 +283,13 @@ export function ProfileForm(props: ProfileFormProps) {
           </p>
         </div>
         <ProfileFormCard
-          props={props}
+          profile={profile}
+          onChangeProfile={onChangeProfile}
+          onClearData={props.onClearData}
+          isSubmitting={props.isSubmitting}
+          onPreviewReadingChange={props.onPreviewReadingChange}
+          onLocationChange={props.onLocationChange}
+          hasActiveLocation={props.hasActiveLocation}
           cityErrorKey={cityErrorKey}
           onCityErrorChange={setCityErrorKey}
           onSubmit={handleSubmit}

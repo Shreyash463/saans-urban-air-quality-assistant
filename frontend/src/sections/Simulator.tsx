@@ -104,8 +104,7 @@ function CommunityScaleCard({
         </span>
         <span
           data-testid="community-co2-value"
-          className="text-lg font-semibold text-slate-900 dark:text-slate-50 tabular-nums"
-          style={{ fontFamily: 'var(--font-mono)' }}
+          className="font-mono text-lg font-semibold text-slate-900 dark:text-slate-50 tabular-nums"
         >
           ~{communityCo2Kg.toLocaleString()} kg
         </span>
@@ -215,7 +214,7 @@ function SimulatorHeader({
   onReset: () => void;
 }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-4" data-reveal>
+    <div className="flex flex-wrap items-end justify-between gap-4">
       <div className="max-w-2xl">
         <h2
           id="simulator-heading"

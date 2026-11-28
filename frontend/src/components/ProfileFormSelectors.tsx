@@ -101,7 +101,7 @@ export function CommuteSelectorRow({ profile, onChangeProfile }: SelectorRowProp
   const { language } = profile;
   const isWfh = profile.commuteMode === 'work_from_home';
   return (
-    <div data-reveal className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
       <fieldset className="lg:col-span-8">
         <legend className="text-base font-semibold text-slate-900 dark:text-slate-100">
           {t(language, 'commuteLegend')}
@@ -215,7 +215,7 @@ function CookingFuelField({ profile, onChangeProfile }: SelectorRowProps) {
 
 export function HomeEnvironmentRow({ profile, onChangeProfile }: SelectorRowProps) {
   return (
-    <div data-reveal className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
       <HomeTypeField profile={profile} onChangeProfile={onChangeProfile} />
       <PurifierChoiceField profile={profile} onChangeProfile={onChangeProfile} />
       <CookingFuelField profile={profile} onChangeProfile={onChangeProfile} />
